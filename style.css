@@ -24,3 +24,33 @@
 .landscape-controls{padding-top:12px}.landscape-controls label{display:flex!important;justify-content:space-between;gap:8px;margin:12px 0 6px;font-size:14px}.landscape-controls input[type="range"]{display:block!important;width:100%;margin:6px 0 12px}.landscape-controls select{width:100%;padding:9px;font:inherit;font-size:14px;color:#243e4b;background:#fff;border:1px solid #b6c5cf;border-radius:6px}.landscape-controls output{font-weight:400}.landscape-controls p{display:block!important}#patio-area{font-weight:650;color:#193f56}.planting-controls{border-top:1px solid #dce4e8;margin-top:15px;padding-top:10px}.planting-controls h3{font-size:15px;margin:0}.planting-controls>button{width:100%;margin-top:10px}.plant-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0;font-size:12px}.plant-row button{padding:6px;font-size:12px}
 
 #curve-editor h3{font-size:15px;margin:14px 0 6px}#curve-editor p{display:block;font-size:13px}#curve-map{width:100%;max-height:250px;background:#eef3f5;border-radius:8px;touch-action:none}#curve-map text{font:10px system-ui;fill:#516774}#curve-outline{fill:#c1cccb;stroke:#587579;stroke-width:2}#curve-handles circle{fill:#196daa;stroke:white;stroke-width:3;cursor:grab;touch-action:none}#curve-handles circle:focus{outline:none;stroke:#172f3d;stroke-width:4}.curve-presets{display:flex;gap:4px;flex-wrap:wrap}.curve-presets button{padding:8px;font-size:12px}
+
+/* First-floor walkthrough */
+#enter{background:#fff;border:2px solid #193f56;color:#193f56;font-weight:600}
+#enter:hover{background:#edf3f6}
+body[data-mode="interior"] aside,body[data-mode="interior"] #config-open,body[data-mode="interior"] #exterior-transport,body[data-mode="interior"] .compass{display:none}
+body[data-mode="interior"] #scene{cursor:grab}
+.interior-transport{left:auto;right:24px;top:24px;bottom:auto;transform:none;white-space:normal;flex-direction:column;align-items:stretch;width:200px;gap:10px;padding:12px}
+#room-chips{display:flex;flex-direction:column;gap:6px}
+#room-chips button{padding:9px 12px;font-size:14px;text-align:left}
+#room-chips button[aria-pressed="true"]{background:#193f56;color:#fff;border-color:#193f56}
+#interior-status{font-size:12px;color:#56707d;text-align:center;line-height:1.4}
+#hotspots{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.hotspot{position:absolute;left:0;top:0;pointer-events:auto;padding:6px 11px;font-size:13px;font-weight:600;background:#193f56e6;color:#fff;border:1px solid #ffffff66;border-radius:999px;box-shadow:0 4px 18px #0f2a3a40;white-space:nowrap}
+.hotspot:hover{background:#285a76}
+.hotspot[hidden]{display:none}
+#minimap{position:absolute;left:24px;bottom:24px;width:150px;height:240px;background:#ffffffe6;border:1px solid #fff;border-radius:12px;box-shadow:0 10px 40px #193b5012;padding:8px}
+#minimap[hidden]{display:none}
+.map-room{fill:#e6eef2;stroke:#557381;stroke-width:1.2}
+.map-outside{fill:#eef2ec;stroke-dasharray:3 2}
+.map-current{fill:#cfe2ec}
+.map-label{font-size:8px;fill:#345261;text-anchor:middle;font-weight:600;pointer-events:none}
+.map-node{fill:#557381}
+.map-cone{fill:#2783bd55}
+.map-you{fill:#193f56;stroke:#fff;stroke-width:1.2}
+@media(max-width:800px){#minimap{width:96px;height:154px;left:12px;top:auto;bottom:74px;padding:4px}.interior-transport{left:12px;right:12px;top:auto;bottom:12px;width:auto;max-height:none;flex-direction:row;align-items:center;gap:6px;padding:8px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}#exit-interior{flex:0 0 auto;padding:8px 10px;font-size:12px}#room-chips{flex-direction:row;flex-wrap:nowrap}#room-chips h3{display:none}#room-chips button{flex:0 0 auto;padding:8px 10px;font-size:12px;white-space:nowrap}#interior-status{display:none}.hotspot{font-size:12px;padding:5px 9px}}
+#interior-transport[hidden]{display:none}
+#room-chips h3{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#557381;margin:6px 0 0;font-weight:650}
+.map-title{font-size:9px;fill:#557381;text-anchor:middle;font-weight:650;letter-spacing:.08em}
+.map-minor{fill:#f0f3f5;stroke-width:.8}
+.interior-transport{max-height:calc(100% - 48px);overflow-y:auto}
