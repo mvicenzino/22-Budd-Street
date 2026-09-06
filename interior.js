@@ -1,7 +1,10 @@
-// Walkthrough of the house interior: builds every level inside the exterior shell and drives a
-// street-view style camera (stand at a node, drag to look, click an arrow to step).
+// Walkthrough of the house interior: builds every level inside the exterior shell, drives a
+// street-view style camera (stand at a node, drag to look, click an arrow to step), and applies
+// the interior design choices (flooring, furniture style and placement, rugs, wall colors, kitchen).
 import * as THREE from 'three';
 import {INNER, EYE, LEVELS, OPENINGS, PARTITIONS, STAIR, LOFT_STAIR, ROOMS, NODES} from './plan.js';
+import {mergeStatic} from './merge.js';
+import {FLOORING, WALL_COLORS, RUGS, KITCHEN_FLOORS, COUNTERS, loadDesign, saveDesign, createDesignPanel} from './design.js';
 
 const $ = s => document.querySelector(s);
 const ease = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
@@ -10,22 +13,47 @@ const shortest = (from, to) => from + Math.atan2(Math.sin(to - from), Math.cos(t
 const yawBetween = (a, b) => Math.atan2(-(b.x - a.x), -(b.z - a.z));
 const T = .14; // partition thickness
 const F = LEVELS.first, S = LEVELS.second, L = LEVELS.loft;
+const byId = list => Object.fromEntries(list.map(i => [i.id, i]));
+const FLOOR_BY_ID = byId(FLOORING), WALL_BY_ID = byId(WALL_COLORS), RUG_BY_ID = byId(RUGS), KFLOOR_BY_ID = byId(KITCHEN_FLOORS), COUNTER_BY_ID = byId(COUNTERS);
+
+// Small deterministic random source so generated textures look the same on every visit.
+function seeded(seed) {
+  let s = seed >>> 0;
+  return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+}
 
 export function createInterior({scene, camera, renderer, host, controls, doors, glassLower, hemisphere, exteriorPose, onEnter, onExit}) {
   const mat = (c, o = {}) => new THREE.MeshStandardMaterial({color: c, roughness: .88, ...o});
-  const paint = mat('#f3efe6'), ceilingPaint = mat('#faf8f3'), trim = mat('#f7f6ed', {roughness: .6});
-  const walnut = mat('#7d5b3f', {roughness: .55}), oak = mat('#a88760', {roughness: .6}), fabric = mat('#8f9ca4');
-  const cushion = mat('#d8d3c6'), cabinet = mat('#ebe8df', {roughness: .5}), counter = mat('#d6d2c8', {roughness: .35});
-  const steel = mat('#b9c0c4', {metalness: .65, roughness: .3}), black = mat('#2b2f31', {roughness: .5});
-  const porcelain = mat('#f4f4f1', {roughness: .3}), leaf = mat('#4f7a4a'), rugBlue = mat('#6c7d8a'), rugSand = mat('#c2ad8d');
-  const linen = mat('#e9e4d8'), quilt = mat('#7c8b9a'), quiltWarm = mat('#b98c6b'), tile = mat('#e4e6e3', {roughness: .4});
-  const carpet = mat('#c9bfae'), slope = mat('#faf8f3', {side: THREE.DoubleSide}), paneGlass = mat('#7f9a9e', {metalness: .2, roughness: .2, transparent: true, opacity: .5});
+  const ceilingPaint = mat('#faf8f3'), trim = mat('#f7f6ed', {roughness: .6}), slope = mat('#faf8f3', {side: THREE.DoubleSide});
+  const cabinet = mat('#ebe8df', {roughness: .5}), steel = mat('#b9c0c4', {metalness: .65, roughness: .3}), black = mat('#2b2f31', {roughness: .5});
+  const porcelain = mat('#f4f4f1', {roughness: .3}), leaf = mat('#4f7a4a'), tile = mat('#e4e6e3', {roughness: .4});
+  const carpet = mat('#c9bfae'), paneGlass = mat('#7f9a9e', {metalness: .2, roughness: .2, transparent: true, opacity: .5});
+  const anisotropy = renderer.capabilities.getMaxAnisotropy();
+  const texture = canvas => { const t = new THREE.CanvasTexture(canvas); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = anisotropy; return t; };
+
+  // Furniture palette: one shared material per role, recolored by the furniture style.
+  const palette = {
+    wood: mat('#7d5b3f', {roughness: .55}), woodLight: mat('#a88760', {roughness: .6}), rustic: mat('#7a6650', {roughness: .7}),
+    fabric: mat('#8f9ca4'), cushion: mat('#d8d3c6'), sectional: mat('#cbc2b1', {roughness: .95}), pillow: mat('#a9b2a8', {roughness: .95}),
+    linen: mat('#e9e4d8'), quilt: mat('#7c8b9a'), quiltWarm: mat('#b98c6b'), frame: mat('#2b2f31', {roughness: .5}),
+  };
+  const STYLE_COLORS = {
+    traditional: {wood: '#7d5b3f', woodLight: '#a88760', rustic: '#7a6650', fabric: '#8f9ca4', cushion: '#d8d3c6', sectional: '#cbc2b1', pillow: '#a9b2a8', linen: '#e9e4d8', quilt: '#7c8b9a', quiltWarm: '#b98c6b', frame: '#2b2f31'},
+    modern: {wood: '#2e3033', woodLight: '#cbb392', rustic: '#3a3c3f', fabric: '#4d5359', cushion: '#e7e4dd', sectional: '#585d63', pillow: '#c9b79a', linen: '#f2f1ee', quilt: '#3f464c', quiltWarm: '#8a7b6a', frame: '#1e2022'},
+    coastal: {wood: '#d9cfbf', woodLight: '#e4dccd', rustic: '#cbbfae', fabric: '#cfc5b2', cushion: '#f3f1ea', sectional: '#e2dccf', pillow: '#9fb8c4', linen: '#f7f5f0', quilt: '#9fb8c4', quiltWarm: '#d8c9b0', frame: '#8a8f93'},
+    farmhouse: {wood: '#7a6650', woodLight: '#b39a78', rustic: '#6b5642', fabric: '#b8ad9c', cushion: '#ebe5d8', sectional: '#d5cbba', pillow: '#a8543d', linen: '#efe9dd', quilt: '#a8543d', quiltWarm: '#c9b18f', frame: '#3b3a37'},
+  };
+  function applyStyle(id) {
+    const colors = STYLE_COLORS[id] || STYLE_COLORS.traditional;
+    for (const [role, color] of Object.entries(colors)) palette[role].color.set(color);
+  }
 
   const group = new THREE.Group();
   group.name = 'Interior';
   scene.add(group);
+  let parentGroup = group; // where box() puts new meshes; room builders retarget this
 
-  function box(w, h, d, x, yBottom, z, m, parent = group) {
+  function box(w, h, d, x, yBottom, z, m, parent = parentGroup) {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
     mesh.position.set(x, yBottom + h / 2, z);
     mesh.castShadow = true;
@@ -33,7 +61,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     parent.add(mesh);
     return mesh;
   }
-  function beam(a, b, size, m, parent = group) {
+  function beam(a, b, size, m, parent = parentGroup) {
     const av = new THREE.Vector3(...a), bv = new THREE.Vector3(...b), d = bv.clone().sub(av);
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(size, d.length(), size), m);
     mesh.position.copy(av.clone().add(bv).multiplyScalar(.5));
@@ -54,40 +82,38 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   }
 
   // ---- Floors and ceilings -------------------------------------------------------------
+  // Neutral plank texture; the wood shade comes from the material color so flooring swaps are free.
   function plankTexture() {
     const c = document.createElement('canvas');
     c.width = c.height = 1024;
-    const g = c.getContext('2d');
-    g.fillStyle = '#a57f57';
+    const g = c.getContext('2d'), rnd = seeded(7);
+    g.fillStyle = '#e6e6e6';
     g.fillRect(0, 0, 1024, 1024);
     const rows = 8, h = 1024 / rows;
     for (let r = 0; r < rows; r++) {
-      const tone = 150 + ((r * 37) % 23);
-      g.fillStyle = `rgb(${tone + 15},${tone - 25},${tone - 60})`;
+      const tone = 216 + Math.floor(rnd() * 30);
+      g.fillStyle = `rgb(${tone},${tone - 2},${tone - 5})`;
       g.fillRect(0, r * h, 1024, h - 4);
-      g.fillStyle = 'rgba(70,45,25,.45)';
+      g.fillStyle = 'rgba(60,40,25,.5)';
       g.fillRect(0, r * h + h - 4, 1024, 4);
-      g.fillRect((r * 397) % 1024, r * h, 4, h);
-      g.strokeStyle = 'rgba(90,60,35,.18)';
+      g.fillRect(Math.floor(rnd() * 1024), r * h, 4, h);
+      g.strokeStyle = 'rgba(90,60,35,.16)';
+      g.lineWidth = 2;
       for (let i = 0; i < 6; i++) {
         g.beginPath();
-        g.lineWidth = 2;
         g.moveTo(0, r * h + 12 + i * 18);
-        g.lineTo(1024, r * h + 8 + i * 18 + ((r + i) % 3) * 2);
+        g.lineTo(1024, r * h + 8 + i * 18 + Math.floor(rnd() * 5));
         g.stroke();
       }
     }
-    const t = new THREE.CanvasTexture(c);
-    t.colorSpace = THREE.SRGBColorSpace;
+    const t = texture(c);
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     t.repeat.set(3, 7.5);
-    t.anisotropy = renderer.capabilities.getMaxAnisotropy();
     return t;
   }
-  const floorMat = new THREE.MeshStandardMaterial({map: plankTexture(), roughness: .55});
+  const floorMat = new THREE.MeshStandardMaterial({map: plankTexture(), roughness: .55, color: FLOORING[0].color});
   const slabMats = [trim, trim, floorMat, ceilingPaint, trim, trim];
   const W = INNER.x * 2 + .2, D = INNER.z * 2 + .2;
-  // A slab spanning the footprint, optionally with a rectangular hole [x0, z0, x1, z1].
   function slab(y0, y1, hole, mats = slabMats) {
     const h = y1 - y0;
     if (!hole) return box(W, h, D, 0, y0, 0, mats);
@@ -97,11 +123,19 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     box(x1 - x0, h, D / 2 - z1, (x0 + x1) / 2, y0, (z1 + D / 2) / 2, mats);
     box(x1 - x0, h, z0 + D / 2, (x0 + x1) / 2, y0, (z0 - D / 2) / 2, mats);
   }
-  const mainWell = [STAIR.x0, STAIR.upperZ1, STAIR.x1, -.27];
-  const loftWell = [LOFT_STAIR.x0, LOFT_STAIR.z1, LOFT_STAIR.x1, LOFT_STAIR.z0];
   slab(F.y - .1, F.y, null);
-  slab(F.ceil, S.y, mainWell);
-  slab(S.ceil, L.y, loftWell);
+  slab(F.ceil, S.y, [STAIR.x0, STAIR.upperZ1, STAIR.x1, -.27]);
+  slab(S.ceil, L.y, [LOFT_STAIR.x0, LOFT_STAIR.z1, LOFT_STAIR.x1, LOFT_STAIR.z0]);
+
+  // ---- Rooms own their wall paint -----------------------------------------------------------
+  const roomById = byId(ROOMS);
+  const roomPaint = {};
+  const paintFor = id => roomPaint[id] ||= mat(WALL_COLORS[0].color);
+  const defaultPaint = paintFor('other');
+  function roomAt(level, x, z) {
+    const r = ROOMS.find(r => r.level === level && !r.outside && x >= r.rect[0] && x <= r.rect[2] && z >= r.rect[1] && z <= r.rect[3]);
+    return r ? paintFor(r.id) : defaultPaint;
+  }
 
   // ---- Walls ---------------------------------------------------------------------------
   function segment(axis, coord, a0, a1, y0, y1, m, thick = T) {
@@ -111,7 +145,6 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       : box(thick, y1 - y0, a1 - a0, coord, y0, (a0 + a1) / 2, m);
   }
   const baseboard = (axis, coord, a0, a1, side, floorY) => segment(axis, coord + side * .025, a0, a1, floorY, floorY + .11, trim, .05);
-  // Casing on one face of a wall around an opening; `side` is the direction the face looks.
   function casing(axis, faceCoord, side, a0, a1, y0, y1, withSill) {
     const c = faceCoord + side * .02, w = .085;
     segment(axis, c, a0 - w, a0, y0 - (withSill ? 0 : .02), y1 + w, trim, .045);
@@ -119,18 +152,25 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     segment(axis, c, a0 - w, a1 + w, y1, y1 + w, trim, .045);
     if (withSill) segment(axis, faceCoord + side * .05, a0 - .12, a1 + .12, y0 - .05, y0, trim, .13);
   }
-  function wall(axis, coord, c0, c1, openings, sides, floorY, ceilY) {
+  // A partition: each piece is painted per side with the color of the room it faces.
+  function wall(level, axis, coord, c0, c1, openings, floorY, ceilY) {
     const sorted = [...openings].sort((p, q) => p.a0 - q.a0);
+    const mats = (a0, a1) => {
+      const mid = (a0 + a1) / 2, off = T / 2 + .06;
+      const plus = axis === 'x' ? roomAt(level, mid, coord + off) : roomAt(level, coord + off, mid);
+      const minus = axis === 'x' ? roomAt(level, mid, coord - off) : roomAt(level, coord - off, mid);
+      return axis === 'x' ? [trim, trim, trim, trim, plus, minus] : [plus, minus, trim, trim, trim, trim];
+    };
     let cursor = c0;
     for (const o of sorted) {
       const head = o.y1 == null ? ceilY : floorY + o.y1;
-      segment(axis, coord, cursor, o.a0, floorY, ceilY, paint);
-      segment(axis, coord, o.a0, o.a1, head, ceilY, paint);
-      if (o.y1 != null) for (const side of sides) casing(axis, coord + side * T / 2, side, o.a0, o.a1, floorY, head, false);
+      segment(axis, coord, cursor, o.a0, floorY, ceilY, mats(cursor, o.a0));
+      segment(axis, coord, o.a0, o.a1, head, ceilY, mats(o.a0, o.a1));
+      if (o.y1 != null) for (const side of [-1, 1]) casing(axis, coord + side * T / 2, side, o.a0, o.a1, floorY, head, false);
       cursor = o.a1;
     }
-    segment(axis, coord, cursor, c1, floorY, ceilY, paint);
-    for (const side of sides) {
+    segment(axis, coord, cursor, c1, floorY, ceilY, mats(cursor, c1));
+    for (const side of [-1, 1]) {
       let from = c0;
       for (const o of sorted) {
         baseboard(axis, coord + side * T / 2, from, o.a0, side, floorY);
@@ -141,40 +181,58 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   }
   for (const p of PARTITIONS) {
     const lv = LEVELS[p.level];
-    wall(p.axis, p.coord, p.c0, p.c1, p.openings, [-1, 1], lv.y, lv.ceil);
+    wall(p.level, p.axis, p.coord, p.c0, p.c1, p.openings, lv.y, lv.ceil);
   }
 
-  // Inside faces of the exterior shell, per level: casings, sills, baseboards.
+  // Inside faces of the exterior shell: a thin painted liner per room, cut around windows and doors,
+  // plus casings, sills and baseboards.
   const shellFaces = [
     {key: 'front', axis: 'x', face: INNER.z, side: -1},
     {key: 'rear', axis: 'x', face: -INNER.z, side: 1},
     {key: 'left', axis: 'z', face: -INNER.x, side: 1},
     {key: 'right', axis: 'z', face: INNER.x, side: -1},
   ];
-  for (const lv of [F, S]) for (const f of shellFaces) {
-    const limit = f.axis === 'x' ? INNER.x : INNER.z;
-    const ops = OPENINGS[f.key].filter(o => o.y1 > lv.y && o.y0 < lv.ceil);
-    for (const o of ops) casing(f.axis, f.face, f.side, o.a0, o.a1, o.kind === 'door' ? lv.y : o.y0, o.y1, o.kind === 'window');
-    let from = -limit;
-    for (const o of ops.filter(o => o.kind === 'door').sort((p, q) => p.a0 - q.a0)) {
-      baseboard(f.axis, f.face, from, o.a0, f.side, lv.y);
-      from = o.a1;
+  for (const [levelKey, lv] of Object.entries(LEVELS)) {
+    if (lv === L) continue;
+    for (const f of shellFaces) {
+      const limit = f.axis === 'x' ? INNER.x : INNER.z;
+      const ops = OPENINGS[f.key].filter(o => o.y1 > lv.y && o.y0 < lv.ceil);
+      const roomEdges = ROOMS.filter(r => r.level === levelKey).flatMap(r => f.axis === 'x' ? [r.rect[0], r.rect[2]] : [r.rect[1], r.rect[3]]);
+      const edges = [...new Set([-limit, limit, ...ops.flatMap(o => [o.a0, o.a1]), ...roomEdges])].filter(a => a >= -limit && a <= limit).sort((p, q) => p - q);
+      const linerCoord = f.face + f.side * .006;
+      for (let i = 0; i < edges.length - 1; i++) {
+        const a0 = edges[i], a1 = edges[i + 1], mid = (a0 + a1) / 2;
+        const m = f.axis === 'x' ? roomAt(levelKey, mid, f.face + f.side * .1) : roomAt(levelKey, f.face + f.side * .1, mid);
+        let cursor = lv.y;
+        for (const o of ops.filter(o => o.a0 <= a0 + .001 && o.a1 >= a1 - .001).sort((p, q) => p.y0 - q.y0)) {
+          segment(f.axis, linerCoord, a0, a1, cursor, Math.max(cursor, Math.min(o.y0, lv.ceil)), m, .012);
+          cursor = Math.max(cursor, o.y1);
+        }
+        segment(f.axis, linerCoord, a0, a1, cursor, lv.ceil, m, .012);
+      }
+      for (const o of ops) casing(f.axis, f.face, f.side, o.a0, o.a1, o.kind === 'door' ? lv.y : o.y0, o.y1, o.kind === 'window');
+      let from = -limit;
+      for (const o of ops.filter(o => o.kind === 'door').sort((p, q) => p.a0 - q.a0)) {
+        baseboard(f.axis, f.face, from, o.a0, f.side, lv.y);
+        from = o.a1;
+      }
+      baseboard(f.axis, f.face, from, limit, f.side, lv.y);
     }
-    baseboard(f.axis, f.face, from, limit, f.side, lv.y);
   }
 
   // ---- Loft: knee walls, sloped ceiling, gable ends with the small gable windows -------------
   {
-    const kx = L.kneeX, y0 = L.y, top = L.kneeTop, ridge = L.ceil, zi = INNER.z - .05;
+    const kx = L.kneeX, y0 = L.y, top = L.kneeTop, ridge = L.ceil, zi = INNER.z - .05, loftPaint = paintFor('loft');
     for (const s of [-1, 1]) {
-      box(.12, top - y0, zi * 2, s * kx, y0, 0, paint);
+      box(.12, top - y0, zi * 2, s * kx, y0, 0, loftPaint);
       face(s < 0
         ? [[-kx, top, zi], [0, ridge, zi], [0, ridge, -zi], [-kx, top, -zi]]
         : [[kx, top, -zi], [0, ridge, -zi], [0, ridge, zi], [kx, top, zi]], slope).receiveShadow = false;
     }
     for (const s of [-1, 1]) {
       const z = s * zi, pts = [[-kx, y0, z], [-kx, top, z], [0, ridge, z], [kx, top, z], [kx, y0, z]];
-      face(s > 0 ? pts : pts.slice().reverse(), slope).receiveShadow = false;
+      const gable = face(s > 0 ? pts : pts.slice().reverse(), loftPaint);
+      gable.receiveShadow = false;
       for (const x of [-.47, .47]) {
         const w = .72, h = 1.1, y = 8.15, zz = z - s * .06;
         for (const yy of [y + h / 2 + .04, y - h / 2 - .04]) box(w + .16, .08, .06, x, yy - .04, zz, trim);
@@ -189,58 +247,55 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   }
 
   // ---- Stairs ---------------------------------------------------------------------------
-  function railing(x, z0, z1, y, m = walnut) {
+  function railing(x, z0, z1, y, m = palette.wood) {
     box(.09, 1.02, .09, x, y, z0, m);
     box(.09, 1.02, .09, x, y, z1, m);
     beam([x, y + .92, z0], [x, y + .92, z1], .06, m);
     const n = Math.max(1, Math.round(Math.abs(z1 - z0) / .18));
     for (let i = 1; i < n; i++) box(.03, .86, .03, x, y, z0 + (z1 - z0) * i / n, trim);
   }
-  // A straight flight rising toward -z; solid below each tread down to `base`.
   function flight(x0, x1, zStart, zEnd, yStart, yEnd, steps, base, railSide) {
     const w = x1 - x0, cx = (x0 + x1) / 2, run = (zStart - zEnd) / steps, rise = (yEnd - yStart) / steps;
     for (let i = 0; i < steps; i++) {
       const z = zStart - run / 2 - i * run, top = yStart + (i + 1) * rise;
-      box(w, top - base, run, cx, base, z, oak);
-      box(w, .035, run + .04, cx, top, z - .02, walnut);
+      box(w, top - base, run, cx, base, z, palette.woodLight);
+      box(w, .035, run + .04, cx, top, z - .02, palette.wood);
     }
     if (railSide) {
       const rx = railSide < 0 ? x0 - .03 : x1 + .03;
-      box(.09, 1.02, .09, rx, yStart, zStart + .05, walnut);
-      beam([rx, yStart + .92, zStart + .05], [rx, yEnd + .92, zEnd], .06, walnut);
+      box(.09, 1.02, .09, rx, yStart, zStart + .05, palette.wood);
+      beam([rx, yStart + .92, zStart + .05], [rx, yEnd + .92, zEnd], .06, palette.wood);
       for (let i = 0; i < steps; i++) box(.03, .86, .03, rx, yStart + (i + 1) * rise, zStart - run / 2 - i * run, trim);
     }
   }
-  // Main stair: lower flight, landing, upper flight, with rails on the open hallway side.
   flight(STAIR.x0, STAIR.x1, STAIR.lowerZ0, STAIR.lowerZ1, F.y, STAIR.landingY, 7, F.y, -1);
-  box(STAIR.x1 - STAIR.x0, STAIR.landingY - F.y, STAIR.lowerZ1 - STAIR.landingZ1, (STAIR.x0 + STAIR.x1) / 2, F.y, (STAIR.lowerZ1 + STAIR.landingZ1) / 2, oak);
-  box(STAIR.x1 - STAIR.x0, .035, STAIR.lowerZ1 - STAIR.landingZ1, (STAIR.x0 + STAIR.x1) / 2, STAIR.landingY, (STAIR.lowerZ1 + STAIR.landingZ1) / 2, walnut);
+  box(STAIR.x1 - STAIR.x0, STAIR.landingY - F.y, STAIR.lowerZ1 - STAIR.landingZ1, (STAIR.x0 + STAIR.x1) / 2, F.y, (STAIR.lowerZ1 + STAIR.landingZ1) / 2, palette.woodLight);
+  box(STAIR.x1 - STAIR.x0, .035, STAIR.lowerZ1 - STAIR.landingZ1, (STAIR.x0 + STAIR.x1) / 2, STAIR.landingY, (STAIR.lowerZ1 + STAIR.landingZ1) / 2, palette.wood);
   railing(STAIR.x0 - .03, STAIR.lowerZ1, STAIR.landingZ1 + .05, STAIR.landingY);
   flight(STAIR.x0, STAIR.x1, STAIR.landingZ1, STAIR.upperZ1, STAIR.landingY, S.y, 10, STAIR.landingY, 0);
-  railing(STAIR.x0 - .03, -.27 - .05, STAIR.upperZ1 + .35, S.y); // second-floor guard along the well
-  // Loft stair: steep attic flight from the front-right bedroom, guarded in the loft.
+  railing(STAIR.x0 - .03, -.27 - .05, STAIR.upperZ1 + .35, S.y);
   flight(LOFT_STAIR.x0, LOFT_STAIR.x1, LOFT_STAIR.z0, LOFT_STAIR.z1, S.y, L.y, 13, S.y, -1);
   railing(LOFT_STAIR.x0 - .03, LOFT_STAIR.z0 + .05, LOFT_STAIR.z1 + .35, L.y);
   railing(LOFT_STAIR.x1 + .03, LOFT_STAIR.z0 + .05, LOFT_STAIR.z1 + .35, L.y);
-  beam([LOFT_STAIR.x0 - .03, L.y + .92, LOFT_STAIR.z0 + .05], [LOFT_STAIR.x1 + .03, L.y + .92, LOFT_STAIR.z0 + .05], .06, walnut);
+  beam([LOFT_STAIR.x0 - .03, L.y + .92, LOFT_STAIR.z0 + .05], [LOFT_STAIR.x1 + .03, L.y + .92, LOFT_STAIR.z0 + .05], .06, palette.wood);
 
-  // ---- Furnishings (conceptual) -------------------------------------------------------
+  // ---- Furniture helpers -----------------------------------------------------------------
   function sofa(x, z, len, angle, y = F.y) {
     const g = new THREE.Group();
     g.position.set(x, y, z);
     g.rotation.y = angle;
-    group.add(g);
-    box(len, .42, .9, 0, 0, 0, fabric, g);
-    box(len, .5, .22, 0, .3, -.34, fabric, g);
-    for (const s of [-1, 1]) box(.2, .3, .9, s * (len / 2 - .1), .42, 0, fabric, g);
+    parentGroup.add(g);
+    box(len, .42, .9, 0, 0, 0, palette.fabric, g);
+    box(len, .5, .22, 0, .3, -.34, palette.fabric, g);
+    for (const s of [-1, 1]) box(.2, .3, .9, s * (len / 2 - .1), .42, 0, palette.fabric, g);
     const n = Math.round(len / .8);
-    for (let i = 0; i < n; i++) box(len / n - .06, .16, .62, -len / 2 + .1 + (i + .5) * (len - .2) / n, .42, .08, cushion, g);
+    for (let i = 0; i < n; i++) box(len / n - .06, .16, .62, -len / 2 + .1 + (i + .5) * (len - .2) / n, .42, .08, palette.cushion, g);
   }
-  function chair(x, z, angle, y = F.y, m = walnut) {
+  function chair(x, z, angle, y = F.y, m = palette.wood) {
     const g = new THREE.Group();
     g.position.set(x, y, z);
     g.rotation.y = angle;
-    group.add(g);
+    parentGroup.add(g);
     for (const sx of [-.19, .19]) for (const sz of [-.19, .19]) box(.035, .44, .035, sx, 0, sz, m, g);
     box(.44, .04, .44, 0, .44, 0, m, g);
     box(.42, .48, .035, 0, .48, -.2, m, g);
@@ -249,276 +304,489 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     const g = new THREE.Group();
     g.position.set(x, y, z);
     g.rotation.y = angle;
-    group.add(g);
-    box(.85, .4, .85, 0, 0, 0, fabric, g);
-    box(.85, .48, .2, 0, .3, -.32, fabric, g);
-    for (const s of [-1, 1]) box(.16, .26, .8, s * .34, .4, 0, fabric, g);
-    box(.5, .14, .58, 0, .4, .06, cushion, g);
+    parentGroup.add(g);
+    box(.85, .4, .85, 0, 0, 0, palette.fabric, g);
+    box(.85, .48, .2, 0, .3, -.32, palette.fabric, g);
+    for (const s of [-1, 1]) box(.16, .26, .8, s * .34, .4, 0, palette.fabric, g);
+    box(.5, .14, .58, 0, .4, .06, palette.cushion, g);
   }
   function lamp(x, z, y = F.y) {
-    box(.3, .03, .3, x, y, z, black);
-    box(.03, 1.5, .03, x, y, z, black);
+    box(.3, .03, .3, x, y, z, palette.frame);
+    box(.03, 1.5, .03, x, y, z, palette.frame);
     const shade = new THREE.Mesh(new THREE.CylinderGeometry(.18, .22, .3, 20, 1, true), mat('#efe8d8', {side: THREE.DoubleSide}));
     shade.position.set(x, y + 1.6, z);
-    group.add(shade);
+    parentGroup.add(shade);
   }
   function plant(x, z, y = F.y) {
     const pot = new THREE.Mesh(new THREE.CylinderGeometry(.16, .13, .32, 14), mat('#b4a48d'));
     pot.position.set(x, y + .16, z);
     pot.castShadow = true;
-    group.add(pot);
+    parentGroup.add(pot);
     for (let i = 0; i < 7; i++) {
       const l = new THREE.Mesh(new THREE.IcosahedronGeometry(.16, 1), leaf);
       const a = i * 1.1;
       l.position.set(x + Math.cos(a) * .17, y + .5 + (i % 3) * .14, z + Math.sin(a) * .17);
       l.scale.set(1, .6, 1);
-      group.add(l);
+      parentGroup.add(l);
     }
   }
   // Bed inside [x0,z0,x1,z1]; `head` is the wall side the headboard is on: 'x-', 'x+', 'z-' or 'z+'.
   function bed(x0, z0, x1, z1, head, cover, y = S.y) {
     const w = x1 - x0, d = z1 - z0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
-    const alongX = head[0] === 'x', sign = head[1] === '-' ? 1 : -1; // pillows sit next to the headboard
-    box(w - .1, .3, d - .1, cx, y, cz, walnut);
-    box(w, .22, d, cx, y + .3, cz, linen);
+    const alongX = head[0] === 'x', sign = head[1] === '-' ? 1 : -1;
+    box(w - .1, .3, d - .1, cx, y, cz, palette.wood);
+    box(w, .22, d, cx, y + .3, cz, palette.linen);
     box(alongX ? w - .9 : w - .16, .12, alongX ? d - .16 : d - .9, cx + (alongX ? sign * .35 : 0), y + .52, cz + (alongX ? 0 : sign * .35), cover);
     const hx = alongX ? (sign > 0 ? x0 + .04 : x1 - .04) : cx, hz = alongX ? cz : (sign > 0 ? z0 + .04 : z1 - .04);
-    box(alongX ? .08 : w, 1.1, alongX ? d : .08, hx, y, hz, walnut);
+    box(alongX ? .08 : w, 1.1, alongX ? d : .08, hx, y, hz, palette.wood);
     for (const s of [-1, 1]) {
       const px = alongX ? hx + sign * .32 : cx + s * (w / 2 - .3);
       const pz = alongX ? cz + s * (d / 2 - .3) : hz + sign * .32;
-      box(alongX ? .45 : .5, .14, alongX ? .5 : .45, px, y + .52, pz, linen);
+      box(alongX ? .45 : .5, .14, alongX ? .5 : .45, px, y + .52, pz, palette.linen);
     }
   }
   function nightstand(x, z, y = S.y) {
-    box(.45, .55, .42, x, y, z, walnut);
-    box(.18, .02, .18, x, y + .55, z, black);
-    box(.03, .28, .03, x, y + .57, z, black);
+    box(.45, .55, .42, x, y, z, palette.wood);
+    box(.18, .02, .18, x, y + .55, z, palette.frame);
+    box(.03, .28, .03, x, y + .57, z, palette.frame);
     const shade = new THREE.Mesh(new THREE.CylinderGeometry(.11, .14, .16, 16, 1, true), mat('#efe8d8', {side: THREE.DoubleSide}));
     shade.position.set(x, y + .95, z);
-    group.add(shade);
+    parentGroup.add(shade);
   }
   function dresser(x, z, w, d, y = S.y, angle = 0) {
     const g = new THREE.Group();
     g.position.set(x, y, z);
     g.rotation.y = angle;
-    group.add(g);
-    box(w, .95, d, 0, 0, 0, walnut, g);
+    parentGroup.add(g);
+    box(w, .95, d, 0, 0, 0, palette.wood, g);
     for (let i = 0; i < 3; i++) box(w - .12, .02, .02, 0, .18 + i * .28, d / 2 + .01, trim, g);
   }
   function toilet(x, z, y) {
     const g = new THREE.Group();
     g.position.set(x, y, z);
-    group.add(g);
+    parentGroup.add(g);
     box(.38, .4, .5, 0, 0, 0, porcelain, g);
     box(.34, .5, .18, 0, .4, -.18, porcelain, g);
     box(.42, .04, .5, 0, .4, .02, porcelain, g);
   }
-
-  // First floor: living room. Sectional along the street-facing wall under the front windows with a
-  // chaise on the left end, and the large TV on the dining-room wall opposite.
-  {
-    const cream = mat('#cbc2b1', {roughness: .95}), pillow = mat('#a9b2a8', {roughness: .95}), rug = mat('#d3cbbb', {roughness: .95});
-    const rustic = mat('#7a6650', {roughness: .7});
-    box(3.6, .02, 2.9, -1.6, F.y, 1.9, rug);
-    const seat = (x0, z0, x1, z1, backSide) => {
-      const w = x1 - x0, d = z1 - z0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
-      box(w, .4, d, cx, F.y, cz, cream);
-      box(w - .04, .14, d - .3, cx, F.y + .4, cz + (backSide === 'z+' ? -.14 : 0), cream);
-      if (backSide === 'z+') box(w, .5, .24, cx, F.y + .32, z1 - .12, cream);
-      if (backSide === 'x-') box(.24, .5, d, x0 + .12, F.y + .32, cz, cream);
-    };
-    seat(-3.55, 3, -.35, 3.95, 'z+');                       // main run against the front wall
-    box(.22, .3, .95, -.35 - .11, F.y + .4, 3.47, cream);   // right arm
-    seat(-3.55, 2, -2.6, 3, 'x-');                          // chaise turning into the room
-    box(.95, .3, .22, -3.07, F.y + .4, 2.0 + .11, cream);   // chaise end
-    for (const x of [-3.05, -2.2, -1.3, -.6]) box(.5, .42, .14, x, F.y + .55, 3.8, pillow);
-    box(.5, .42, .14, -3.35, F.y + .55, 2.5, pillow);
-    box(1.1, .12, 1.1, -1.2, F.y + .34, 1.5, rustic);      // square coffee table
-    box(1.0, .34, 1.0, -1.2, F.y, 1.5, rustic);
-    box(1.8, .5, .42, .3, F.y, -.09, rustic);               // media console on the dining-room wall
-    box(1.6, .92, .04, .3, F.y + 1.05, -.12, black);        // large TV
-    box(1.2, .06, .1, .3, F.y + .52, -.1, black);           // soundbar
-    lamp(1.5, 3.5);
-    plant(-3.35, .3);
-    {
-      const drum = new THREE.Mesh(new THREE.CylinderGeometry(.24, .24, .16, 24, 1, true), mat('#efe6d3', {side: THREE.DoubleSide}));
-      drum.position.set(-1.2, F.ceil - .2, 1.8);
-      group.add(drum);
-    }
+  function drum(x, y, z, r = .24) {
+    const d = new THREE.Mesh(new THREE.CylinderGeometry(r, r, .16, 24, 1, true), mat('#efe6d3', {side: THREE.DoubleSide}));
+    d.position.set(x, y, z);
+    parentGroup.add(d);
   }
-  // Hallway
-  box(.85, .02, 2.4, 2.45, F.y, 2.7, rugSand);
-  box(.3, .8, .95, 2.15, F.y, .6, walnut);
+
+  // Rugs: a bordered canvas per rug design, cached.
+  const rugMaterials = {};
+  function rugMaterial(id) {
+    const r = RUG_BY_ID[id];
+    if (!r || id === 'none') return null;
+    if (rugMaterials[id]) return rugMaterials[id];
+    const c = document.createElement('canvas');
+    c.width = c.height = 512;
+    const g = c.getContext('2d'), rnd = seeded(id.length * 31);
+    g.fillStyle = r.border;
+    g.fillRect(0, 0, 512, 512);
+    g.fillStyle = r.field;
+    g.fillRect(36, 36, 440, 440);
+    g.strokeStyle = r.border;
+    g.lineWidth = 6;
+    g.strokeRect(60, 60, 392, 392);
+    if (r.pattern) {
+      g.fillStyle = r.border;
+      for (let i = 0; i < 120; i++) {
+        const x = 80 + rnd() * 350, y = 80 + rnd() * 350, s = 6 + rnd() * 14;
+        g.globalAlpha = .35;
+        g.fillRect(x, y, s, s * .6);
+      }
+      g.globalAlpha = 1;
+      g.beginPath();
+      g.ellipse(256, 256, 120, 90, 0, 0, Math.PI * 2);
+      g.stroke();
+    }
+    return rugMaterials[id] = new THREE.MeshStandardMaterial({map: texture(c), roughness: .95});
+  }
+  function rug(w, d, x, z, y, material) {
+    if (material) box(w, .02, d, x, y, z, material);
+  }
+
+  // ---- Countertop and kitchen floor materials ------------------------------------------------
+  const counterMaterials = {}, kitchenFloorMaterials = {};
+  function counterMaterial(id) {
+    const c = COUNTER_BY_ID[id] || COUNTER_BY_ID.alabaster;
+    if (counterMaterials[c.id]) return counterMaterials[c.id];
+    if (c.kind === 'plain') return counterMaterials[c.id] = mat(c.base, {roughness: .3});
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 512;
+    const g = cv.getContext('2d'), rnd = seeded(c.id.length * 977);
+    g.fillStyle = c.base;
+    g.fillRect(0, 0, 512, 512);
+    if (c.kind === 'marble') {
+      g.strokeStyle = c.vein;
+      for (let i = 0; i < c.veins; i++) {
+        g.globalAlpha = .35 + rnd() * .4;
+        g.lineWidth = 1 + rnd() * 2.5;
+        g.beginPath();
+        let x = rnd() * 512, y = rnd() * 512;
+        g.moveTo(x, y);
+        for (let k = 0; k < 6; k++) {
+          const nx = x + (rnd() - .5) * 220, ny = y + (rnd() - .5) * 220;
+          g.quadraticCurveTo(x + (rnd() - .5) * 120, y + (rnd() - .5) * 120, nx, ny);
+          x = nx; y = ny;
+        }
+        g.stroke();
+      }
+      g.globalAlpha = 1;
+    } else {
+      const n = Math.round(9000 * c.density);
+      for (let i = 0; i < n; i++) {
+        g.fillStyle = c.speck[i % c.speck.length];
+        g.globalAlpha = .5 + rnd() * .5;
+        const s = 1 + rnd() * 3;
+        g.fillRect(rnd() * 512, rnd() * 512, s, s);
+      }
+      g.globalAlpha = 1;
+    }
+    const t = texture(cv);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    return counterMaterials[c.id] = new THREE.MeshStandardMaterial({map: t, roughness: c.kind === 'marble' ? .25 : .35});
+  }
+  function kitchenFloorMaterial(id) {
+    if (kitchenFloorMaterials[id]) return kitchenFloorMaterials[id];
+    if (id === 'checker') {
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = 256;
+      const g = cv.getContext('2d');
+      g.fillStyle = '#ebe7dc';
+      g.fillRect(0, 0, 256, 256);
+      g.fillStyle = '#1d1d1f';
+      g.fillRect(0, 0, 128, 128);
+      g.fillRect(128, 128, 128, 128);
+      const t = texture(cv);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.center.set(.5, .5);
+      t.rotation = Math.PI / 4;
+      t.repeat.set((INNER.x + .33) / .6, (INNER.z - .38) / .6);
+      return kitchenFloorMaterials[id] = new THREE.MeshStandardMaterial({map: t, roughness: .35});
+    }
+    const t = floorMat.map.clone();
+    t.repeat.set(1.5, 3.4);
+    t.needsUpdate = true;
+    return kitchenFloorMaterials[id] = new THREE.MeshStandardMaterial({map: t, roughness: .55, color: (FLOOR_BY_ID[id] || FLOORING[0]).color});
+  }
+
+  // ---- Static fixtures ------------------------------------------------------------------
+  toilet(0, -3.5, F.y); // powder room, entered from the dining room
+  box(.3, .8, .95, 2.15, F.y, .6, palette.wood); // hallway console under a mirror
   box(.03, .7, .7, 2.02, F.y + 1.15, .6, steel);
-  // Dining room
-  box(2.6, .02, 2.2, -2.3, F.y, -2.6, rugSand);
-  box(1.7, .05, .95, -2.3, F.y + .72, -2.6, walnut);
-  for (const sx of [-.72, .72]) for (const sz of [-.35, .35]) box(.06, .72, .06, -2.3 + sx, F.y, -2.6 + sz, walnut);
-  for (const x of [-2.75, -1.85]) {
-    chair(x, -1.95, Math.PI);
-    chair(x, -3.25, 0);
-  }
-  plant(-3.35, -3.55);
-  box(.01, .95, .01, -2.3, F.ceil - .95, -2.6, black);
   {
-    const shade = new THREE.Mesh(new THREE.CylinderGeometry(.2, .3, .24, 24, 1, true), mat('#3a3f42', {side: THREE.DoubleSide}));
-    shade.position.set(-2.3, F.ceil - 1.05, -2.6);
-    group.add(shade);
+    // Hall bathroom: tub, toilet, vanity.
+    box(1.75, .02, 1.5, 2.8, S.y, -3.15, tile);
+    box(.7, .55, 1.45, 2.25, S.y, -3.2, porcelain);
+    box(.56, .02, 1.3, 2.25, S.y + .55, -3.2, mat('#d5e4e8', {roughness: .2}));
+    box(.03, .5, .03, 2.25, S.y + .55, -3.85, steel);
+    toilet(3.35, -3.6, S.y);
+    box(.5, .82, .5, 3.4, S.y, -2.8, cabinet);
+    box(.52, .04, .52, 3.4, S.y + .82, -2.8, mat('#d6d2c8', {roughness: .35}));
+    box(.03, .55, .5, 3.68, S.y + 1.2, -2.8, steel);
   }
-  // Kitchen, from the floor plan and photos: white cabinets and appliances, navy counters, beadboard
-  // backsplash, black-and-white checkerboard floor. The fridge sits in an alcove on the dining-room wall
-  // beside the dining entrance. Along the rear wall: counter, range, dishwasher, then the sink under the
-  // rear window; the counter turns the corner along the driveway wall.
   {
-    const appliance = mat('#fafbfa', {roughness: .35, metalness: .08}), navy = mat('#27325f', {roughness: .3}), grate = mat('#2a2c2e', {roughness: .7});
-    const ovenGlass = mat('#3a4247', {metalness: .3, roughness: .25}), knob = mat('#e8e7e2', {roughness: .5});
-    const rear = -INNER.z, right = INNER.x, depth = .6, h = .9, upperBottom = 1.5, upperTop = 2.4, upperDepth = .33;
-    const kx0 = .35, sideEnd = -2.3; // counters start at the powder room wall; the side run stops at the stair enclosure
-    // Floor: diagonal checkerboard tile over the kitchen footprint.
-    const tileCanvas = document.createElement('canvas');
-    tileCanvas.width = tileCanvas.height = 256;
-    const tg = tileCanvas.getContext('2d');
-    tg.fillStyle = '#ebe7dc';
-    tg.fillRect(0, 0, 256, 256);
-    tg.fillStyle = '#1d1d1f';
-    tg.fillRect(0, 0, 128, 128);
-    tg.fillRect(128, 128, 128, 128);
-    const tile = new THREE.CanvasTexture(tileCanvas);
-    tile.colorSpace = THREE.SRGBColorSpace;
-    tile.wrapS = tile.wrapT = THREE.RepeatWrapping;
-    tile.center.set(.5, .5);
-    tile.rotation = Math.PI / 4;
-    tile.repeat.set((right + .33) / .6, (INNER.z - .38) / .6);
-    tile.anisotropy = renderer.capabilities.getMaxAnisotropy();
-    box(right + .33, .012, INNER.z - .38, (right - .33) / 2, F.y, (rear - .38) / 2, new THREE.MeshStandardMaterial({map: tile, roughness: .35})).castShadow = false;
-    // Beadboard backsplash between the counter and the uppers.
-    const beadCanvas = document.createElement('canvas');
-    beadCanvas.width = 256;
-    beadCanvas.height = 64;
-    const bg = beadCanvas.getContext('2d');
-    bg.fillStyle = '#f4f2ea';
-    bg.fillRect(0, 0, 256, 64);
-    for (let x = 0; x < 256; x += 32) {
-      bg.fillStyle = 'rgba(0,0,0,.14)';
-      bg.fillRect(x, 0, 3, 64);
-      bg.fillStyle = 'rgba(255,255,255,.7)';
-      bg.fillRect(x + 3, 0, 2, 64);
-    }
-    const bead = new THREE.CanvasTexture(beadCanvas);
-    bead.colorSpace = THREE.SRGBColorSpace;
-    bead.wrapS = bead.wrapT = THREE.RepeatWrapping;
-    const beadboard = len => new THREE.MeshStandardMaterial({map: (() => { const t = bead.clone(); t.repeat.set(len / .32, 1); t.needsUpdate = true; return t; })(), roughness: .6});
-    const winX = [2.35, 3.25], sill = 2.15 - F.y; // rear window over the sink, in floor-relative height
-    box(winX[0] - kx0, upperBottom - h, .02, (kx0 + winX[0]) / 2, F.y + h, rear + .01, beadboard(winX[0] - kx0));
-    box(right - winX[1], upperBottom - h, .02, (winX[1] + right) / 2, F.y + h, rear + .01, beadboard(right - winX[1]));
-    box(winX[1] - winX[0], sill - h, .02, (winX[0] + winX[1]) / 2, F.y + h, rear + .01, beadboard(winX[1] - winX[0]));
-    box(.02, upperBottom - h, sideEnd - rear, right - .01, F.y + h, (rear + sideEnd) / 2, beadboard(sideEnd - rear));
-    // Base run along the rear wall, split into the fridge bay, range, dishwasher and sink base.
-    const rangeX = [1, 1.76], dishX = [1.76, 2.36], sinkX = [2.36, 3.26];
-    const baseCab = (x0, x1) => {
-      box(x1 - x0, h - .1, depth, (x0 + x1) / 2, F.y + .1, rear + depth / 2, cabinet);
-      box(x1 - x0, .1, depth - .08, (x0 + x1) / 2, F.y, rear + depth / 2 + .04, grate);
-      box(.02, .02, .02, (x0 + x1) / 2, F.y + .62, rear + depth + .01, knob);
+    // Front-left bedroom closets, from the photos: a double-door closet with two hanging rods and
+    // shoe shelving on the right, and a built-in with five drawers under a two-door cabinet of shelves.
+    const y = S.y, front = .8 - T / 2, back = -.27 + T / 2, brass = mat('#c9a955', {metalness: .8, roughness: .3});
+    const panelDoor = (hingeX, width, sign, angle, height = 2.0, bottom = 0) => {
+      const g = new THREE.Group();
+      g.position.set(hingeX, y + bottom, front);
+      g.rotation.y = angle;
+      parentGroup.add(g);
+      box(width, height, .035, sign * width / 2, 0, 0, trim, g);
+      box(width - .16, height * .38, .012, sign * width / 2, height * .55, .022, cabinet, g);
+      box(width - .16, height * .38, .012, sign * width / 2, height * .06, .022, cabinet, g);
+      box(.03, .03, .03, sign * (width - .07), height * .48, .035, brass, g);
     };
-    baseCab(kx0, rangeX[0]);
-    baseCab(sinkX[0], sinkX[1]);
-    baseCab(sinkX[1], right);
-    box(right - rangeX[1] + .02, .04, depth + .03, (rangeX[1] + right) / 2, F.y + h, rear + depth / 2 + .015, navy);
-    box(rangeX[0] - kx0 + .02, .04, depth + .03, (kx0 + rangeX[0]) / 2, F.y + h, rear + depth / 2 + .015, navy);
-    // Side run along the driveway wall with the microwave.
-    box(depth, h - .1, sideEnd - rear - depth, right - depth / 2, F.y + .1, (rear + depth + sideEnd) / 2, cabinet);
-    box(depth - .08, .1, sideEnd - rear - depth, right - depth / 2 - .04, F.y, (rear + depth + sideEnd) / 2, grate);
-    box(depth + .03, .04, sideEnd - rear - depth + .02, right - depth / 2 - .015, F.y + h, (rear + depth + sideEnd) / 2, navy);
-    for (const z of [-3.0, -2.6]) box(.02, .02, .02, right - depth - .01, F.y + .62, z, knob);
-    box(.5, .3, .38, right - .3, F.y + h + .04, -2.75, appliance);
-    box(.36, .2, .01, right - .55, F.y + h + .09, -2.75, ovenGlass);
-    // Sink under the rear window.
-    box(.56, .18, .42, (sinkX[0] + sinkX[1]) / 2, F.y + h - .14, rear + depth / 2, porcelain);
-    box(.44, .14, .32, (sinkX[0] + sinkX[1]) / 2, F.y + h - .1, rear + depth / 2, mat('#e3e5e2', {roughness: .3}));
-    box(.02, .22, .02, (sinkX[0] + sinkX[1]) / 2, F.y + h + .04, rear + .12, steel);
-    box(.02, .02, .18, (sinkX[0] + sinkX[1]) / 2, F.y + h + .25, rear + .2, steel);
-    // Dishwasher: white front with a control strip.
-    box(dishX[1] - dishX[0] - .02, h - .04, depth, (dishX[0] + dishX[1]) / 2, F.y + .02, rear + depth / 2, appliance);
-    box(dishX[1] - dishX[0] - .1, .05, .01, (dishX[0] + dishX[1]) / 2, F.y + h - .1, rear + depth + .005, grate);
-    box(dishX[1] - dishX[0] - .02, .04, depth + .03, (dishX[0] + dishX[1]) / 2, F.y + h, rear + depth / 2 + .015, navy);
-    // Four-burner range next to the fridge bay.
-    const rx = (rangeX[0] + rangeX[1]) / 2, rw = rangeX[1] - rangeX[0];
-    box(rw, h + .02, depth + .05, rx, F.y, rear + depth / 2 + .02, appliance);
-    box(rw - .04, .02, depth - .08, rx, F.y + h + .02, rear + depth / 2 + .02, grate);
-    for (const dx of [-.19, .19]) for (const dz of [-.14, .14]) {
-      box(.2, .012, .2, rx + dx, F.y + h + .04, rear + depth / 2 + .02 + dz, grate);
-      box(.07, .008, .07, rx + dx, F.y + h + .052, rear + depth / 2 + .02 + dz, black);
+    // Closet A: doors open, rods and shoes inside.
+    panelDoor(-3.4, .49, 1, -1.65);
+    panelDoor(-2.4, .49, -1, 1.65);
+    for (const [ry, colors] of [[1.72, ['#e8e2d5', '#dfe5ea', '#2f3236', '#6b7c93']], [.98, ['#7c8fb0', '#c9c4bb', '#5a4b42', '#9fb0c8']]]) {
+      beam([-3.55, y + ry, .25], [-2.85, y + ry, .25], .025, steel);
+      colors.forEach((c, i) => box(.05, .78, .34, -3.48 + i * .17, y + ry - .8, .25, mat(c, {roughness: .9})));
     }
-    box(rw, .16, .08, rx, F.y + h + .02, rear + .05, appliance);
-    box(.3, .06, .01, rx, F.y + h + .07, rear + .095, ovenGlass);
-    box(rw - .16, .34, .01, rx, F.y + .28, rear + depth + .06, ovenGlass);
-    box(rw - .1, .03, .04, rx, F.y + .7, rear + depth + .07, knob);
-    for (let i = 0; i < 4; i++) box(.045, .045, .03, rangeX[0] + .12 + i * .17, F.y + .78, rear + depth + .07, knob);
-    // Refrigerator in its alcove on the dining-room wall, facing the kitchen, cabinet and soffit above.
-    const aZ = [-2.9, -2.15], aX = .5, az = (aZ[0] + aZ[1]) / 2;
-    box(.72, 1.7, aZ[1] - aZ[0] - .06, -.33 + .38, F.y, az, appliance);
-    box(.01, .01, aZ[1] - aZ[0] - .1, -.33 + .745, F.y + 1.2, az, grate);
-    for (const y of [.55, 1.35]) box(.025, .32, .025, -.33 + .76, F.y + y, aZ[1] - .1, knob);
-    box(aX + .33, upperTop - 1.8, aZ[1] - aZ[0] - .02, (aX - .33) / 2, F.y + 1.8, az, cabinet);
-    box(.02, .02, .02, aX + .01, F.y + 1.9, az, knob);
-    box(aX + .33, F.ceil - F.y - upperTop, aZ[1] - aZ[0] + .1, (aX - .33) / 2, F.y + upperTop, az, paint);
-    box(.06, F.ceil - F.y - upperTop, aZ[1] - aZ[0] + .16, aX + .01, F.y + upperTop, az, trim);
-    // Upper cabinets: over the range (with a hood), beside the window, and along the driveway wall.
-    const upper = (x0, x1, y0 = upperBottom) => {
-      box(x1 - x0, upperTop - y0, upperDepth, (x0 + x1) / 2, F.y + y0, rear + upperDepth / 2, cabinet);
-      box(.005, upperTop - y0 - .08, .01, (x0 + x1) / 2, F.y + y0 + .04, rear + upperDepth + .003, mat('#d9d6cc'));
-      for (const dx of [-.06, .06]) box(.02, .02, .02, (x0 + x1) / 2 + dx, F.y + y0 + .1, rear + upperDepth + .01, knob);
-    };
-    upper(kx0, rangeX[0]);
-    upper(rangeX[0], rangeX[1], 1.75);
-    box(rangeX[1] - rangeX[0], .12, upperDepth + .1, rx, F.y + 1.62, rear + (upperDepth + .1) / 2, appliance);
-    upper(rangeX[1], 2.33);
-    upper(3.27, right);
-    box(upperDepth, upperTop - upperBottom, sideEnd - rear - upperDepth, right - upperDepth / 2, F.y + upperBottom, (rear + upperDepth + sideEnd) / 2, cabinet);
-    for (const z of [-3.5, -2.85]) for (const dz of [-.06, .06]) box(.02, .02, .02, right - upperDepth - .01, F.y + upperBottom + .1, z + dz, knob);
-    box(right - kx0, .06, upperDepth + .02, (right + kx0) / 2, F.y + upperTop, rear + upperDepth / 2, cabinet); // crown
+    box(.02, 2.0, .95, -2.82, y, .27, trim);
+    for (let i = 0; i < 7; i++) box(.38, .02, .9, -2.62, y + .15 + i * .3, .27, trim);
+    for (let i = 0; i < 6; i++) box(.24, .09, .28, -2.62 + (i % 2 ? .06 : -.06), y + .17 + i * .3, .3, mat(['#eeeeea', '#5a4636', '#2b2b2d'][i % 3]));
+    // Closet B: built-in drawers and cabinet, left cabinet door open.
+    box(.95, 2.0, .04, -.9, y, front - .02, cabinet);
+    for (let i = 0; i < 5; i++) {
+      box(.88, .19, .02, -.9, y + .04 + i * .225, front + .01, trim);
+      box(.7, .13, .01, -.9, y + .07 + i * .225, front + .021, cabinet);
+      box(.025, .025, .025, -.9, y + .13 + i * .225, front + .03, brass);
+    }
+    box(.95, .04, .02, -.9, y + 1.17, front + .01, trim);
+    box(.02, .82, .95, -1.38, y + 1.22, .3, trim);
+    box(.02, .82, .95, -.42, y + 1.22, .3, trim);
+    for (let i = 0; i < 4; i++) box(.92, .02, .9, -.9, y + 1.22 + i * .26, .3, trim);
+    for (let i = 0; i < 3; i++) for (const dx of [-.2, .15]) box(.28, .08, .34, -.9 + dx, y + 1.25 + i * .26, .3, mat(['#3a4b6a', '#6b7688', '#e6dfd0'][(i + (dx > 0)) % 3], {roughness: .9}));
+    panelDoor(-1.38, .47, 1, -1.5, .82, 1.22);
+    panelDoor(-.42, .47, -1, 0, .82, 1.22);
   }
-  toilet(.0, -3.5, F.y); // powder room, entered from the dining room
-
-  // Second floor: back bedroom
-  box(2.4, .02, 2.6, -2.2, S.y, -2.3, rugSand);
-  bed(-3.65, -3.9, -2.05, -1.9, 'x-', quilt);
-  nightstand(-3.4, -1.6);
-  dresser(-1.4, -3.65, 1.1, .5);
-  // Front bedroom left, with its two closets
-  box(2.6, .02, 2.4, -2.3, S.y, 2.5, rugBlue);
-  bed(-3.65, 1.5, -1.65, 3.1, 'x-', quiltWarm);
-  nightstand(-3.4, 3.4);
-  nightstand(-3.4, 1.2);
-  dresser(.6, 3.1, 1.1, .5, S.y, Math.PI / 2);
-  for (const x of [-2.9, -.9]) beam([x - .45, S.y + 1.7, .3], [x + .45, S.y + 1.7, .3], .03, steel);
-  // Front bedroom right
-  box(2.2, .02, 2.2, 2.6, S.y, 2.8, rugSand);
-  bed(1.65, 2.3, 3.65, 3.8, 'x+', quilt);
-  nightstand(3.4, 2);
-  dresser(1.15, 3.6, 1, .45, S.y, 0);
-  // Hall bathroom
-  box(1.75, .02, 1.5, 2.8, S.y, -3.15, tile);
-  box(.7, .55, 1.45, 2.25, S.y, -3.2, porcelain);
-  box(.56, .02, 1.3, 2.25, S.y + .55, -3.2, mat('#d5e4e8', {roughness: .2}));
-  box(.03, .5, .03, 2.25, S.y + .55, -3.85, steel);
-  toilet(3.35, -3.6, S.y);
-  box(.5, .82, .5, 3.4, S.y, -2.8, cabinet);
-  box(.52, .04, .52, 3.4, S.y + .82, -2.8, counter);
-  box(.03, .55, .5, 3.68, S.y + 1.2, -2.8, steel);
-  // Upstairs hall and closets
-  box(.85, .02, 2, 1.6, S.y, -1.35, rugSand);
-  plant(-.05, .4, S.y);
   for (const x of [.6, 1.3]) beam([x - .3, S.y + 1.7, -3.2], [x + .3, S.y + 1.7, -3.2], .03, steel);
-  // Loft
-  box(1.9, .02, 1.6, -.5, L.y + .02, 2.4, rugBlue); // sits on the carpet
-  bed(-1.6, -3.85, .1, -1.85, 'z-', quiltWarm, L.y);
-  nightstand(.5, -3.55, L.y);
-  box(1.1, .04, .55, -.9, L.y + .72, 3.45, walnut);
-  for (const sx of [-.5, .5]) for (const sz of [-.22, .22]) box(.04, .72, .04, -.9 + sx, L.y, 3.45 + sz, walnut);
-  chair(-.9, 2.85, Math.PI, L.y);
-  lamp(-1.7, 1, L.y);
+
+  // ---- Room builders: furniture, rugs and layouts, rebuilt when a design choice changes ----------
+  const roomGroups = {};
+  const roomDefaults = {
+    living: {wall: 'dove', rug: 'cream', layout: 'windows', layouts: {windows: 'Sectional under the front windows', side: 'Sectional on the side wall', classic: 'Sofa and two armchairs'}},
+    hall: {wall: 'dove', rug: 'sand'},
+    dining: {wall: 'dove', rug: 'sand', layout: 'centered', layouts: {centered: 'Table centered', window: 'Table along the window wall'}},
+    kitchen: {wall: 'dove'},
+    rear: {wall: 'dove'},
+    porch: {wall: 'dove'},
+    hall2: {wall: 'dove', rug: 'sand'},
+    bedBack: {wall: 'dove', rug: 'sand', layout: 'left', layouts: {left: 'Bed on the left wall', back: 'Bed on the back wall'}},
+    bedFrontL: {wall: 'dove', rug: 'blue', layout: 'left', layouts: {left: 'Bed on the left wall', front: 'Bed under the front windows'}},
+    bedFrontR: {wall: 'dove', rug: 'sand', layout: 'right', layouts: {right: 'Bed on the driveway wall', front: 'Bed under the front windows'}},
+    bath: {wall: 'mist'},
+    loft: {wall: 'dove', rug: 'blue', layout: 'back', layouts: {back: 'Bed at the back gable', front: 'Bed at the front gable'}},
+  };
+  const builders = {
+    living(layout, rugMat) {
+      const cx = -1.6;
+      if (layout === 'classic') {
+        rug(3.3, 2.5, cx, 1.5, F.y, rugMat);
+        sofa(-3.15, 1.4, 2.1, Math.PI / 2);
+        box(1.1, .04, .6, -2.25, F.y + .4, 1.4, palette.wood);
+        for (const sx of [-.5, .5]) for (const sz of [-.25, .25]) box(.04, .4, .04, -2.25 + sx, F.y, 1.4 + sz, palette.wood);
+        armchair(-.45, .55, -Math.PI / 2 + .35);
+        armchair(-.45, 2.9, -Math.PI / 2 - .35);
+        box(1.5, .5, .42, .75, F.y, -.09, palette.wood);
+        box(1.15, .65, .04, .75, F.y + .6, -.12, black);
+        lamp(-3.3, 3.45);
+        plant(1.45, 3.5);
+        drum(cx, F.ceil - .2, 1.8);
+        return;
+      }
+      rug(3.6, 2.9, cx, 1.9, F.y, rugMat);
+      const seat = (x0, z0, x1, z1, backSide) => {
+        const w = x1 - x0, d = z1 - z0, sx = (x0 + x1) / 2, sz = (z0 + z1) / 2;
+        box(w, .4, d, sx, F.y, sz, palette.sectional);
+        box(w - .04, .14, d - .3, sx + (backSide === 'x-' ? .14 : 0), F.y + .4, sz + (backSide === 'z+' ? -.14 : 0), palette.sectional);
+        if (backSide === 'z+') box(w, .5, .24, sx, F.y + .32, z1 - .12, palette.sectional);
+        if (backSide === 'x-') box(.24, .5, d, x0 + .12, F.y + .32, sz, palette.sectional);
+      };
+      if (layout === 'side') {
+        // Sectional along the left wall, chaise toward the front windows, TV on the hallway wall.
+        seat(-3.65, .1, -2.7, 3.3, 'x-');
+        seat(-2.7, 2.35, -1.6, 3.3, 'z+');
+        box(.95, .3, .22, -2.15, F.y + .4, 3.3 - .11, palette.sectional);
+        box(.22, .3, .95, -2.7 + .11, F.y + .4, .55, palette.sectional);
+        for (const z of [.6, 1.5, 2.4]) box(.14, .42, .5, -3.5, F.y + .55, z, palette.pillow);
+        box(1.1, .12, 1.1, -1.4, F.y + .34, 1.4, palette.rustic);
+        box(1.0, .34, 1.0, -1.4, F.y, 1.4, palette.rustic);
+        box(.42, .5, 1.8, 1.72, F.y, .6, palette.rustic);
+        box(.04, .92, 1.6, 1.75, F.y + 1.05, .6, black);
+        lamp(-3.3, 3.6);
+        plant(1.45, 3.5);
+        drum(cx, F.ceil - .2, 1.8);
+        return;
+      }
+      seat(-3.55, 3, -.35, 3.95, 'z+');
+      box(.22, .3, .95, -.35 - .11, F.y + .4, 3.47, palette.sectional);
+      seat(-3.55, 2, -2.6, 3, 'x-');
+      box(.95, .3, .22, -3.07, F.y + .4, 2.0 + .11, palette.sectional);
+      for (const x of [-3.05, -2.2, -1.3, -.6]) box(.5, .42, .14, x, F.y + .55, 3.8, palette.pillow);
+      box(.5, .42, .14, -3.35, F.y + .55, 2.5, palette.pillow);
+      box(1.1, .12, 1.1, -1.2, F.y + .34, 1.5, palette.rustic);
+      box(1.0, .34, 1.0, -1.2, F.y, 1.5, palette.rustic);
+      box(1.8, .5, .42, .3, F.y, -.09, palette.rustic);
+      box(1.6, .92, .04, .3, F.y + 1.05, -.12, black);
+      box(1.2, .06, .1, .3, F.y + .52, -.1, black);
+      lamp(1.5, 3.5);
+      plant(-3.35, .3);
+      drum(cx, F.ceil - .2, 1.8);
+    },
+    hall(_, rugMat) { rug(.85, 2.4, 2.45, 2.7, F.y, rugMat); },
+    dining(layout, rugMat) {
+      const along = layout === 'window';
+      const tx = along ? -2.9 : -2.3, tz = along ? -2.2 : -2.6, tw = along ? .95 : 1.7, td = along ? 1.7 : .95;
+      rug(along ? 2.2 : 2.6, along ? 2.6 : 2.2, tx + (along ? .3 : 0), tz, F.y, rugMat);
+      box(tw, .05, td, tx, F.y + .72, tz, palette.wood);
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(.06, .72, .06, tx + sx * (tw / 2 - .13), F.y, tz + sz * (td / 2 - .13), palette.wood);
+      if (along) for (const z of [-2.65, -1.75]) chair(tx + .8, z, -Math.PI / 2);
+      else for (const x of [-2.75, -1.85]) { chair(x, -1.95, Math.PI); chair(x, -3.25, 0); }
+      plant(-3.35, -3.55);
+      box(.01, .95, .01, tx, F.ceil - .95, tz, black);
+      const shade = new THREE.Mesh(new THREE.CylinderGeometry(.2, .3, .24, 24, 1, true), mat('#3a3f42', {side: THREE.DoubleSide}));
+      shade.position.set(tx, F.ceil - 1.05, tz);
+      parentGroup.add(shade);
+    },
+    kitchen(_, __, k) {
+      const appliance = steel, navyLike = counterMaterial(k.counter), grate = mat('#2a2c2e', {roughness: .7});
+      const ovenGlass = mat('#3a4247', {metalness: .3, roughness: .25}), knob = mat('#d8d9d6', {roughness: .4, metalness: .3});
+      const rear = -INNER.z, right = INNER.x, depth = .6, h = .9, upperBottom = 1.5, upperTop = 2.4, upperDepth = .33;
+      const kx0 = .35, sideEnd = -2.3;
+      box(right + .33, .012, INNER.z - .38, (right - .33) / 2, F.y, (rear - .38) / 2, kitchenFloorMaterial(k.floor)).castShadow = false;
+      // Beadboard backsplash, cut around the window over the sink.
+      const beadCanvas = document.createElement('canvas');
+      beadCanvas.width = 256;
+      beadCanvas.height = 64;
+      const bg = beadCanvas.getContext('2d');
+      bg.fillStyle = '#f4f2ea';
+      bg.fillRect(0, 0, 256, 64);
+      for (let x = 0; x < 256; x += 32) {
+        bg.fillStyle = 'rgba(0,0,0,.14)';
+        bg.fillRect(x, 0, 3, 64);
+        bg.fillStyle = 'rgba(255,255,255,.7)';
+        bg.fillRect(x + 3, 0, 2, 64);
+      }
+      const bead = texture(beadCanvas);
+      bead.wrapS = bead.wrapT = THREE.RepeatWrapping;
+      const beadboard = len => { const t = bead.clone(); t.repeat.set(len / .32, 1); t.needsUpdate = true; return new THREE.MeshStandardMaterial({map: t, roughness: .6}); };
+      const winX = [2.35, 3.25], sill = 2.15 - F.y;
+      box(winX[0] - kx0, upperBottom - h, .02, (kx0 + winX[0]) / 2, F.y + h, rear + .01, beadboard(winX[0] - kx0));
+      box(right - winX[1], upperBottom - h, .02, (winX[1] + right) / 2, F.y + h, rear + .01, beadboard(right - winX[1]));
+      box(winX[1] - winX[0], sill - h, .02, (winX[0] + winX[1]) / 2, F.y + h, rear + .01, beadboard(winX[1] - winX[0]));
+      box(.02, upperBottom - h, sideEnd - rear, right - .01, F.y + h, (rear + sideEnd) / 2, beadboard(sideEnd - rear));
+      const rangeX = [1, 1.76], dishX = [1.76, 2.36], sinkX = [2.36, 3.26];
+      const baseCab = (x0, x1) => {
+        box(x1 - x0, h - .1, depth, (x0 + x1) / 2, F.y + .1, rear + depth / 2, cabinet);
+        box(x1 - x0, .1, depth - .08, (x0 + x1) / 2, F.y, rear + depth / 2 + .04, grate);
+        box(.02, .02, .02, (x0 + x1) / 2, F.y + .62, rear + depth + .01, knob);
+      };
+      baseCab(kx0, rangeX[0]);
+      baseCab(sinkX[0], sinkX[1]);
+      baseCab(sinkX[1], right);
+      box(right - rangeX[1] + .02, .04, depth + .03, (rangeX[1] + right) / 2, F.y + h, rear + depth / 2 + .015, navyLike);
+      box(rangeX[0] - kx0 + .02, .04, depth + .03, (kx0 + rangeX[0]) / 2, F.y + h, rear + depth / 2 + .015, navyLike);
+      box(depth, h - .1, sideEnd - rear - depth, right - depth / 2, F.y + .1, (rear + depth + sideEnd) / 2, cabinet);
+      box(depth - .08, .1, sideEnd - rear - depth, right - depth / 2 - .04, F.y, (rear + depth + sideEnd) / 2, grate);
+      box(depth + .03, .04, sideEnd - rear - depth + .02, right - depth / 2 - .015, F.y + h, (rear + depth + sideEnd) / 2, navyLike);
+      for (const z of [-3.0, -2.6]) box(.02, .02, .02, right - depth - .01, F.y + .62, z, knob);
+      box(.5, .3, .38, right - .3, F.y + h + .04, -2.75, appliance); // microwave
+      box(.36, .2, .01, right - .55, F.y + h + .09, -2.75, ovenGlass);
+      // Sink under the rear window.
+      box(.56, .18, .42, (sinkX[0] + sinkX[1]) / 2, F.y + h - .14, rear + depth / 2, steel);
+      box(.44, .14, .32, (sinkX[0] + sinkX[1]) / 2, F.y + h - .1, rear + depth / 2, mat('#9da4a7', {metalness: .6, roughness: .35}));
+      box(.02, .22, .02, (sinkX[0] + sinkX[1]) / 2, F.y + h + .04, rear + .12, steel);
+      box(.02, .02, .18, (sinkX[0] + sinkX[1]) / 2, F.y + h + .25, rear + .2, steel);
+      // Dishwasher.
+      box(dishX[1] - dishX[0] - .02, h - .04, depth, (dishX[0] + dishX[1]) / 2, F.y + .02, rear + depth / 2, appliance);
+      box(dishX[1] - dishX[0] - .1, .05, .01, (dishX[0] + dishX[1]) / 2, F.y + h - .1, rear + depth + .005, grate);
+      box(dishX[1] - dishX[0] - .02, .04, depth + .03, (dishX[0] + dishX[1]) / 2, F.y + h, rear + depth / 2 + .015, navyLike);
+      // Four-burner range.
+      const rx = (rangeX[0] + rangeX[1]) / 2, rw = rangeX[1] - rangeX[0];
+      box(rw, h + .02, depth + .05, rx, F.y, rear + depth / 2 + .02, appliance);
+      box(rw - .04, .02, depth - .08, rx, F.y + h + .02, rear + depth / 2 + .02, grate);
+      for (const dx of [-.19, .19]) for (const dz of [-.14, .14]) {
+        box(.2, .012, .2, rx + dx, F.y + h + .04, rear + depth / 2 + .02 + dz, grate);
+        box(.07, .008, .07, rx + dx, F.y + h + .052, rear + depth / 2 + .02 + dz, black);
+      }
+      box(rw, .16, .08, rx, F.y + h + .02, rear + .05, appliance);
+      box(.3, .06, .01, rx, F.y + h + .07, rear + .095, ovenGlass);
+      box(rw - .16, .34, .01, rx, F.y + .28, rear + depth + .06, ovenGlass);
+      box(rw - .1, .03, .04, rx, F.y + .7, rear + depth + .07, knob);
+      for (let i = 0; i < 4; i++) box(.045, .045, .03, rangeX[0] + .12 + i * .17, F.y + .78, rear + depth + .07, knob);
+      // French-door refrigerator in its alcove on the dining-room wall, facing the kitchen.
+      const aZ = [-2.9, -2.15], aX = .5, az = (aZ[0] + aZ[1]) / 2, fw = aZ[1] - aZ[0] - .06, fx = -.33 + .38;
+      box(.72, 1.78, fw, fx, F.y, az, appliance);
+      box(.01, .01, fw - .04, fx + .365, F.y + .68, az, grate);           // freezer drawer line
+      box(.01, 1.08, .01, fx + .365, F.y + .7, az, grate);                 // split between the doors
+      for (const s of [-1, 1]) box(.025, .7, .025, fx + .385, F.y + .88, az + s * .07, knob);
+      box(.4, .025, .025, fx + .385, F.y + .4, az, knob);
+      box(aX + .33, upperTop - 1.85, aZ[1] - aZ[0] - .02, (aX - .33) / 2, F.y + 1.85, az, cabinet);
+      box(.02, .02, .02, aX + .01, F.y + 1.95, az, knob);
+      box(aX + .33, F.ceil - F.y - upperTop, aZ[1] - aZ[0] + .1, (aX - .33) / 2, F.y + upperTop, az, paintFor('kitchen'));
+      box(.06, F.ceil - F.y - upperTop, aZ[1] - aZ[0] + .16, aX + .01, F.y + upperTop, az, trim);
+      // Upper cabinets and hood.
+      const upper = (x0, x1, y0 = upperBottom) => {
+        box(x1 - x0, upperTop - y0, upperDepth, (x0 + x1) / 2, F.y + y0, rear + upperDepth / 2, cabinet);
+        box(.005, upperTop - y0 - .08, .01, (x0 + x1) / 2, F.y + y0 + .04, rear + upperDepth + .003, mat('#d9d6cc'));
+        for (const dx of [-.06, .06]) box(.02, .02, .02, (x0 + x1) / 2 + dx, F.y + y0 + .1, rear + upperDepth + .01, knob);
+      };
+      upper(kx0, rangeX[0]);
+      upper(rangeX[0], rangeX[1], 1.75);
+      box(rangeX[1] - rangeX[0], .12, upperDepth + .1, rx, F.y + 1.62, rear + (upperDepth + .1) / 2, appliance);
+      upper(rangeX[1], 2.33);
+      upper(3.27, right);
+      box(upperDepth, upperTop - upperBottom, sideEnd - rear - upperDepth, right - upperDepth / 2, F.y + upperBottom, (rear + upperDepth + sideEnd) / 2, cabinet);
+      for (const z of [-3.5, -2.85]) for (const dz of [-.06, .06]) box(.02, .02, .02, right - upperDepth - .01, F.y + upperBottom + .1, z + dz, knob);
+      box(right - kx0, .06, upperDepth + .02, (right + kx0) / 2, F.y + upperTop, rear + upperDepth / 2, cabinet);
+      // Optional small island in the middle of the room.
+      if (k.island === 'small') {
+        box(1.2, h - .1, .7, 1.95, F.y + .1, -2.05, cabinet);
+        box(1.12, .1, .62, 1.95, F.y, -2.05, grate);
+        box(1.3, .04, .8, 1.95, F.y + h, -2.05, navyLike);
+        for (const dx of [-.3, .3]) box(.02, .02, .02, 1.95 + dx, F.y + .62, -2.05 + .36, knob);
+        for (const dx of [-.3, .3]) {
+          box(.36, .04, .36, 1.95 + dx, F.y + .66, -1.45, palette.wood);
+          for (const sx of [-.14, .14]) for (const sz of [-.14, .14]) box(.03, .66, .03, 1.95 + dx + sx, F.y, -1.45 + sz, palette.wood);
+        }
+      }
+    },
+    hall2(_, rugMat) { rug(.85, 2, 1.6, -1.35, S.y, rugMat); plant(-.05, .4, S.y); },
+    bedBack(layout, rugMat) {
+      rug(2.4, 2.6, -2.2, -2.3, S.y, rugMat);
+      if (layout === 'back') { bed(-2.65, -3.9, -1.05, -1.9, 'z-', palette.quilt); nightstand(-3.05, -3.6); nightstand(-.65, -3.6); dresser(-3.4, -1.2, 1.1, .5, S.y, Math.PI / 2); }
+      else { bed(-3.65, -3.9, -2.05, -1.9, 'x-', palette.quilt); nightstand(-3.4, -1.6); dresser(-1.4, -3.65, 1.1, .5); }
+    },
+    bedFrontL(layout, rugMat) {
+      rug(2.6, 2.4, -2.3, 2.5, S.y, rugMat);
+      if (layout === 'front') { bed(-2.8, 1.95, -1.2, 3.9, 'z+', palette.quiltWarm); nightstand(-3.2, 3.6); nightstand(-.8, 3.6); dresser(-3.4, 1.6, 1.1, .5, S.y, Math.PI / 2); }
+      else { bed(-3.65, 1.5, -1.65, 3.1, 'x-', palette.quiltWarm); nightstand(-3.4, 3.4); nightstand(-3.4, 1.2); dresser(.6, 3.1, 1.1, .5, S.y, Math.PI / 2); }
+    },
+    bedFrontR(layout, rugMat) {
+      rug(2.2, 2.2, 2.6, 2.8, S.y, rugMat);
+      if (layout === 'front') { bed(2, 1.95, 3.6, 3.9, 'z+', palette.quilt); nightstand(1.6, 3.6); dresser(3.4, 1.2, 1, .45, S.y, -Math.PI / 2); }
+      else { bed(1.65, 2.3, 3.65, 3.8, 'x+', palette.quilt); nightstand(3.4, 2); dresser(1.15, 3.6, 1, .45, S.y, 0); }
+    },
+    bath() {},
+    loft(layout, rugMat) {
+      if (layout === 'front') {
+        rug(1.9, 1.6, -.5, -1.6, L.y + .02, rugMat);
+        bed(-1.6, 1.85, .1, 3.85, 'z+', palette.quiltWarm, L.y);
+        nightstand(.5, 3.55, L.y);
+        box(1.1, .04, .55, -.9, L.y + .72, -3.45, palette.wood);
+        for (const sx of [-.5, .5]) for (const sz of [-.22, .22]) box(.04, .72, .04, -.9 + sx, L.y, -3.45 + sz, palette.wood);
+        chair(-.9, -2.85, 0, L.y);
+        lamp(-1.7, -1, L.y);
+        return;
+      }
+      rug(1.9, 1.6, -.5, 2.4, L.y + .02, rugMat);
+      bed(-1.6, -3.85, .1, -1.85, 'z-', palette.quiltWarm, L.y);
+      nightstand(.5, -3.55, L.y);
+      box(1.1, .04, .55, -.9, L.y + .72, 3.45, palette.wood);
+      for (const sx of [-.5, .5]) for (const sz of [-.22, .22]) box(.04, .72, .04, -.9 + sx, L.y, 3.45 + sz, palette.wood);
+      chair(-.9, 2.85, Math.PI, L.y);
+      lamp(-1.7, 1, L.y);
+    },
+  };
+
+  const design = loadDesign();
+  const roomChoice = (id, key) => (design.rooms[id] || {})[key] || roomDefaults[id]?.[key];
+  function rebuildRoom(id) {
+    let g = roomGroups[id];
+    if (!g) {
+      g = new THREE.Group();
+      g.name = 'Furniture · ' + id;
+      g.userData.dynamic = true; // merged on its own, never into the static interior
+      group.add(g);
+      roomGroups[id] = g;
+    }
+    g.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+    g.clear();
+    parentGroup = g;
+    builders[id](roomChoice(id, 'layout'), rugMaterial(roomChoice(id, 'rug') || 'none'), design.kitchen);
+    parentGroup = group;
+    mergeStatic(g);
+  }
+  function applyWalls() {
+    for (const r of ROOMS) paintFor(r.id).color.set((WALL_BY_ID[roomChoice(r.id, 'wall')] || WALL_COLORS[0]).color);
+    defaultPaint.color.set(WALL_COLORS[0].color);
+  }
+  function applyAll() {
+    floorMat.color.set((FLOOR_BY_ID[design.flooring] || FLOORING[0]).color);
+    applyStyle(design.style);
+    applyWalls();
+    for (const id of Object.keys(builders)) rebuildRoom(id);
+  }
+  applyAll();
 
   // Warm room lights plus a soft fill; only meaningful once the camera is inside.
   const lights = [];
@@ -538,8 +806,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   lights.push(fill);
 
   // ---- Navigation graph --------------------------------------------------------------
-  const roomById = Object.fromEntries(ROOMS.map(r => [r.id, r]));
-  const nodeById = Object.fromEntries(NODES.map(n => [n.id, n]));
+  const nodeById = byId(NODES);
   const floorOf = n => n.floor ?? LEVELS[roomById[n.room].level].y;
   const levelOf = n => roomById[n.room].level;
   const roomName = n => roomById[n.room].name;
@@ -659,9 +926,10 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   const doorState = {front: 0, rear: 0};
   function setDoor(name, k) {
     const d = doors[name];
-    if (d) d.rotation.y = 1.75 * k;
+    if (!d) return;
+    // A French pair is two hinges that swing in mirror.
+    (Array.isArray(d) ? d : [d]).forEach((hinge, i) => { hinge.rotation.y = (i === 1 ? -1 : 1) * 1.75 * k; });
   }
-  // One straight move between two eye positions, turning to face the direction of travel first.
   function moveSegment(from, dest, duration, door) {
     const dx = dest.x - from.x, dz = dest.z - from.z, dy = dest.y - from.y, flat = Math.hypot(dx, dz);
     const needsDoor = door && doorState[door] < 1;
@@ -688,7 +956,6 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       applyLook();
     });
   }
-  // A trip along one link: straight, or through the link's waypoints (stairs).
   function travel(link, fromNode, pace = 1) {
     const to = nodeById[link.to];
     const points = [{x: fromNode.x, y: floorOf(fromNode) + EYE, z: fromNode.z}];
@@ -720,6 +987,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     $('#viewname').textContent = roomName(node) + ' · ' + LEVELS[levelOf(node)].name.toLowerCase();
     $('#interior-status').textContent = 'Click an arrow to step forward · drag to look around';
     for (const chip of document.querySelectorAll('#room-chips button')) chip.setAttribute('aria-pressed', String(chip.dataset.node === node.id));
+    designPanel.setRoom(node.room, roomName(node));
   }
   function walkTo(id) {
     if (state !== 'inside' || busy() || !current || id === current.id) return;
@@ -808,7 +1076,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     }
   });
 
-  // ---- Room list, entering and leaving ---------------------------------------------------
+  // ---- Room list, design panel, entering and leaving ---------------------------------------------
   const chips = $('#room-chips');
   for (const [key, lv] of Object.entries(LEVELS)) {
     const h = document.createElement('h3');
@@ -824,6 +1092,23 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     }
   }
   $('#exit-interior').onclick = () => exit();
+  const designPanel = createDesignPanel({
+    root: $('#design-panel'), design, roomDefaults: id => roomDefaults[id] || {wall: 'dove'},
+    hooks: {
+      flooring: id => { floorMat.color.set(FLOOR_BY_ID[id].color); if (design.kitchen.floor !== 'checker') rebuildRoom('kitchen'); saveDesign(design); },
+      style: id => { applyStyle(id); saveDesign(design); },
+      wall: () => { applyWalls(); saveDesign(design); },
+      rug: id => { rebuildRoom(id); saveDesign(design); },
+      layout: id => { rebuildRoom(id); saveDesign(design); },
+      kitchen: () => { rebuildRoom('kitchen'); saveDesign(design); },
+      reset: () => { applyAll(); saveDesign(design); },
+    },
+  });
+  for (const tab of document.querySelectorAll('.panel-tabs button')) tab.onclick = () => {
+    for (const t of document.querySelectorAll('.panel-tabs button')) t.setAttribute('aria-pressed', String(t === tab));
+    $('#room-chips').hidden = tab.dataset.tab !== 'rooms';
+    $('#design-panel').hidden = tab.dataset.tab !== 'design';
+  };
 
   const groundOutside = hemisphere.groundColor.clone(), groundInside = new THREE.Color('#d8d2c6');
   function slerpTo(duration, position, quaternion, fovTo, glassTo, lightTo, done) {
@@ -902,7 +1187,6 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
 
   let clock = performance.now();
   function update() {
-    // Animations run on wall-clock time so they finish on schedule even when the tab is throttled.
     const now = performance.now(), dt = Math.min(1, (now - clock) / 1000);
     clock = now;
     const q = queue[0];

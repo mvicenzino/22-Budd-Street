@@ -54,3 +54,27 @@ body[data-mode="interior"] #scene{cursor:grab}
 .map-title{font-size:9px;fill:#557381;text-anchor:middle;font-weight:650;letter-spacing:.08em}
 .map-minor{fill:#f0f3f5;stroke-width:.8}
 .interior-transport{max-height:calc(100% - 48px);overflow-y:auto}
+
+/* Design panel */
+.panel-tabs{display:flex;gap:4px;background:#edf3f6;padding:4px;border-radius:9px}
+.panel-tabs button{flex:1;padding:7px 8px;font-size:13px;border-color:transparent;background:transparent}
+.panel-tabs button[aria-pressed="true"]{background:#fff;border-color:#ced9df;font-weight:600}
+#design-panel[hidden],#room-chips[hidden],.design-kitchen[hidden],.design-row[hidden]{display:none}
+#design-panel{display:flex;flex-direction:column;gap:8px}
+#design-panel .paint-label{margin:6px 0 2px}
+#design-panel .paint-swatches{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+#design-panel .paint-chip{height:30px}
+#design-panel .paint-swatch{font-size:11px;padding:4px 2px 5px}
+.style-options{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.style-options button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:8px 10px;text-align:left;font-size:13px}
+.style-options button small{font-size:11px;color:#56707d;line-height:1.3}
+.style-options button[aria-pressed="true"]{border:2px solid #193f56;background:#edf3f6}
+.design-island{grid-template-columns:1fr 1fr}
+.design-room-title{margin-top:10px;padding-top:10px;border-top:1px solid #dce4e8;font-size:14px;font-weight:650}
+.design-sub{font-size:13px}
+.design-row{display:flex;flex-direction:column;align-items:stretch;gap:4px;font-size:13px}
+.design-row select{flex:1;font:inherit;font-size:13px;padding:7px 8px;border:1px solid #aebfc9;border-radius:7px;background:#fff;color:#243e4b;min-width:0}
+.design-note{font-size:12px;color:#58707e;margin:4px 0 0}
+#design-reset{background:#edf3f6;font-size:13px}
+.interior-transport{width:232px}
+@media(max-width:800px){.panel-tabs{flex:0 0 auto;width:150px}#design-panel{flex:0 0 auto;width:260px;max-height:220px;overflow-y:auto;padding-right:4px}#design-panel .paint-swatches{grid-template-columns:repeat(3,minmax(0,1fr))}.interior-transport{width:auto;align-items:flex-start}}

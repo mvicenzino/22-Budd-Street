@@ -48,11 +48,17 @@ for(const x of [-.47,.47])windowAt(x,8.15,4.29,.72,1.1);
 for(const x of [-2.35,-1.25,-.15])windowAt(x,2.2,4.3,.9,1.55);for(const x of [-3.05,.55])box(.28,1.7,.08,x,2.2,4.33,shutterFinish);
 function door(x,y,z,angle=0,w=.95,h=2.15,finish=white){const g=new THREE.Group();g.position.set(x,y,z);g.rotation.y=angle;home.add(g);for(const xx of [-w/2-.0375,w/2+.0375])box(.075,h+.13,.12,xx,0,0,trim,g);box(w+.15,.075,.12,0,h/2+.0275,0,trim,g);const hinge=new THREE.Group();hinge.userData.dynamic=true;hinge.position.set(-w/2,0,.08);g.add(hinge);box(w,h,.05,w/2,0,0,finish,hinge);box(w-.17,h*.64,.035,w/2,h*.12,.04,glassLower,hinge);box(w-.17,.06,.03,w/2,-h*.2,.065,finish,hinge);box(.06,.06,.06,w*.85,-.05,.09,stone,hinge);return hinge}
 const frontDoor=door(2.5,2.09,4.31,0,.95,2.15,mat('#17191b'));
+function frenchDoor(x,y,z,angle=0,w=1.7,h=2.1){const g=new THREE.Group();g.position.set(x,y,z);g.rotation.y=angle;home.add(g);for(const xx of [-w/2-.0375,w/2+.0375])box(.075,h+.13,.12,xx,0,0,trim,g);box(w+.15,.075,.12,0,h/2+.0275,0,trim,g);
+const pw=w/2-.012,stile=.09,top=.1,bottom=.24,gw=pw-2*stile,gh=h-top-bottom,gy=(bottom-top)/2;
+return [-1,1].map(side=>{const hinge=new THREE.Group();hinge.userData.dynamic=true;hinge.position.set(side*-w/2,0,.08);g.add(hinge);const cx=side*pw/2;
+box(pw,h,.045,cx,0,0,glassLower,hinge);for(const sx of [-1,1])box(stile,h,.05,cx+sx*(pw/2-stile/2),0,0,white,hinge);box(pw,top,.05,cx,h/2-top/2,0,white,hinge);box(pw,bottom,.05,cx,-h/2+bottom/2,0,white,hinge);
+for(let i=1;i<3;i++)box(.022,gh,.052,cx-gw/2+gw*i/3,gy,0,white,hinge);for(let j=1;j<5;j++)box(gw,.022,.052,cx,gy-gh/2+gh*j/5,0,white,hinge);
+box(.05,.05,.05,cx-side*(pw/2-.12),-.05,.06,stone,hinge);return hinge})}
 // Four windows on left; driveway has an elevated small kitchen window and basement entrance.
 for(const x of [-4.09,4.09]){const angle=x<0?-Math.PI/2:Math.PI/2;for(const z of [-2.35,2.35])windowAt(x,5.2,z,.98,1.4,angle);windowAt(x,2.35,2.35,.98,1.5,angle);windowAt(x,x>0?2.8:2.35,-2.35,.98,x>0?1.08:1.5,angle)}
 door(4.09,1.15,.3,Math.PI/2,.87,2.1);for(const z of [-2.65,2.6])windowAt(4.09,.43,z,.85,.46,Math.PI/2);
 for(const x of [-.47,.47])windowAt(x,8.15,-4.3,.72,1.1,Math.PI);
-for(const x of [-2.15,2.75])windowAt(x,5.25,-4.3,.9,1.15,Math.PI);windowAt(2.8,2.7,-4.3,.9,1.1,Math.PI);const rearDoor=door(-1,2.05,-4.3,Math.PI,1.7,2.1);
+for(const x of [-2.15,2.75])windowAt(x,5.25,-4.3,.9,1.15,Math.PI);windowAt(2.8,2.7,-4.3,.9,1.1,Math.PI);const rearDoor=frenchDoor(-1,2.05,-4.3,Math.PI,1.7,2.1);
 // Front porch and entry stairs. Dedicated finishes keep the rear porch unchanged.
 const porchFloorFinish=wood.clone(),porchStepFinish=red.clone(),porchRailFinish=trim.clone(),stairRailFinish=red.clone();
 box(8.3,.23,2.25,0,1,5.3,porchFloorFinish);box(8.35,.19,.18,0,.98,6.44,trim);
