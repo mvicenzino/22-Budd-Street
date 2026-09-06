@@ -29,7 +29,7 @@ export const OPENINGS = {
   ],
   rear: [
     {a0: -1.85, a1: -.15, y0: SHELL.base, y1: 3.1, kind: 'door'},
-    {a0: 2.35, a1: 3.25, y0: 1.9, y1: 3.2, kind: 'window'},
+    {a0: 2.35, a1: 3.25, y0: 2.15, y1: 3.25, kind: 'window'}, // kitchen window sits just above the counter
     {a0: -2.6, a1: -1.7, y0: 4.675, y1: 5.825, kind: 'window'},
     {a0: 2.3, a1: 3.2, y0: 4.675, y1: 5.825, kind: 'window'},
   ],
@@ -59,13 +59,14 @@ export const PARTITIONS = [
   // First floor
   {level: 'first', axis: 'x', coord: -.38, c0: -INNER.x, c1: 1.92, openings: [{a0: -2.98, a1: -.94, y1: 2.2}]},          // living | dining
   {level: 'first', axis: 'z', coord: 1.92, c0: -.38, c1: INNER.z, openings: [{a0: 1.45, a1: 3.17, y1: 2.2}]},             // living | hallway
-  {level: 'first', axis: 'z', coord: -.33, c0: -INNER.z, c1: -.38, openings: [{a0: -1.95, a1: -.7, y1: 2.2}]},            // dining | kitchen
+  {level: 'first', axis: 'z', coord: -.33, c0: -INNER.z, c1: -.38, openings: [{a0: -3.75, a1: -3.15, y1: 2.05, door: true}, {a0: -1.95, a1: -.7, y1: 2.2}]}, // dining | kitchen, powder room door
   {level: 'first', axis: 'x', coord: -.38, c0: 1.92, c1: INNER.x, openings: [{a0: 1.92, a1: 2.94, y1: 2.2}]},             // hallway | kitchen, landing wall
   {level: 'first', axis: 'z', coord: 2.87, c0: STAIR.upperZ1, c1: -.38, openings: []},                                    // upper flight enclosure
   {level: 'first', axis: 'x', coord: -1, c0: 1.2, c1: 1.92, openings: []},                                                // pantry closet
   {level: 'first', axis: 'z', coord: 1.2, c0: -1, c1: -.38, openings: []},
-  {level: 'first', axis: 'z', coord: .5, c0: -INNER.z, c1: -2.95, openings: [{a0: -3.7, a1: -3.1, y1: 2.05, door: true}]}, // half bath
-  {level: 'first', axis: 'x', coord: -2.95, c0: -.33, c1: .5, openings: []},
+  {level: 'first', axis: 'z', coord: .35, c0: -INNER.z, c1: -2.95, openings: []}, // powder room, entered from the dining room
+  {level: 'first', axis: 'x', coord: -2.95, c0: -.33, c1: .5, openings: []},                                           // powder room, doubles as the fridge alcove side
+  {level: 'first', axis: 'x', coord: -2.15, c0: -.33, c1: .5, openings: []},                                           // fridge alcove return, beside the dining entrance
   {level: 'first', axis: 'x', coord: 3.4, c0: 2.94, c1: INNER.x, openings: []},                                           // hall closet
   {level: 'first', axis: 'z', coord: 2.94, c0: 3.4, c1: INNER.z, openings: [{a0: 3.45, a1: 3.9, y1: 2.05, door: true}]},
   // Second floor
@@ -106,9 +107,9 @@ const reverse = via => [...via].reverse();
 export const NODES = [
   {id: 'porch', room: 'porch', x: 2.5, z: 6.3, floor: 1.115, links: [{to: 'hall', door: 'front'}]},
   {id: 'hall', room: 'hall', x: 2.3, z: 2.1, links: [{to: 'porch', door: 'front'}, {to: 'living'}, {to: 'kitchen'}, {to: 'hall2', via: mainStairUp, label: 'Upstairs'}]},
-  {id: 'living', room: 'living', x: -.6, z: 2.2, look: [-3.1, 1.4], links: [{to: 'hall'}, {to: 'dining'}]},
+  {id: 'living', room: 'living', x: -.15, z: 1.7, look: [-2.2, 3.4], links: [{to: 'hall'}, {to: 'dining'}]},
   {id: 'dining', room: 'dining', x: -1.5, z: -1.1, look: [-2.3, -2.6], links: [{to: 'living'}, {to: 'kitchen'}, {to: 'rear', door: 'rear'}]},
-  {id: 'kitchen', room: 'kitchen', x: 2.2, z: -1.6, look: [2, -3.9], links: [{to: 'hall'}, {to: 'dining'}]},
+  {id: 'kitchen', room: 'kitchen', x: 2, z: -1.4, look: [2.5, -3.9], links: [{to: 'hall'}, {to: 'dining'}]},
   {id: 'rear', room: 'rear', x: -.65, z: -5.9, links: [{to: 'dining', door: 'rear'}]},
   {id: 'hall2', room: 'hall2', x: 1.5, z: -1.5, look: [-1, -1.5], links: [{to: 'hall', via: reverse(mainStairUp), label: 'Downstairs'}, {to: 'bedBack'}, {to: 'bedFrontL'}, {to: 'bedFrontR', via: [[2.4, -1, S.y]]}, {to: 'bath'}]},
   {id: 'bedBack', room: 'bedBack', x: -1.2, z: -1.9, look: [-2.85, -2.9], links: [{to: 'hall2'}]},

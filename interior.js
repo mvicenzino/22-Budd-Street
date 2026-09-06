@@ -11,7 +11,7 @@ const yawBetween = (a, b) => Math.atan2(-(b.x - a.x), -(b.z - a.z));
 const T = .14; // partition thickness
 const F = LEVELS.first, S = LEVELS.second, L = LEVELS.loft;
 
-export function createInterior({scene, camera, host, controls, doors, glassLower, exteriorPose, onEnter, onExit}) {
+export function createInterior({scene, camera, renderer, host, controls, doors, glassLower, hemisphere, exteriorPose, onEnter, onExit}) {
   const mat = (c, o = {}) => new THREE.MeshStandardMaterial({color: c, roughness: .88, ...o});
   const paint = mat('#f3efe6'), ceilingPaint = mat('#faf8f3'), trim = mat('#f7f6ed', {roughness: .6});
   const walnut = mat('#7d5b3f', {roughness: .55}), oak = mat('#a88760', {roughness: .6}), fabric = mat('#8f9ca4');
@@ -56,23 +56,24 @@ export function createInterior({scene, camera, host, controls, doors, glassLower
   // ---- Floors and ceilings -------------------------------------------------------------
   function plankTexture() {
     const c = document.createElement('canvas');
-    c.width = c.height = 512;
+    c.width = c.height = 1024;
     const g = c.getContext('2d');
     g.fillStyle = '#a57f57';
-    g.fillRect(0, 0, 512, 512);
-    const rows = 8, h = 512 / rows;
+    g.fillRect(0, 0, 1024, 1024);
+    const rows = 8, h = 1024 / rows;
     for (let r = 0; r < rows; r++) {
       const tone = 150 + ((r * 37) % 23);
       g.fillStyle = `rgb(${tone + 15},${tone - 25},${tone - 60})`;
-      g.fillRect(0, r * h, 512, h - 2);
+      g.fillRect(0, r * h, 1024, h - 4);
       g.fillStyle = 'rgba(70,45,25,.45)';
-      g.fillRect(0, r * h + h - 2, 512, 2);
-      g.fillRect((r * 197) % 512, r * h, 2, h);
+      g.fillRect(0, r * h + h - 4, 1024, 4);
+      g.fillRect((r * 397) % 1024, r * h, 4, h);
       g.strokeStyle = 'rgba(90,60,35,.18)';
       for (let i = 0; i < 6; i++) {
         g.beginPath();
-        g.moveTo(0, r * h + 6 + i * 9);
-        g.lineTo(512, r * h + 4 + i * 9 + ((r + i) % 3));
+        g.lineWidth = 2;
+        g.moveTo(0, r * h + 12 + i * 18);
+        g.lineTo(1024, r * h + 8 + i * 18 + ((r + i) % 3) * 2);
         g.stroke();
       }
     }
@@ -80,6 +81,7 @@ export function createInterior({scene, camera, host, controls, doors, glassLower
     t.colorSpace = THREE.SRGBColorSpace;
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     t.repeat.set(3, 7.5);
+    t.anisotropy = renderer.capabilities.getMaxAnisotropy();
     return t;
   }
   const floorMat = new THREE.MeshStandardMaterial({map: plankTexture(), roughness: .55});
@@ -313,17 +315,38 @@ export function createInterior({scene, camera, host, controls, doors, glassLower
     box(.42, .04, .5, 0, .4, .02, porcelain, g);
   }
 
-  // First floor: living room
-  box(3.3, .02, 2.5, -1.6, F.y, 1.5, rugBlue);
-  sofa(-3.15, 1.4, 2.1, Math.PI / 2);
-  box(1.1, .04, .6, -2.25, F.y + .4, 1.4, walnut);
-  for (const sx of [-.5, .5]) for (const sz of [-.25, .25]) box(.04, .4, .04, -2.25 + sx, F.y, 1.4 + sz, walnut);
-  armchair(-.45, .55, -Math.PI / 2 + .35);
-  armchair(-.45, 2.9, -Math.PI / 2 - .35);
-  lamp(-3.3, 3.45);
-  box(1.5, .5, .42, .75, F.y, -.09, walnut);
-  box(1.15, .65, .04, .75, F.y + .6, -.12, black);
-  plant(1.45, 3.5);
+  // First floor: living room. Sectional along the street-facing wall under the front windows with a
+  // chaise on the left end, and the large TV on the dining-room wall opposite.
+  {
+    const cream = mat('#cbc2b1', {roughness: .95}), pillow = mat('#a9b2a8', {roughness: .95}), rug = mat('#d3cbbb', {roughness: .95});
+    const rustic = mat('#7a6650', {roughness: .7});
+    box(3.6, .02, 2.9, -1.6, F.y, 1.9, rug);
+    const seat = (x0, z0, x1, z1, backSide) => {
+      const w = x1 - x0, d = z1 - z0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+      box(w, .4, d, cx, F.y, cz, cream);
+      box(w - .04, .14, d - .3, cx, F.y + .4, cz + (backSide === 'z+' ? -.14 : 0), cream);
+      if (backSide === 'z+') box(w, .5, .24, cx, F.y + .32, z1 - .12, cream);
+      if (backSide === 'x-') box(.24, .5, d, x0 + .12, F.y + .32, cz, cream);
+    };
+    seat(-3.55, 3, -.35, 3.95, 'z+');                       // main run against the front wall
+    box(.22, .3, .95, -.35 - .11, F.y + .4, 3.47, cream);   // right arm
+    seat(-3.55, 2, -2.6, 3, 'x-');                          // chaise turning into the room
+    box(.95, .3, .22, -3.07, F.y + .4, 2.0 + .11, cream);   // chaise end
+    for (const x of [-3.05, -2.2, -1.3, -.6]) box(.5, .42, .14, x, F.y + .55, 3.8, pillow);
+    box(.5, .42, .14, -3.35, F.y + .55, 2.5, pillow);
+    box(1.1, .12, 1.1, -1.2, F.y + .34, 1.5, rustic);      // square coffee table
+    box(1.0, .34, 1.0, -1.2, F.y, 1.5, rustic);
+    box(1.8, .5, .42, .3, F.y, -.09, rustic);               // media console on the dining-room wall
+    box(1.6, .92, .04, .3, F.y + 1.05, -.12, black);        // large TV
+    box(1.2, .06, .1, .3, F.y + .52, -.1, black);           // soundbar
+    lamp(1.5, 3.5);
+    plant(-3.35, .3);
+    {
+      const drum = new THREE.Mesh(new THREE.CylinderGeometry(.24, .24, .16, 24, 1, true), mat('#efe6d3', {side: THREE.DoubleSide}));
+      drum.position.set(-1.2, F.ceil - .2, 1.8);
+      group.add(drum);
+    }
+  }
   // Hallway
   box(.85, .02, 2.4, 2.45, F.y, 2.7, rugSand);
   box(.3, .8, .95, 2.15, F.y, .6, walnut);
@@ -343,24 +366,120 @@ export function createInterior({scene, camera, host, controls, doors, glassLower
     shade.position.set(-2.3, F.ceil - 1.05, -2.6);
     group.add(shade);
   }
-  // Kitchen: counters on the rear wall and the driveway wall, sink under the driveway window.
+  // Kitchen, from the floor plan and photos: white cabinets and appliances, navy counters, beadboard
+  // backsplash, black-and-white checkerboard floor. The fridge sits in an alcove on the dining-room wall
+  // beside the dining entrance. Along the rear wall: counter, range, dishwasher, then the sink under the
+  // rear window; the counter turns the corner along the driveway wall.
   {
-    const depth = .6, h = .9, rz = -INNER.z + depth / 2, sideLen = INNER.z - depth - 2.3, sideZ = (-INNER.z + depth - 2.3) / 2;
-    box(INNER.x - .5, h - .1, depth, (INNER.x + .5) / 2, F.y + .1, rz, cabinet);
-    box(INNER.x - .5, .1, depth - .08, (INNER.x + .5) / 2, F.y, rz + .04, black);
-    box(INNER.x - .48, .04, depth + .03, (INNER.x + .5) / 2, F.y + h, rz + .015, counter);
-    box(depth, h - .1, sideLen, INNER.x - depth / 2, F.y + .1, sideZ, cabinet);
-    box(depth + .03, .04, sideLen, INNER.x - depth / 2 - .015, F.y + h, sideZ, counter);
-    box(.5, .16, depth - .12, INNER.x - depth / 2, F.y + h - .12, -2.7, steel);
-    box(.02, .3, .02, INNER.x - .12, F.y + h, -2.7, steel);
-    box(1.8, .75, .35, 1.4, F.y + 1.45, -INNER.z + .18, cabinet);
-    box(.76, h, depth, 2.3, F.y, rz, steel);
-    for (const dx of [-.2, .2]) for (const dz of [-.12, .12]) box(.16, .01, .16, 2.3 + dx, F.y + h + .03, rz + dz, black);
-    box(.75, 1.8, .7, .05, F.y, -2.5, steel);
-    box(.02, 1.2, .03, .44, F.y + .35, -2.5, black);
-    for (let i = 0; i < 7; i++) box(.02, .02, .02, .5 + i * .5, F.y + .62, -INNER.z + .28, black);
+    const appliance = mat('#fafbfa', {roughness: .35, metalness: .08}), navy = mat('#27325f', {roughness: .3}), grate = mat('#2a2c2e', {roughness: .7});
+    const ovenGlass = mat('#3a4247', {metalness: .3, roughness: .25}), knob = mat('#e8e7e2', {roughness: .5});
+    const rear = -INNER.z, right = INNER.x, depth = .6, h = .9, upperBottom = 1.5, upperTop = 2.4, upperDepth = .33;
+    const kx0 = .35, sideEnd = -2.3; // counters start at the powder room wall; the side run stops at the stair enclosure
+    // Floor: diagonal checkerboard tile over the kitchen footprint.
+    const tileCanvas = document.createElement('canvas');
+    tileCanvas.width = tileCanvas.height = 256;
+    const tg = tileCanvas.getContext('2d');
+    tg.fillStyle = '#ebe7dc';
+    tg.fillRect(0, 0, 256, 256);
+    tg.fillStyle = '#1d1d1f';
+    tg.fillRect(0, 0, 128, 128);
+    tg.fillRect(128, 128, 128, 128);
+    const tile = new THREE.CanvasTexture(tileCanvas);
+    tile.colorSpace = THREE.SRGBColorSpace;
+    tile.wrapS = tile.wrapT = THREE.RepeatWrapping;
+    tile.center.set(.5, .5);
+    tile.rotation = Math.PI / 4;
+    tile.repeat.set((right + .33) / .6, (INNER.z - .38) / .6);
+    tile.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    box(right + .33, .012, INNER.z - .38, (right - .33) / 2, F.y, (rear - .38) / 2, new THREE.MeshStandardMaterial({map: tile, roughness: .35})).castShadow = false;
+    // Beadboard backsplash between the counter and the uppers.
+    const beadCanvas = document.createElement('canvas');
+    beadCanvas.width = 256;
+    beadCanvas.height = 64;
+    const bg = beadCanvas.getContext('2d');
+    bg.fillStyle = '#f4f2ea';
+    bg.fillRect(0, 0, 256, 64);
+    for (let x = 0; x < 256; x += 32) {
+      bg.fillStyle = 'rgba(0,0,0,.14)';
+      bg.fillRect(x, 0, 3, 64);
+      bg.fillStyle = 'rgba(255,255,255,.7)';
+      bg.fillRect(x + 3, 0, 2, 64);
+    }
+    const bead = new THREE.CanvasTexture(beadCanvas);
+    bead.colorSpace = THREE.SRGBColorSpace;
+    bead.wrapS = bead.wrapT = THREE.RepeatWrapping;
+    const beadboard = len => new THREE.MeshStandardMaterial({map: (() => { const t = bead.clone(); t.repeat.set(len / .32, 1); t.needsUpdate = true; return t; })(), roughness: .6});
+    const winX = [2.35, 3.25], sill = 2.15 - F.y; // rear window over the sink, in floor-relative height
+    box(winX[0] - kx0, upperBottom - h, .02, (kx0 + winX[0]) / 2, F.y + h, rear + .01, beadboard(winX[0] - kx0));
+    box(right - winX[1], upperBottom - h, .02, (winX[1] + right) / 2, F.y + h, rear + .01, beadboard(right - winX[1]));
+    box(winX[1] - winX[0], sill - h, .02, (winX[0] + winX[1]) / 2, F.y + h, rear + .01, beadboard(winX[1] - winX[0]));
+    box(.02, upperBottom - h, sideEnd - rear, right - .01, F.y + h, (rear + sideEnd) / 2, beadboard(sideEnd - rear));
+    // Base run along the rear wall, split into the fridge bay, range, dishwasher and sink base.
+    const rangeX = [1, 1.76], dishX = [1.76, 2.36], sinkX = [2.36, 3.26];
+    const baseCab = (x0, x1) => {
+      box(x1 - x0, h - .1, depth, (x0 + x1) / 2, F.y + .1, rear + depth / 2, cabinet);
+      box(x1 - x0, .1, depth - .08, (x0 + x1) / 2, F.y, rear + depth / 2 + .04, grate);
+      box(.02, .02, .02, (x0 + x1) / 2, F.y + .62, rear + depth + .01, knob);
+    };
+    baseCab(kx0, rangeX[0]);
+    baseCab(sinkX[0], sinkX[1]);
+    baseCab(sinkX[1], right);
+    box(right - rangeX[1] + .02, .04, depth + .03, (rangeX[1] + right) / 2, F.y + h, rear + depth / 2 + .015, navy);
+    box(rangeX[0] - kx0 + .02, .04, depth + .03, (kx0 + rangeX[0]) / 2, F.y + h, rear + depth / 2 + .015, navy);
+    // Side run along the driveway wall with the microwave.
+    box(depth, h - .1, sideEnd - rear - depth, right - depth / 2, F.y + .1, (rear + depth + sideEnd) / 2, cabinet);
+    box(depth - .08, .1, sideEnd - rear - depth, right - depth / 2 - .04, F.y, (rear + depth + sideEnd) / 2, grate);
+    box(depth + .03, .04, sideEnd - rear - depth + .02, right - depth / 2 - .015, F.y + h, (rear + depth + sideEnd) / 2, navy);
+    for (const z of [-3.0, -2.6]) box(.02, .02, .02, right - depth - .01, F.y + .62, z, knob);
+    box(.5, .3, .38, right - .3, F.y + h + .04, -2.75, appliance);
+    box(.36, .2, .01, right - .55, F.y + h + .09, -2.75, ovenGlass);
+    // Sink under the rear window.
+    box(.56, .18, .42, (sinkX[0] + sinkX[1]) / 2, F.y + h - .14, rear + depth / 2, porcelain);
+    box(.44, .14, .32, (sinkX[0] + sinkX[1]) / 2, F.y + h - .1, rear + depth / 2, mat('#e3e5e2', {roughness: .3}));
+    box(.02, .22, .02, (sinkX[0] + sinkX[1]) / 2, F.y + h + .04, rear + .12, steel);
+    box(.02, .02, .18, (sinkX[0] + sinkX[1]) / 2, F.y + h + .25, rear + .2, steel);
+    // Dishwasher: white front with a control strip.
+    box(dishX[1] - dishX[0] - .02, h - .04, depth, (dishX[0] + dishX[1]) / 2, F.y + .02, rear + depth / 2, appliance);
+    box(dishX[1] - dishX[0] - .1, .05, .01, (dishX[0] + dishX[1]) / 2, F.y + h - .1, rear + depth + .005, grate);
+    box(dishX[1] - dishX[0] - .02, .04, depth + .03, (dishX[0] + dishX[1]) / 2, F.y + h, rear + depth / 2 + .015, navy);
+    // Four-burner range next to the fridge bay.
+    const rx = (rangeX[0] + rangeX[1]) / 2, rw = rangeX[1] - rangeX[0];
+    box(rw, h + .02, depth + .05, rx, F.y, rear + depth / 2 + .02, appliance);
+    box(rw - .04, .02, depth - .08, rx, F.y + h + .02, rear + depth / 2 + .02, grate);
+    for (const dx of [-.19, .19]) for (const dz of [-.14, .14]) {
+      box(.2, .012, .2, rx + dx, F.y + h + .04, rear + depth / 2 + .02 + dz, grate);
+      box(.07, .008, .07, rx + dx, F.y + h + .052, rear + depth / 2 + .02 + dz, black);
+    }
+    box(rw, .16, .08, rx, F.y + h + .02, rear + .05, appliance);
+    box(.3, .06, .01, rx, F.y + h + .07, rear + .095, ovenGlass);
+    box(rw - .16, .34, .01, rx, F.y + .28, rear + depth + .06, ovenGlass);
+    box(rw - .1, .03, .04, rx, F.y + .7, rear + depth + .07, knob);
+    for (let i = 0; i < 4; i++) box(.045, .045, .03, rangeX[0] + .12 + i * .17, F.y + .78, rear + depth + .07, knob);
+    // Refrigerator in its alcove on the dining-room wall, facing the kitchen, cabinet and soffit above.
+    const aZ = [-2.9, -2.15], aX = .5, az = (aZ[0] + aZ[1]) / 2;
+    box(.72, 1.7, aZ[1] - aZ[0] - .06, -.33 + .38, F.y, az, appliance);
+    box(.01, .01, aZ[1] - aZ[0] - .1, -.33 + .745, F.y + 1.2, az, grate);
+    for (const y of [.55, 1.35]) box(.025, .32, .025, -.33 + .76, F.y + y, aZ[1] - .1, knob);
+    box(aX + .33, upperTop - 1.8, aZ[1] - aZ[0] - .02, (aX - .33) / 2, F.y + 1.8, az, cabinet);
+    box(.02, .02, .02, aX + .01, F.y + 1.9, az, knob);
+    box(aX + .33, F.ceil - F.y - upperTop, aZ[1] - aZ[0] + .1, (aX - .33) / 2, F.y + upperTop, az, paint);
+    box(.06, F.ceil - F.y - upperTop, aZ[1] - aZ[0] + .16, aX + .01, F.y + upperTop, az, trim);
+    // Upper cabinets: over the range (with a hood), beside the window, and along the driveway wall.
+    const upper = (x0, x1, y0 = upperBottom) => {
+      box(x1 - x0, upperTop - y0, upperDepth, (x0 + x1) / 2, F.y + y0, rear + upperDepth / 2, cabinet);
+      box(.005, upperTop - y0 - .08, .01, (x0 + x1) / 2, F.y + y0 + .04, rear + upperDepth + .003, mat('#d9d6cc'));
+      for (const dx of [-.06, .06]) box(.02, .02, .02, (x0 + x1) / 2 + dx, F.y + y0 + .1, rear + upperDepth + .01, knob);
+    };
+    upper(kx0, rangeX[0]);
+    upper(rangeX[0], rangeX[1], 1.75);
+    box(rangeX[1] - rangeX[0], .12, upperDepth + .1, rx, F.y + 1.62, rear + (upperDepth + .1) / 2, appliance);
+    upper(rangeX[1], 2.33);
+    upper(3.27, right);
+    box(upperDepth, upperTop - upperBottom, sideEnd - rear - upperDepth, right - upperDepth / 2, F.y + upperBottom, (rear + upperDepth + sideEnd) / 2, cabinet);
+    for (const z of [-3.5, -2.85]) for (const dz of [-.06, .06]) box(.02, .02, .02, right - upperDepth - .01, F.y + upperBottom + .1, z + dz, knob);
+    box(right - kx0, .06, upperDepth + .02, (right + kx0) / 2, F.y + upperTop, rear + upperDepth / 2, cabinet); // crown
   }
-  toilet(.05, -3.45, F.y); // half bath
+  toilet(.0, -3.5, F.y); // powder room, entered from the dining room
 
   // Second floor: back bedroom
   box(2.4, .02, 2.6, -2.2, S.y, -2.3, rugSand);
@@ -706,8 +825,9 @@ export function createInterior({scene, camera, host, controls, doors, glassLower
   }
   $('#exit-interior').onclick = () => exit();
 
+  const groundOutside = hemisphere.groundColor.clone(), groundInside = new THREE.Color('#d8d2c6');
   function slerpTo(duration, position, quaternion, fovTo, glassTo, lightTo, done) {
-    const p0 = camera.position.clone(), q0 = camera.quaternion.clone(), f0 = camera.fov, g0 = glassLower.opacity, l0 = lights[0].intensity / lights[0].userData.max;
+    const p0 = camera.position.clone(), q0 = camera.quaternion.clone(), f0 = camera.fov, g0 = glassLower.opacity, l0 = lights[0].intensity / lights[0].userData.max, c0 = hemisphere.groundColor.clone();
     tween(duration, t => {
       camera.position.lerpVectors(p0, position, t);
       camera.quaternion.slerpQuaternions(q0, quaternion, t);
@@ -715,6 +835,7 @@ export function createInterior({scene, camera, host, controls, doors, glassLower
       camera.updateProjectionMatrix();
       glassLower.opacity = lerp(g0, glassTo, t);
       for (const l of lights) l.intensity = lerp(l0, lightTo, t) * l.userData.max;
+      hemisphere.groundColor.lerpColors(c0, lightTo ? groundInside : groundOutside, t);
     }, done);
   }
   const quaternionFor = (y, p) => new THREE.Quaternion().setFromEuler(new THREE.Euler(p, y, 0, 'YXZ'));
@@ -797,5 +918,5 @@ export function createInterior({scene, camera, host, controls, doors, glassLower
     }
   }
 
-  return {get active() { return state !== 'outside'; }, enter, exit, update};
+  return {get active() { return state !== 'outside'; }, group, enter, exit, update};
 }
