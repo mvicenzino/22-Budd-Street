@@ -124,7 +124,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     box(x1 - x0, h, z0 + D / 2, (x0 + x1) / 2, y0, (z0 - D / 2) / 2, mats);
   }
   slab(F.y - .1, F.y, null);
-  slab(F.ceil, S.y, [STAIR.x0, STAIR.upperZ1, STAIR.x1, -.27]);
+  slab(F.ceil, S.y, [STAIR.x0, STAIR.upperZ1, STAIR.x1, STAIR.landingZ1]);
   slab(S.ceil, L.y, [LOFT_STAIR.x0, LOFT_STAIR.z1, LOFT_STAIR.x1, LOFT_STAIR.z0]);
 
   // ---- Rooms own their wall paint -----------------------------------------------------------
@@ -254,11 +254,11 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     const n = Math.max(1, Math.round(Math.abs(z1 - z0) / .18));
     for (let i = 1; i < n; i++) box(.03, .86, .03, x, y, z0 + (z1 - z0) * i / n, trim);
   }
-  function flight(x0, x1, zStart, zEnd, yStart, yEnd, steps, base, railSide) {
+  function flight(x0, x1, zStart, zEnd, yStart, yEnd, steps, base, railSide, fill = palette.woodLight) {
     const w = x1 - x0, cx = (x0 + x1) / 2, run = (zStart - zEnd) / steps, rise = (yEnd - yStart) / steps;
     for (let i = 0; i < steps; i++) {
       const z = zStart - run / 2 - i * run, top = yStart + (i + 1) * rise;
-      box(w, top - base, run, cx, base, z, palette.woodLight);
+      box(w, top - base, run, cx, base, z, fill);
       box(w, .035, run + .04, cx, top, z - .02, palette.wood);
     }
     if (railSide) {
@@ -268,13 +268,13 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       for (let i = 0; i < steps; i++) box(.03, .86, .03, rx, yStart + (i + 1) * rise, zStart - run / 2 - i * run, trim);
     }
   }
-  flight(STAIR.x0, STAIR.x1, STAIR.lowerZ0, STAIR.lowerZ1, F.y, STAIR.landingY, 7, F.y, -1);
+  flight(STAIR.x0, STAIR.x1, STAIR.lowerZ0, STAIR.lowerZ1, F.y, STAIR.landingY, 6, F.y, -1);
   box(STAIR.x1 - STAIR.x0, STAIR.landingY - F.y, STAIR.lowerZ1 - STAIR.landingZ1, (STAIR.x0 + STAIR.x1) / 2, F.y, (STAIR.lowerZ1 + STAIR.landingZ1) / 2, palette.woodLight);
   box(STAIR.x1 - STAIR.x0, .035, STAIR.lowerZ1 - STAIR.landingZ1, (STAIR.x0 + STAIR.x1) / 2, STAIR.landingY, (STAIR.lowerZ1 + STAIR.landingZ1) / 2, palette.wood);
   railing(STAIR.x0 - .03, STAIR.lowerZ1, STAIR.landingZ1 + .05, STAIR.landingY);
   flight(STAIR.x0, STAIR.x1, STAIR.landingZ1, STAIR.upperZ1, STAIR.landingY, S.y, 10, STAIR.landingY, 0);
-  railing(STAIR.x0 - .03, -.27 - .05, STAIR.upperZ1 + .35, S.y);
-  flight(LOFT_STAIR.x0, LOFT_STAIR.x1, LOFT_STAIR.z0, LOFT_STAIR.z1, S.y, L.y, 13, S.y, -1);
+  railing(STAIR.x0 - .03, -.37 - .05, STAIR.upperZ1 + .3, S.y);
+  flight(LOFT_STAIR.x0, LOFT_STAIR.x1, LOFT_STAIR.z0, LOFT_STAIR.z1, S.y, L.y, 13, S.y, -1, paintFor('hall2')); // enclosed underside reads as wall
   railing(LOFT_STAIR.x0 - .03, LOFT_STAIR.z0 + .05, LOFT_STAIR.z1 + .35, L.y);
   railing(LOFT_STAIR.x1 + .03, LOFT_STAIR.z0 + .05, LOFT_STAIR.z1 + .35, L.y);
   beam([LOFT_STAIR.x0 - .03, L.y + .92, LOFT_STAIR.z0 + .05], [LOFT_STAIR.x1 + .03, L.y + .92, LOFT_STAIR.z0 + .05], .06, palette.wood);
@@ -475,24 +475,22 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   }
 
   // ---- Static fixtures ------------------------------------------------------------------
-  toilet(0, -3.5, F.y); // powder room, entered from the dining room
-  box(.3, .8, .95, 2.15, F.y, .6, palette.wood); // hallway console under a mirror
-  box(.03, .7, .7, 2.02, F.y + 1.15, .6, steel);
+  toilet(.09, -3.45, F.y); // powder room, entered from the dining room
   {
     // Hall bathroom: tub, toilet, vanity.
-    box(1.75, .02, 1.5, 2.8, S.y, -3.15, tile);
-    box(.7, .55, 1.45, 2.25, S.y, -3.2, porcelain);
-    box(.56, .02, 1.3, 2.25, S.y + .55, -3.2, mat('#d5e4e8', {roughness: .2}));
-    box(.03, .5, .03, 2.25, S.y + .55, -3.85, steel);
-    toilet(3.35, -3.6, S.y);
-    box(.5, .82, .5, 3.4, S.y, -2.8, cabinet);
-    box(.52, .04, .52, 3.4, S.y + .82, -2.8, mat('#d6d2c8', {roughness: .35}));
-    box(.03, .55, .5, 3.68, S.y + 1.2, -2.8, steel);
+    box(2.2, .02, 1.72, 2.75, S.y, -2.99, tile);
+    box(.7, .55, 1.5, 2.0, S.y, -3.05, porcelain);
+    box(.56, .02, 1.36, 2.0, S.y + .55, -3.05, mat('#d5e4e8', {roughness: .2}));
+    box(.03, .5, .03, 2.0, S.y + .55, -3.75, steel);
+    toilet(3.5, -3.5, S.y);
+    box(.5, .82, .5, 3.55, S.y, -2.55, cabinet);
+    box(.52, .04, .52, 3.55, S.y + .82, -2.55, mat('#d6d2c8', {roughness: .35}));
+    box(.03, .55, .5, 3.8, S.y + 1.2, -2.55, steel);
   }
   {
     // Front-left bedroom closets, from the photos: a double-door closet with two hanging rods and
     // shoe shelving on the right, and a built-in with five drawers under a two-door cabinet of shelves.
-    const y = S.y, front = .8 - T / 2, back = -.27 + T / 2, brass = mat('#c9a955', {metalness: .8, roughness: .3});
+    const y = S.y, front = .35 - T / 2, brass = mat('#c9a955', {metalness: .8, roughness: .3});
     const panelDoor = (hingeX, width, sign, angle, height = 2.0, bottom = 0) => {
       const g = new THREE.Group();
       g.position.set(hingeX, y + bottom, front);
@@ -504,31 +502,37 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       box(.03, .03, .03, sign * (width - .07), height * .48, .035, brass, g);
     };
     // Closet A: doors open, rods and shoes inside.
-    panelDoor(-3.4, .49, 1, -1.65);
-    panelDoor(-2.4, .49, -1, 1.65);
-    for (const [ry, colors] of [[1.72, ['#e8e2d5', '#dfe5ea', '#2f3236', '#6b7c93']], [.98, ['#7c8fb0', '#c9c4bb', '#5a4b42', '#9fb0c8']]]) {
-      beam([-3.55, y + ry, .25], [-2.85, y + ry, .25], .025, steel);
-      colors.forEach((c, i) => box(.05, .78, .34, -3.48 + i * .17, y + ry - .8, .25, mat(c, {roughness: .9})));
+    panelDoor(-3.6, .44, 1, -1.65);
+    panelDoor(-2.7, .44, -1, 1.65);
+    for (const [ry, colors] of [[1.72, ['#e8e2d5', '#dfe5ea', '#2f3236']], [.98, ['#7c8fb0', '#c9c4bb', '#5a4b42']]]) {
+      beam([-3.72, y + ry, -.02], [-3.05, y + ry, -.02], .025, steel);
+      colors.forEach((c, i) => box(.05, .78, .34, -3.62 + i * .19, y + ry - .8, -.02, mat(c, {roughness: .9})));
     }
-    box(.02, 2.0, .95, -2.82, y, .27, trim);
-    for (let i = 0; i < 7; i++) box(.38, .02, .9, -2.62, y + .15 + i * .3, .27, trim);
-    for (let i = 0; i < 6; i++) box(.24, .09, .28, -2.62 + (i % 2 ? .06 : -.06), y + .17 + i * .3, .3, mat(['#eeeeea', '#5a4636', '#2b2b2d'][i % 3]));
+    box(.02, 2.0, .55, -3.02, y, .0, trim);
+    for (let i = 0; i < 7; i++) box(.3, .02, .52, -2.86, y + .15 + i * .3, .0, trim);
+    for (let i = 0; i < 6; i++) box(.22, .09, .28, -2.86 + (i % 2 ? .04 : -.04), y + .17 + i * .3, .02, mat(['#eeeeea', '#5a4636', '#2b2b2d'][i % 3]));
+    // Second closet: doors slightly ajar, rod inside.
+    panelDoor(-1.6, .49, 1, -.25);
+    panelDoor(-.6, .49, -1, .25);
+    beam([-1.55, y + 1.72, -.02], [-.65, y + 1.72, -.02], .025, steel);
+    ['#d9dde0', '#9aa5b5', '#4a4f57', '#e6e0d3'].forEach((c, i) => box(.05, .78, .34, -1.45 + i * .21, y + .92, -.02, mat(c, {roughness: .9})));
     // Closet B: built-in drawers and cabinet, left cabinet door open.
-    box(.95, 2.0, .04, -.9, y, front - .02, cabinet);
+    const bx = -2.15, bw = .78;
+    box(bw, 2.0, .04, bx, y, front - .02, cabinet);
     for (let i = 0; i < 5; i++) {
-      box(.88, .19, .02, -.9, y + .04 + i * .225, front + .01, trim);
-      box(.7, .13, .01, -.9, y + .07 + i * .225, front + .021, cabinet);
-      box(.025, .025, .025, -.9, y + .13 + i * .225, front + .03, brass);
+      box(bw - .07, .19, .02, bx, y + .04 + i * .225, front + .01, trim);
+      box(bw - .25, .13, .01, bx, y + .07 + i * .225, front + .021, cabinet);
+      box(.025, .025, .025, bx, y + .13 + i * .225, front + .03, brass);
     }
-    box(.95, .04, .02, -.9, y + 1.17, front + .01, trim);
-    box(.02, .82, .95, -1.38, y + 1.22, .3, trim);
-    box(.02, .82, .95, -.42, y + 1.22, .3, trim);
-    for (let i = 0; i < 4; i++) box(.92, .02, .9, -.9, y + 1.22 + i * .26, .3, trim);
-    for (let i = 0; i < 3; i++) for (const dx of [-.2, .15]) box(.28, .08, .34, -.9 + dx, y + 1.25 + i * .26, .3, mat(['#3a4b6a', '#6b7688', '#e6dfd0'][(i + (dx > 0)) % 3], {roughness: .9}));
-    panelDoor(-1.38, .47, 1, -1.5, .82, 1.22);
-    panelDoor(-.42, .47, -1, 0, .82, 1.22);
+    box(bw, .04, .02, bx, y + 1.17, front + .01, trim);
+    box(.02, .82, .56, bx - bw / 2, y + 1.22, .0, trim);
+    box(.02, .82, .56, bx + bw / 2, y + 1.22, .0, trim);
+    for (let i = 0; i < 4; i++) box(bw - .03, .02, .52, bx, y + 1.22 + i * .26, .0, trim);
+    for (let i = 0; i < 3; i++) for (const dx of [-.18, .14]) box(.26, .08, .34, bx + dx, y + 1.25 + i * .26, .0, mat(['#3a4b6a', '#6b7688', '#e6dfd0'][(i + (dx > 0)) % 3], {roughness: .9}));
+    panelDoor(bx - bw / 2, bw / 2 - .01, 1, -1.5, .82, 1.22);
+    panelDoor(bx + bw / 2, bw / 2 - .01, -1, 0, .82, 1.22);
   }
-  for (const x of [.6, 1.3]) beam([x - .3, S.y + 1.7, -3.2], [x + .3, S.y + 1.7, -3.2], .03, steel);
+  beam([-.1, S.y + 1.7, -3.2], [1.4, S.y + 1.7, -3.2], .03, steel); // upstairs closet rod
 
   // ---- Room builders: furniture, rugs and layouts, rebuilt when a design choice changes ----------
   const roomGroups = {};
@@ -550,20 +554,20 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     living(layout, rugMat) {
       const cx = -1.6;
       if (layout === 'classic') {
-        rug(3.3, 2.5, cx, 1.5, F.y, rugMat);
-        sofa(-3.15, 1.4, 2.1, Math.PI / 2);
-        box(1.1, .04, .6, -2.25, F.y + .4, 1.4, palette.wood);
-        for (const sx of [-.5, .5]) for (const sz of [-.25, .25]) box(.04, .4, .04, -2.25 + sx, F.y, 1.4 + sz, palette.wood);
-        armchair(-.45, .55, -Math.PI / 2 + .35);
-        armchair(-.45, 2.9, -Math.PI / 2 - .35);
-        box(1.5, .5, .42, .75, F.y, -.09, palette.wood);
-        box(1.15, .65, .04, .75, F.y + .6, -.12, black);
-        lamp(-3.3, 3.45);
-        plant(1.45, 3.5);
+        rug(3.3, 2.5, cx, 1.6, F.y, rugMat);
+        sofa(-3.3, 1.6, 2.1, Math.PI / 2);
+        box(1.1, .04, .6, -2.35, F.y + .4, 1.6, palette.wood);
+        for (const sx of [-.5, .5]) for (const sz of [-.25, .25]) box(.04, .4, .04, -2.35 + sx, F.y, 1.6 + sz, palette.wood);
+        armchair(-.6, .6, -Math.PI / 2 + .35);
+        armchair(-.6, 3.0, -Math.PI / 2 - .35);
+        box(1.5, .5, .42, .55, F.y, -.03, palette.wood);
+        box(1.15, .65, .04, .55, F.y + .6, -.06, black);
+        lamp(-3.5, 3.5);
+        plant(1.55, 3.5);
         drum(cx, F.ceil - .2, 1.8);
         return;
       }
-      rug(3.6, 2.9, cx, 1.9, F.y, rugMat);
+      rug(3.6, 2.9, cx, 1.8, F.y, rugMat);
       const seat = (x0, z0, x1, z1, backSide) => {
         const w = x1 - x0, d = z1 - z0, sx = (x0 + x1) / 2, sz = (z0 + z1) / 2;
         box(w, .4, d, sx, F.y, sz, palette.sectional);
@@ -573,45 +577,46 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       };
       if (layout === 'side') {
         // Sectional along the left wall, chaise toward the front windows, TV on the hallway wall.
-        seat(-3.65, .1, -2.7, 3.3, 'x-');
-        seat(-2.7, 2.35, -1.6, 3.3, 'z+');
-        box(.95, .3, .22, -2.15, F.y + .4, 3.3 - .11, palette.sectional);
-        box(.22, .3, .95, -2.7 + .11, F.y + .4, .55, palette.sectional);
-        for (const z of [.6, 1.5, 2.4]) box(.14, .42, .5, -3.5, F.y + .55, z, palette.pillow);
-        box(1.1, .12, 1.1, -1.4, F.y + .34, 1.4, palette.rustic);
-        box(1.0, .34, 1.0, -1.4, F.y, 1.4, palette.rustic);
-        box(.42, .5, 1.8, 1.72, F.y, .6, palette.rustic);
-        box(.04, .92, 1.6, 1.75, F.y + 1.05, .6, black);
-        lamp(-3.3, 3.6);
-        plant(1.45, 3.5);
+        seat(-3.8, .0, -2.85, 3.2, 'x-');
+        seat(-2.85, 2.25, -1.75, 3.2, 'z+');
+        box(.95, .3, .22, -2.3, F.y + .4, 3.2 - .11, palette.sectional);
+        box(.22, .3, .95, -2.85 + .11, F.y + .4, .45, palette.sectional);
+        for (const z of [.5, 1.4, 2.3]) box(.14, .42, .5, -3.65, F.y + .55, z, palette.pillow);
+        box(1.1, .12, 1.1, -1.5, F.y + .34, 1.3, palette.rustic);
+        box(1.0, .34, 1.0, -1.5, F.y, 1.3, palette.rustic);
+        box(1.8, .5, .42, .55, F.y, -.03, palette.rustic);
+        box(1.6, .92, .04, .55, F.y + 1.05, -.06, black);
+        box(1.2, .06, .1, .55, F.y + .52, -.04, black);
+        lamp(1.65, 3.5);
+        plant(-3.5, 3.55);
         drum(cx, F.ceil - .2, 1.8);
         return;
       }
-      seat(-3.55, 3, -.35, 3.95, 'z+');
-      box(.22, .3, .95, -.35 - .11, F.y + .4, 3.47, palette.sectional);
-      seat(-3.55, 2, -2.6, 3, 'x-');
-      box(.95, .3, .22, -3.07, F.y + .4, 2.0 + .11, palette.sectional);
-      for (const x of [-3.05, -2.2, -1.3, -.6]) box(.5, .42, .14, x, F.y + .55, 3.8, palette.pillow);
-      box(.5, .42, .14, -3.35, F.y + .55, 2.5, palette.pillow);
-      box(1.1, .12, 1.1, -1.2, F.y + .34, 1.5, palette.rustic);
-      box(1.0, .34, 1.0, -1.2, F.y, 1.5, palette.rustic);
-      box(1.8, .5, .42, .3, F.y, -.09, palette.rustic);
-      box(1.6, .92, .04, .3, F.y + 1.05, -.12, black);
-      box(1.2, .06, .1, .3, F.y + .52, -.1, black);
-      lamp(1.5, 3.5);
-      plant(-3.35, .3);
+      seat(-3.6, 2.9, -.4, 3.85, 'z+');
+      box(.22, .3, .95, -.4 - .11, F.y + .4, 3.37, palette.sectional);
+      seat(-3.6, 1.9, -2.65, 2.9, 'x-');
+      box(.95, .3, .22, -3.12, F.y + .4, 1.9 + .11, palette.sectional);
+      for (const x of [-3.1, -2.25, -1.35, -.65]) box(.5, .42, .14, x, F.y + .55, 3.7, palette.pillow);
+      box(.5, .42, .14, -3.4, F.y + .55, 2.4, palette.pillow);
+      box(1.1, .12, 1.1, -1.4, F.y + .34, 1.3, palette.rustic);
+      box(1.0, .34, 1.0, -1.4, F.y, 1.3, palette.rustic);
+      box(1.8, .5, .42, .55, F.y, -.03, palette.rustic);
+      box(1.6, .92, .04, .55, F.y + 1.05, -.06, black);
+      box(1.2, .06, .1, .55, F.y + .52, -.04, black);
+      lamp(1.65, 3.5);
+      plant(-3.5, .1);
       drum(cx, F.ceil - .2, 1.8);
     },
-    hall(_, rugMat) { rug(.85, 2.4, 2.45, 2.7, F.y, rugMat); },
+    hall(_, rugMat) { rug(.8, 2.6, 2.47, 1.6, F.y, rugMat); },
     dining(layout, rugMat) {
       const along = layout === 'window';
-      const tx = along ? -2.9 : -2.3, tz = along ? -2.2 : -2.6, tw = along ? .95 : 1.7, td = along ? 1.7 : .95;
+      const tx = along ? -2.95 : -2.2, tz = along ? -2.1 : -2.3, tw = along ? .95 : 1.7, td = along ? 1.7 : .95;
       rug(along ? 2.2 : 2.6, along ? 2.6 : 2.2, tx + (along ? .3 : 0), tz, F.y, rugMat);
       box(tw, .05, td, tx, F.y + .72, tz, palette.wood);
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(.06, .72, .06, tx + sx * (tw / 2 - .13), F.y, tz + sz * (td / 2 - .13), palette.wood);
-      if (along) for (const z of [-2.65, -1.75]) chair(tx + .8, z, -Math.PI / 2);
-      else for (const x of [-2.75, -1.85]) { chair(x, -1.95, Math.PI); chair(x, -3.25, 0); }
-      plant(-3.35, -3.55);
+      if (along) for (const z of [-2.55, -1.65]) chair(tx + .8, z, -Math.PI / 2);
+      else for (const x of [-2.65, -1.75]) { chair(x, -1.65, Math.PI); chair(x, -2.95, 0); }
+      plant(-3.55, -.65);
       box(.01, .95, .01, tx, F.ceil - .95, tz, black);
       const shade = new THREE.Mesh(new THREE.CylinderGeometry(.2, .3, .24, 24, 1, true), mat('#3a3f42', {side: THREE.DoubleSide}));
       shade.position.set(tx, F.ceil - 1.05, tz);
@@ -621,8 +626,8 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       const appliance = steel, navyLike = counterMaterial(k.counter), grate = mat('#2a2c2e', {roughness: .7});
       const ovenGlass = mat('#3a4247', {metalness: .3, roughness: .25}), knob = mat('#d8d9d6', {roughness: .4, metalness: .3});
       const rear = -INNER.z, right = INNER.x, depth = .6, h = .9, upperBottom = 1.5, upperTop = 2.4, upperDepth = .33;
-      const kx0 = .35, sideEnd = -2.3;
-      box(right + .33, .012, INNER.z - .38, (right - .33) / 2, F.y, (rear - .38) / 2, kitchenFloorMaterial(k.floor)).castShadow = false;
+      const kx0 = .5, sideEnd = -1.0;
+      box(right + .32, .012, INNER.z - .32, (right - .32) / 2, F.y, (rear - .32) / 2, kitchenFloorMaterial(k.floor)).castShadow = false;
       // Beadboard backsplash, cut around the window over the sink.
       const beadCanvas = document.createElement('canvas');
       beadCanvas.width = 256;
@@ -639,12 +644,12 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       const bead = texture(beadCanvas);
       bead.wrapS = bead.wrapT = THREE.RepeatWrapping;
       const beadboard = len => { const t = bead.clone(); t.repeat.set(len / .32, 1); t.needsUpdate = true; return new THREE.MeshStandardMaterial({map: t, roughness: .6}); };
-      const winX = [2.35, 3.25], sill = 2.15 - F.y;
+      const winX = [2.25, 3.05], sill = 2.15 - F.y;
       box(winX[0] - kx0, upperBottom - h, .02, (kx0 + winX[0]) / 2, F.y + h, rear + .01, beadboard(winX[0] - kx0));
       box(right - winX[1], upperBottom - h, .02, (winX[1] + right) / 2, F.y + h, rear + .01, beadboard(right - winX[1]));
       box(winX[1] - winX[0], sill - h, .02, (winX[0] + winX[1]) / 2, F.y + h, rear + .01, beadboard(winX[1] - winX[0]));
       box(.02, upperBottom - h, sideEnd - rear, right - .01, F.y + h, (rear + sideEnd) / 2, beadboard(sideEnd - rear));
-      const rangeX = [1, 1.76], dishX = [1.76, 2.36], sinkX = [2.36, 3.26];
+      const rangeX = [.95, 1.71], dishX = [1.71, 2.31], sinkX = [2.31, 3.11];
       const baseCab = (x0, x1) => {
         box(x1 - x0, h - .1, depth, (x0 + x1) / 2, F.y + .1, rear + depth / 2, cabinet);
         box(x1 - x0, .1, depth - .08, (x0 + x1) / 2, F.y, rear + depth / 2 + .04, grate);
@@ -658,7 +663,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       box(depth, h - .1, sideEnd - rear - depth, right - depth / 2, F.y + .1, (rear + depth + sideEnd) / 2, cabinet);
       box(depth - .08, .1, sideEnd - rear - depth, right - depth / 2 - .04, F.y, (rear + depth + sideEnd) / 2, grate);
       box(depth + .03, .04, sideEnd - rear - depth + .02, right - depth / 2 - .015, F.y + h, (rear + depth + sideEnd) / 2, navyLike);
-      for (const z of [-3.0, -2.6]) box(.02, .02, .02, right - depth - .01, F.y + .62, z, knob);
+      for (const z of [-2.9, -1.8]) box(.02, .02, .02, right - depth - .01, F.y + .62, z, knob);
       box(.5, .3, .38, right - .3, F.y + h + .04, -2.75, appliance); // microwave
       box(.36, .2, .01, right - .55, F.y + h + .09, -2.75, ovenGlass);
       // Sink under the rear window.
@@ -684,7 +689,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       box(rw - .1, .03, .04, rx, F.y + .7, rear + depth + .07, knob);
       for (let i = 0; i < 4; i++) box(.045, .045, .03, rangeX[0] + .12 + i * .17, F.y + .78, rear + depth + .07, knob);
       // French-door refrigerator in its alcove on the dining-room wall, facing the kitchen.
-      const aZ = [-2.9, -2.15], aX = .5, az = (aZ[0] + aZ[1]) / 2, fw = aZ[1] - aZ[0] - .06, fx = -.33 + .38;
+      const aZ = [-2.6, -1.75], aX = .5, az = (aZ[0] + aZ[1]) / 2, fw = aZ[1] - aZ[0] - .06, fx = -.33 + .38;
       box(.72, 1.78, fw, fx, F.y, az, appliance);
       box(.01, .01, fw - .04, fx + .365, F.y + .68, az, grate);           // freezer drawer line
       box(.01, 1.08, .01, fx + .365, F.y + .7, az, grate);                 // split between the doors
@@ -703,58 +708,58 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       upper(kx0, rangeX[0]);
       upper(rangeX[0], rangeX[1], 1.75);
       box(rangeX[1] - rangeX[0], .12, upperDepth + .1, rx, F.y + 1.62, rear + (upperDepth + .1) / 2, appliance);
-      upper(rangeX[1], 2.33);
-      upper(3.27, right);
+      upper(rangeX[1], winX[0] - .02);
+      upper(winX[1] + .02, right);
       box(upperDepth, upperTop - upperBottom, sideEnd - rear - upperDepth, right - upperDepth / 2, F.y + upperBottom, (rear + upperDepth + sideEnd) / 2, cabinet);
-      for (const z of [-3.5, -2.85]) for (const dz of [-.06, .06]) box(.02, .02, .02, right - upperDepth - .01, F.y + upperBottom + .1, z + dz, knob);
+      for (const z of [-3.2, -2.0]) for (const dz of [-.06, .06]) box(.02, .02, .02, right - upperDepth - .01, F.y + upperBottom + .1, z + dz, knob);
       box(right - kx0, .06, upperDepth + .02, (right + kx0) / 2, F.y + upperTop, rear + upperDepth / 2, cabinet);
       // Optional small island in the middle of the room.
       if (k.island === 'small') {
-        box(1.2, h - .1, .7, 1.95, F.y + .1, -2.05, cabinet);
-        box(1.12, .1, .62, 1.95, F.y, -2.05, grate);
-        box(1.3, .04, .8, 1.95, F.y + h, -2.05, navyLike);
-        for (const dx of [-.3, .3]) box(.02, .02, .02, 1.95 + dx, F.y + .62, -2.05 + .36, knob);
+        box(1.2, h - .1, .7, 1.9, F.y + .1, -2.1, cabinet);
+        box(1.12, .1, .62, 1.9, F.y, -2.1, grate);
+        box(1.3, .04, .8, 1.9, F.y + h, -2.1, navyLike);
+        for (const dx of [-.3, .3]) box(.02, .02, .02, 1.9 + dx, F.y + .62, -2.1 + .36, knob);
         for (const dx of [-.3, .3]) {
-          box(.36, .04, .36, 1.95 + dx, F.y + .66, -1.45, palette.wood);
-          for (const sx of [-.14, .14]) for (const sz of [-.14, .14]) box(.03, .66, .03, 1.95 + dx + sx, F.y, -1.45 + sz, palette.wood);
+          box(.36, .04, .36, 1.9 + dx, F.y + .66, -2.7, palette.wood);
+          for (const sx of [-.14, .14]) for (const sz of [-.14, .14]) box(.03, .66, .03, 1.9 + dx + sx, F.y, -2.7 + sz, palette.wood);
         }
       }
     },
-    hall2(_, rugMat) { rug(.85, 2, 1.6, -1.35, S.y, rugMat); plant(-.05, .4, S.y); },
+    hall2(_, rugMat) { rug(2.2, .8, 1.3, -1.25, S.y, rugMat); plant(3.6, -1.9, S.y); },
     bedBack(layout, rugMat) {
-      rug(2.4, 2.6, -2.2, -2.3, S.y, rugMat);
-      if (layout === 'back') { bed(-2.65, -3.9, -1.05, -1.9, 'z-', palette.quilt); nightstand(-3.05, -3.6); nightstand(-.65, -3.6); dresser(-3.4, -1.2, 1.1, .5, S.y, Math.PI / 2); }
-      else { bed(-3.65, -3.9, -2.05, -1.9, 'x-', palette.quilt); nightstand(-3.4, -1.6); dresser(-1.4, -3.65, 1.1, .5); }
+      rug(2.4, 2.4, -2.1, -2.1, S.y, rugMat);
+      if (layout === 'back') { bed(-2.9, -3.8, -1.3, -1.8, 'z-', palette.quilt); nightstand(-3.3, -3.5); nightstand(-.9, -3.5); dresser(-3.55, -1.0, 1.1, .5, S.y, Math.PI / 2); }
+      else { bed(-3.8, -3.8, -2.2, -1.8, 'x-', palette.quilt); nightstand(-3.55, -1.5); dresser(-1.2, -3.6, 1.1, .5); }
     },
     bedFrontL(layout, rugMat) {
-      rug(2.6, 2.4, -2.3, 2.5, S.y, rugMat);
-      if (layout === 'front') { bed(-2.8, 1.95, -1.2, 3.9, 'z+', palette.quiltWarm); nightstand(-3.2, 3.6); nightstand(-.8, 3.6); dresser(-3.4, 1.6, 1.1, .5, S.y, Math.PI / 2); }
-      else { bed(-3.65, 1.5, -1.65, 3.1, 'x-', palette.quiltWarm); nightstand(-3.4, 3.4); nightstand(-3.4, 1.2); dresser(.6, 3.1, 1.1, .5, S.y, Math.PI / 2); }
+      rug(2.6, 2.4, -2.1, 2.3, S.y, rugMat);
+      if (layout === 'front') { bed(-3.2, 1.9, -1.6, 3.8, 'z+', palette.quiltWarm); nightstand(-3.55, 3.55); nightstand(-1.25, 3.55); dresser(-3.55, 1.3, 1.1, .5, S.y, Math.PI / 2); }
+      else { bed(-3.8, 1.6, -1.8, 3.2, 'x-', palette.quiltWarm); nightstand(-3.55, 3.5); nightstand(-3.55, 1.3); dresser(.35, 3.0, 1.1, .5, S.y, Math.PI / 2); }
     },
     bedFrontR(layout, rugMat) {
-      rug(2.2, 2.2, 2.6, 2.8, S.y, rugMat);
-      if (layout === 'front') { bed(2, 1.95, 3.6, 3.9, 'z+', palette.quilt); nightstand(1.6, 3.6); dresser(3.4, 1.2, 1, .45, S.y, -Math.PI / 2); }
-      else { bed(1.65, 2.3, 3.65, 3.8, 'x+', palette.quilt); nightstand(3.4, 2); dresser(1.15, 3.6, 1, .45, S.y, 0); }
+      rug(2.0, 2.0, 2.0, 2.6, S.y, rugMat);
+      if (layout === 'front') { bed(1.4, 2.15, 3.0, 3.85, 'z+', palette.quilt); nightstand(1.05, 3.55); dresser(3.5, 2.75, 1, .45, S.y, -Math.PI / 2); }
+      else { bed(1.7, 2.3, 3.8, 3.8, 'x+', palette.quilt); nightstand(1.45, 3.5); dresser(2.72, 1.2, 1, .45, S.y, -Math.PI / 2); }
     },
     bath() {},
     loft(layout, rugMat) {
       if (layout === 'front') {
-        rug(1.9, 1.6, -.5, -1.6, L.y + .02, rugMat);
-        bed(-1.6, 1.85, .1, 3.85, 'z+', palette.quiltWarm, L.y);
-        nightstand(.5, 3.55, L.y);
-        box(1.1, .04, .55, -.9, L.y + .72, -3.45, palette.wood);
-        for (const sx of [-.5, .5]) for (const sz of [-.22, .22]) box(.04, .72, .04, -.9 + sx, L.y, -3.45 + sz, palette.wood);
-        chair(-.9, -2.85, 0, L.y);
-        lamp(-1.7, -1, L.y);
+        rug(1.9, 1.6, -.4, -1.5, L.y + .02, rugMat);
+        bed(-1.3, 1.8, .3, 3.8, 'z+', palette.quiltWarm, L.y);
+        nightstand(.7, 3.5, L.y);
+        box(1.1, .04, .55, -.8, L.y + .72, -3.45, palette.wood);
+        for (const sx of [-.5, .5]) for (const sz of [-.22, .22]) box(.04, .72, .04, -.8 + sx, L.y, -3.45 + sz, palette.wood);
+        chair(-.8, -2.85, 0, L.y);
+        lamp(-1.5, -1, L.y);
         return;
       }
-      rug(1.9, 1.6, -.5, 2.4, L.y + .02, rugMat);
-      bed(-1.6, -3.85, .1, -1.85, 'z-', palette.quiltWarm, L.y);
-      nightstand(.5, -3.55, L.y);
-      box(1.1, .04, .55, -.9, L.y + .72, 3.45, palette.wood);
-      for (const sx of [-.5, .5]) for (const sz of [-.22, .22]) box(.04, .72, .04, -.9 + sx, L.y, 3.45 + sz, palette.wood);
-      chair(-.9, 2.85, Math.PI, L.y);
-      lamp(-1.7, 1, L.y);
+      rug(1.9, 1.6, -.4, 2.3, L.y + .02, rugMat);
+      bed(-1.3, -3.8, .3, -1.8, 'z-', palette.quiltWarm, L.y);
+      nightstand(.7, -3.5, L.y);
+      box(1.1, .04, .55, -.8, L.y + .72, 3.45, palette.wood);
+      for (const sx of [-.5, .5]) for (const sz of [-.22, .22]) box(.04, .72, .04, -.8 + sx, L.y, 3.45 + sz, palette.wood);
+      chair(-.8, 2.85, Math.PI, L.y);
+      lamp(-1.5, 1, L.y);
     },
   };
 
@@ -797,8 +802,8 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     group.add(l);
     lights.push(l);
   };
-  for (const [x, z] of [[2.7, 2.2], [-1.2, 1.6], [-2.3, -2.6], [1.6, -2.2]]) addLight(x, F.ceil - .3, z, 22);
-  for (const [x, z] of [[1.5, -1.4], [-1.9, -2.1], [-1.4, 2.3], [2.4, 1.9], [2.8, -3.1]]) addLight(x, S.ceil - .3, z, 13);
+  for (const [x, z] of [[2.45, 2.0], [-1.0, 1.7], [-2.1, -2.1], [1.8, -2.0]]) addLight(x, F.ceil - .3, z, 22);
+  for (const [x, z] of [[1.5, -1.25], [-2.1, -2.1], [-1.6, 2.2], [2.0, 2.2], [2.75, -3.0]]) addLight(x, S.ceil - .3, z, 13);
   addLight(-.4, L.y + 2.1, 0, 18);
   const fill = new THREE.AmbientLight('#fff4e6', 0);
   fill.userData.max = .6;

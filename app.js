@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {OrbitControls} from './OrbitControls.js';
-import {SHELL,OPENINGS} from './plan.js';
+import {SHELL,OPENINGS,FEATURES} from './plan.js';
 import {createInterior} from './interior.js';
 import {mergeStatic} from './merge.js';
 const $=s=>document.querySelector(s);
@@ -18,7 +18,7 @@ function box(w,h,d,x,y,z,m=white,parent=home){const a=new THREE.Mesh(new THREE.B
 function beam(a,b,width,m,parent=home){const av=new THREE.Vector3(...a),bv=new THREE.Vector3(...b),d=bv.clone().sub(av);const mesh=box(width,d.length(),width,0,0,0,m,parent);mesh.position.copy(av.add(bv).multiplyScalar(.5));mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());return mesh}
 function face(points,m,parent=home){const g=new THREE.BufferGeometry();const verts=[];for(let i=1;i<points.length-1;i++)verts.push(...points[0],...points[i],...points[i+1]);g.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));g.computeVertexNormals();const mesh=new THREE.Mesh(g,m);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh}
 // Main body: front faces +Z; driveway is +X.
-box(8,.9,8.5,0,.45,0,stone);
+const FZ=SHELL.z,FX=SHELL.x;box(FX*2,.9,FZ*2,0,.45,0,stone);
 // Exterior walls are a hollow shell with real window and door openings so the interior walkthrough can see out.
 function shellWall(axis,coord,c0,c1,openings,faces){const {base:y0,top:y1,thick}=SHELL;const emit=(a0,a1,b0,b1)=>{if(a1-a0<.005||b1-b0<.005)return;axis==='x'?box(a1-a0,b1-b0,thick,(a0+a1)/2,(b0+b1)/2,coord,faces):box(thick,b1-b0,a1-a0,coord,(b0+b1)/2,(a0+a1)/2,faces)};
 // Split the wall into vertical strips at every opening edge, then fill each strip around the openings that span it.
@@ -31,23 +31,24 @@ shellWall('x',-SHELL.z+inset,-SHELL.x,SHELL.x,OPENINGS.rear,[trim,trim,trim,trim
 shellWall('z',SHELL.x-inset,-SHELL.z+SHELL.thick,SHELL.z-SHELL.thick,OPENINGS.right,[siding,paint,trim,trim,trim,trim]);
 shellWall('z',-SHELL.x+inset,-SHELL.z+SHELL.thick,SHELL.z-SHELL.thick,OPENINGS.left,[paint,siding,trim,trim,trim,trim]);
 const doubleSiding=mat('#d9dbcf',{side:THREE.DoubleSide}),doubleRoof=mat('#72685b',{side:THREE.DoubleSide});
-for(const z of [-4.25,4.25]){face([[-4,6.8,z],[4,6.8,z],[0,9.6,z]],doubleSiding);for(let y=6.9;y<9.5;y+=.15){let w=8*(9.6-y)/2.8;box(w,.025,.025,0,y,z,sidingSeams)}}
-shellSeams('x',4.27,-4,4,OPENINGS.front);shellSeams('x',-4.27,-4,4,OPENINGS.rear);shellSeams('z',4.02,-4.25,4.25,OPENINGS.right);shellSeams('z',-4.02,-4.25,4.25,OPENINGS.left);
-for(const x of [-4.06,4.06])for(const z of [-4.26,4.26])box(.11,5.9,.11,x,3.85,z,trim);
-face([[-4.4,6.75,4.6],[-4.4,6.75,-4.6],[0,9.75,-4.6],[0,9.75,4.6]],doubleRoof);face([[0,9.75,4.6],[0,9.75,-4.6],[4.4,6.75,-4.6],[4.4,6.75,4.6]],doubleRoof);
-for(const z of [-4.6,4.6]){beam([-4.4,6.73,z],[0,9.73,z],.13,trim);beam([0,9.73,z],[4.4,6.73,z],.13,trim)}
-for(const x of [-4.35,4.35])box(.15,.15,9.2,x,6.71,0,trim);
+for(const z of [-FZ,FZ]){face([[-4,6.8,z],[4,6.8,z],[0,9.6,z]],doubleSiding);for(let y=6.9;y<9.5;y+=.15){let w=8*(9.6-y)/2.8;box(w,.025,.025,0,y,z,sidingSeams)}}
+shellSeams('x',FZ+.02,-4,4,OPENINGS.front);shellSeams('x',-FZ-.02,-4,4,OPENINGS.rear);shellSeams('z',4.02,-FZ,FZ,OPENINGS.right);shellSeams('z',-4.02,-FZ,FZ,OPENINGS.left);
+for(const x of [-4.06,4.06])for(const z of [-FZ-.01,FZ+.01])box(.11,5.9,.11,x,3.85,z,trim);
+const RZ=FZ+.35;face([[-4.4,6.75,RZ],[-4.4,6.75,-RZ],[0,9.75,-RZ],[0,9.75,RZ]],doubleRoof);face([[0,9.75,RZ],[0,9.75,-RZ],[4.4,6.75,-RZ],[4.4,6.75,RZ]],doubleRoof);
+for(const z of [-RZ,RZ]){beam([-4.4,6.73,z],[0,9.73,z],.13,trim);beam([0,9.73,z],[4.4,6.73,z],.13,trim)}
+for(const x of [-4.35,4.35])box(.15,.15,RZ*2,x,6.71,0,trim);
 // Roof courses, chimney, gutters.
-for(let t=.15;t<1;t+=.065){for(const sign of [-1,1])box(.028,.02,9.15,sign*4.4*t,9.75-3*t+.015,0,roof)}
+for(let t=.15;t<1;t+=.065){for(const sign of [-1,1])box(.028,.02,RZ*2-.05,sign*4.4*t,9.75-3*t+.015,0,roof)}
 box(.65,1.85,.65,1.7,8.9,-1.3,mat('#856858'));box(.82,.14,.82,1.7,9.86,-1.3,stone);
 for(let y=8.15;y<9.8;y+=.16)box(.67,.018,.67,1.7,y,-1.3,stone);
 function windowAt(x,y,z,w=1,h=1.35,angle=0,shutters=false){const g=new THREE.Group();g.position.set(x,y,z);g.rotation.y=angle;home.add(g);for(const yy of [h/2+.04,-h/2-.04])box(w+.16,.08,.11,0,yy,0,trim,g);for(const xx of [-w/2-.04,w/2+.04])box(.08,h,.11,xx,0,0,trim,g);box(w,h,.045,0,0,.07,y<7?glassLower:glass,g);for(const xx of [-w/2,w/2])box(.045,h,.075,xx,0,.10,white,g);box(w,.065,.09,0,0,.10,white,g);for(const xx of [-w/6,w/6])box(.018,h,.03,xx,0,.10,white,g);for(const yy of [-h/3,h/3])box(w,.018,.03,0,yy,.10,white,g);box(w+.23,.065,.19,0,-h/2-.08,.04,trim,g);if(shutters)for(const side of [-1,1]){box(.31,h+.1,.09,side*(w/2+.28),0,.01,shutterFinish,g);for(let yy=-h/2;yy<h/2;yy+=.09)box(.26,.018,.03,side*(w/2+.28),yy,.07,shutterFinish,g)}return g}
-// Front paired second-floor windows with outer shutters.
-for(const center of [-1.85,1.85]){for(const x of [center-.48,center+.48])windowAt(x,5.2,4.3,.81,1.35);for(const x of [center-1.08,center+1.08]){box(.31,1.45,.09,x,5.2,4.33,shutterFinish);for(let y=4.53;y<5.9;y+=.085)box(.27,.017,.025,x,y,4.39,shutterFinish)}}
-for(const x of [-.47,.47])windowAt(x,8.15,4.29,.72,1.1);
-for(const x of [-2.35,-1.25,-.15])windowAt(x,2.2,4.3,.9,1.55);for(const x of [-3.05,.55])box(.28,1.7,.08,x,2.2,4.33,shutterFinish);
+// Windows and doors are placed from the measured plan (FEATURES); shell openings match them.
+const wallPose={front:f=>[f.a,FZ+.05,0],rear:f=>[f.a,-FZ-.05,Math.PI],left:f=>[-FX-.09,f.a,-Math.PI/2],right:f=>[FX+.09,f.a,Math.PI/2]};
+for(const f of FEATURES){if(f.kind!=='window'&&f.kind!=='gable')continue;const [x,z,angle]=wallPose[f.wall](f);windowAt(x,f.y,z,f.w,f.h,angle);
+if(f.shutters)box(.28,f.h+.15,.08,x+f.shutters*(f.w/2+.28),f.y,FZ+.08,shutterFinish);}
+for(const center of [-1.95,1.85]){for(const x of [center-1.08,center+1.08]){box(.31,1.45,.09,x,5.2,FZ+.08,shutterFinish);for(let y=4.53;y<5.9;y+=.085)box(.27,.017,.025,x,y,FZ+.14,shutterFinish)}}
 function door(x,y,z,angle=0,w=.95,h=2.15,finish=white){const g=new THREE.Group();g.position.set(x,y,z);g.rotation.y=angle;home.add(g);for(const xx of [-w/2-.0375,w/2+.0375])box(.075,h+.13,.12,xx,0,0,trim,g);box(w+.15,.075,.12,0,h/2+.0275,0,trim,g);const hinge=new THREE.Group();hinge.userData.dynamic=true;hinge.position.set(-w/2,0,.08);g.add(hinge);box(w,h,.05,w/2,0,0,finish,hinge);box(w-.17,h*.64,.035,w/2,h*.12,.04,glassLower,hinge);box(w-.17,.06,.03,w/2,-h*.2,.065,finish,hinge);box(.06,.06,.06,w*.85,-.05,.09,stone,hinge);return hinge}
-const frontDoor=door(2.5,2.09,4.31,0,.95,2.15,mat('#17191b'));
+const frontFeature=FEATURES.find(f=>f.kind==='door'),frontDoor=door(frontFeature.a,frontFeature.y,FZ+.06,0,frontFeature.w,frontFeature.h,mat('#17191b'));
 function frenchDoor(x,y,z,angle=0,w=1.7,h=2.1){const g=new THREE.Group();g.position.set(x,y,z);g.rotation.y=angle;home.add(g);for(const xx of [-w/2-.0375,w/2+.0375])box(.075,h+.13,.12,xx,0,0,trim,g);box(w+.15,.075,.12,0,h/2+.0275,0,trim,g);
 const pw=w/2-.012,stile=.09,top=.1,bottom=.24,gw=pw-2*stile,gh=h-top-bottom,gy=(bottom-top)/2;
 return [-1,1].map(side=>{const hinge=new THREE.Group();hinge.userData.dynamic=true;hinge.position.set(side*-w/2,0,.08);g.add(hinge);const cx=side*pw/2;
@@ -55,19 +56,17 @@ box(pw,h,.045,cx,0,0,glassLower,hinge);for(const sx of [-1,1])box(stile,h,.05,cx
 for(let i=1;i<3;i++)box(.022,gh,.052,cx-gw/2+gw*i/3,gy,0,white,hinge);for(let j=1;j<5;j++)box(gw,.022,.052,cx,gy-gh/2+gh*j/5,0,white,hinge);
 box(.05,.05,.05,cx-side*(pw/2-.12),-.05,.06,stone,hinge);return hinge})}
 // Four windows on left; driveway has an elevated small kitchen window and basement entrance.
-for(const x of [-4.09,4.09]){const angle=x<0?-Math.PI/2:Math.PI/2;for(const z of [-2.35,2.35])windowAt(x,5.2,z,.98,1.4,angle);windowAt(x,2.35,2.35,.98,1.5,angle);windowAt(x,x>0?2.8:2.35,-2.35,.98,x>0?1.08:1.5,angle)}
-door(4.09,1.15,.3,Math.PI/2,.87,2.1);for(const z of [-2.65,2.6])windowAt(4.09,.43,z,.85,.46,Math.PI/2);
-for(const x of [-.47,.47])windowAt(x,8.15,-4.3,.72,1.1,Math.PI);
-for(const x of [-2.15,2.75])windowAt(x,5.25,-4.3,.9,1.15,Math.PI);windowAt(2.8,2.7,-4.3,.9,1.1,Math.PI);const rearDoor=frenchDoor(-1,2.05,-4.3,Math.PI,1.7,2.1);
+const sideFeature=FEATURES.find(f=>f.kind==='sidedoor');door(FX+.09,sideFeature.y,sideFeature.a,Math.PI/2,sideFeature.w,sideFeature.h);for(const z of [-2.65,2.6])windowAt(FX+.09,.43,z,.85,.46,Math.PI/2);
+const rearFeature=FEATURES.find(f=>f.kind==='french'),rearDoor=frenchDoor(rearFeature.a,rearFeature.y,-FZ-.05,Math.PI,rearFeature.w,rearFeature.h);
 // Front porch and entry stairs. Dedicated finishes keep the rear porch unchanged.
 const porchFloorFinish=wood.clone(),porchStepFinish=red.clone(),porchRailFinish=trim.clone(),stairRailFinish=red.clone();
-box(8.3,.23,2.25,0,1,5.3,porchFloorFinish);box(8.35,.19,.18,0,.98,6.44,trim);
-for(const x of [-3.9,0,3.9]){box(.22,2.7,.22,x,2.4,6.25,porchRailFinish);box(.32,.14,.32,x,1.12,6.25,porchRailFinish)}
-box(8.85,.15,2.9,0,3.83,5.4,trim);const porchRoof=box(8.8,.08,2.95,0,3.95,5.4,roof);porchRoof.rotation.x=.06;
+const PZ=FZ-4.25;box(8.3,.23,2.25,0,1,5.3+PZ,porchFloorFinish);box(8.35,.19,.18,0,.98,6.44+PZ,trim);
+for(const x of [-3.9,0,3.9]){box(.22,2.7,.22,x,2.4,6.25+PZ,porchRailFinish);box(.32,.14,.32,x,1.12,6.25+PZ,porchRailFinish)}
+box(8.85,.15,2.9,0,3.83,5.4+PZ,trim);const porchRoof=box(8.8,.08,2.95,0,3.95,5.4+PZ,roof);porchRoof.rotation.x=.06;
 function rail(x1,z1,x2,z2,y=1.13){beam([x1,y+.83,z1],[x2,y+.83,z2],.075,porchRailFinish);beam([x1,y+.07,z1],[x2,y+.07,z2],.065,porchRailFinish);const n=Math.ceil(Math.hypot(x2-x1,z2-z1)/.18);for(let i=0;i<=n;i++)box(.035,.72,.035,x1+(x2-x1)*i/n,y+.45,z1+(z2-z1)*i/n,porchRailFinish)}
-rail(-3.9,6.25,1.3,6.25);rail(-3.9,4.35,-3.9,6.25);
-for(let i=0;i<6;i++)box(2.25,(6-i)*.17,.31,2.65,(6-i)*.085,6.58+i*.3,porchStepFinish);
-for(const x of [1.47,3.8]){box(.11,.95,.11,x,.57,8.13,stairRailFinish);beam([x,1.92,6.37],[x,1.07,8.16],.09,stairRailFinish)}
+rail(-3.9,6.25+PZ,1.3,6.25+PZ);rail(-3.9,4.35+PZ,-3.9,6.25+PZ);
+for(let i=0;i<6;i++)box(2.25,(6-i)*.17,.31,frontFeature.a,(6-i)*.085,6.58+PZ+i*.3,porchStepFinish);
+for(const x of [frontFeature.a-1.18,frontFeature.a+1.15]){box(.11,.95,.11,x,.57,8.13+PZ,stairRailFinish);beam([x,1.92,6.37+PZ],[x,1.07,8.16+PZ],.09,stairRailFinish)}
 
 // Two porch lounge chairs and a table, clear of the entry walkway.
 const furnitureFrame=mat('#282d2d'),cushion=mat('#e2ded2'),tableWood=mat('#a78761');
@@ -78,33 +77,33 @@ function porchChair(x,z,angle){const g=new THREE.Group();g.position.set(x,1.12,z
  const back=box(.74,.65,.09,0,.88,-.36,furnitureFrame,g);back.rotation.x=-.12;
  const pad=box(.65,.52,.11,0,.88,-.29,cushion,g);pad.rotation.x=-.12;
 }
-porchChair(-2.75,5.15,-.08);porchChair(-.65,5.15,.08);
-const table=new THREE.Group();table.position.set(-1.7,1.12,5.2);home.add(table);
+porchChair(-2.75,5.15+PZ,-.08);porchChair(-.65,5.15+PZ,.08);
+const table=new THREE.Group();table.position.set(-1.7,1.12,5.2+PZ);home.add(table);
 for(const x of [-.25,.25])for(const z of [-.25,.25])box(.045,.52,.045,x,.26,z,furnitureFrame,table);
 box(.65,.07,.65,0,.55,0,tableWood,table);
 
 // Open lattice under front porch.
-for(let x=-3.9;x<1.3;x+=.23)box(.045,.82,.055,x,.49,6.32,mat('#59715f'));for(let y=.15;y<.95;y+=.18)box(5.2,.035,.055,-1.3,y,6.32,white);
+for(let x=-3.9;x<1.3;x+=.23)box(.045,.82,.055,x,.49,6.32+PZ,mat('#59715f'));for(let y=.15;y<.95;y+=.18)box(5.2,.035,.055,-1.3,y,6.32+PZ,white);
 // Rear screened porch offset toward left side; driveway-side steps.
-box(6.9,.2,3.1,-.65,1,-5.85,wood);const posts=[[-4.05,-4.4],[-4.05,-7.4],[-2.65,-7.4],[-1.25,-7.4],[.15,-7.4],[1.55,-7.4],[2.8,-7.4],[2.8,-4.4]];
+box(6.9,.2,3.1,-.65,1,(-5.85-PZ),wood);const posts=[[-4.05,(-4.4-PZ)],[-4.05,(-7.4-PZ)],[-2.65,(-7.4-PZ)],[-1.25,(-7.4-PZ)],[.15,(-7.4-PZ)],[1.55,(-7.4-PZ)],[2.8,(-7.4-PZ)],[2.8,(-4.4-PZ)]];
 for(const [x,z]of posts){box(.085,3,.085,x,2.45,z,trim);box(.13,.9,.13,x,.5,z,wood)}
-box(7.15,.15,3.45,-.65,4.02,-5.83,trim);const backroof=box(7.2,.08,3.5,-.65,4.12,-5.83,roof);backroof.rotation.x=-.06;
-box(6.8,2.83,.025,-.65,2.48,-7.4,screen);for(const x of [-4.05,2.8])box(.025,2.83,3,x,2.48,-5.85,screen);
-for(const y of [1.12,2.13,3.72]){box(6.9,.07,.07,-.65,y,-7.42,trim);for(const x of [-4.05,2.8])box(.07,.07,3,x,y,-5.9,trim)}
-for(const z of [-5.35,-6.35])for(const x of [-4.05,2.8])box(.065,2.95,.065,x,2.5,z,trim);
+box(7.15,.15,3.45,-.65,4.02,(-5.83-PZ),trim);const backroof=box(7.2,.08,3.5,-.65,4.12,(-5.83-PZ),roof);backroof.rotation.x=-.06;
+box(6.8,2.83,.025,-.65,2.48,(-7.4-PZ),screen);for(const x of [-4.05,2.8])box(.025,2.83,3,x,2.48,(-5.85-PZ),screen);
+for(const y of [1.12,2.13,3.72]){box(6.9,.07,.07,-.65,y,(-7.42-PZ),trim);for(const x of [-4.05,2.8])box(.07,.07,3,x,y,(-5.9-PZ),trim)}
+for(const z of [(-5.35-PZ),(-6.35-PZ)])for(const x of [-4.05,2.8])box(.065,2.95,.065,x,2.5,z,trim);
 // Rear screen door close to driveway.
-for(const x of [1.83,2.68])box(.075,2.25,.09,x,2.2,-7.44,trim);box(.91,.075,.09,2.25,3.29,-7.44,trim);
-for(let i=0;i<6;i++)box(1.1,(6-i)*.17,.29,2.25,(6-i)*.085,-7.56-i*.28,red);for(const x of [1.66,2.85])beam([x,1.96,-7.4],[x,1.02,-9],.075,red);
+for(const x of [1.83,2.68])box(.075,2.25,.09,x,2.2,(-7.44-PZ),trim);box(.91,.075,.09,2.25,3.29,(-7.44-PZ),trim);
+for(let i=0;i<6;i++)box(1.1,(6-i)*.17,.29,2.25,(6-i)*.085,(-7.56-PZ)-i*.28,red);for(const x of [1.66,2.85])beam([x,1.96,(-7.4-PZ)],[x,1.02,(-9-PZ)],.075,red);
 // Downspouts and foundation mortar joints.
-for(const [x,z]of [[4.12,4.1],[-4.12,-4.1]])box(.075,6.5,.075,x,3.4,z,trim);
-for(let y=.15;y<.9;y+=.22){box(8,.02,8.52,0,y,0,stone)}
+for(const [x,z]of [[4.12,FZ-.15],[-4.12,-FZ+.15]])box(.075,6.5,.075,x,3.4,z,trim);
+for(let y=.15;y<.9;y+=.22){box(8,.02,FZ*2+.02,0,y,0,stone)}
 // Contextual property, kept schematic because no survey was supplied.
 box(44,.2,53,0,-.16,-8,grass,scene);box(44,.12,6.3,0,-.01,12.4,asphalt,scene);box(44,.12,1.3,0,.035,8.7,mat('#b9b7ac'),scene);box(2.25,.05,1.15,2.65,.06,8.1,mat('#b9b7ac'),scene);box(3.15,.045,30,6,.025,-5.9,asphalt,scene);
 for(let x=-21;x<21;x+=3.4)box(1.7,.01,.09,x,.06,12.5,mat('#d7cda2'),scene);
 // Detached barn from earlier exterior references.
 const barn=new THREE.Group();barn.position.set(5,0,-19);scene.add(barn);box(5.6,2.8,4.3,0,1.4,0,siding.clone(),barn);for(const z of [-2.15,2.15])face([[-2.8,2.8,z],[2.8,2.8,z],[0,4.2,z]],doubleSiding.clone(),barn);face([[-3,2.8,2.4],[-3,2.8,-2.4],[0,4.3,-2.4],[0,4.3,2.4]],doubleRoof,barn);face([[0,4.3,2.4],[0,4.3,-2.4],[3,2.8,-2.4],[3,2.8,2.4]],doubleRoof,barn);for(const x of [-1.23,1.23]){box(2.35,2.4,.08,x,1.2,2.2,red,barn);box(.6,.6,.11,x,1.85,2.27,glass,barn);for(const dx of [-.32,.32])box(.055,.68,.055,x+dx,1.85,2.34,trim,barn)}for(const x of [-2.6,0,2.6])box(.09,2.5,.12,x,1.25,2.25,trim,barn);
 function shrub(x,z,s=1){const mesh=new THREE.Mesh(new THREE.IcosahedronGeometry(s,2),mat('#486446'));mesh.scale.set(1,.8,.85);mesh.position.set(x,s*.6,z);mesh.castShadow=true;scene.add(mesh)}
-for(const [x,z,s]of [[-2.5,7.1,.8],[-3.9,7,.9],[4.3,5.6,1.05],[-5.2,-1,.75],[-5.2,-3,.75],[-5.2,1,.75]])shrub(x,z,s);
+for(const [x,z,s]of [[-2.5,7.1+PZ,.8],[-3.9,7+PZ,.9],[4.3,5.6+PZ,1.05],[-5.2,-1,.75],[-5.2,-3,.75],[-5.2,1,.75]])shrub(x,z,s);
 const fence=mat('#465854');for(let z=-24;z<=7;z+=2.6)box(.055,1.3,.055,9,.65,z,fence,scene);for(const y of [.18,1.22])box(.045,.035,31,9,y,-8.5,fence,scene);
 // Neutral tree volumes provide context without concealing the house.
 for(const [x,z,s]of [[-11,-14,2.8],[12,-22,3.1],[-12,-25,3.5],[13,-11,2.5]]){box(.35,5,.35,x,2.5,z,wood,scene);const crown=new THREE.Mesh(new THREE.IcosahedronGeometry(s,2),mat('#6f8669',{transparent:true,opacity:.75}));crown.position.set(x,6,z);crown.scale.y=1.2;scene.add(crown)}
@@ -187,8 +186,8 @@ siding.color.set(futureMode?c:'#d9dbcf');doubleSiding.color.copy(siding.color);s
 shutterFinish.color.set(futureMode?'#15191c':'#78332e');futureYard.visible=futureMode;$('#future-options').hidden=false;$('#future').setAttribute('aria-pressed',String(futureMode));$('#future').textContent=futureMode?'Current model':'Future state';$('#mode-label').textContent=futureMode?'Future state · '+paintNames[selectedPaint]+' · black shutters':'Current model · photo-based exterior study';}
 $('#future').onclick=()=>{stop();futureMode=!futureMode;applyFuture()};document.querySelectorAll('[data-paint]').forEach(b=>b.onclick=()=>{futureMode=true;selectedPaint=b.dataset.paint;applyFuture()});
 document.querySelectorAll('[data-porch]').forEach(b=>b.onclick=()=>{futureMode=true;porchSelection[b.dataset.porch]=b.dataset.finish;applyFuture()});
-$('#steps-closeup').onclick=()=>{stop();target.set(2.1,1.2,6.7);theta=.38;distance=10;elevation=.32;setCamera();$('#viewname').textContent='Porch steps · color preview';$('#height').value=18};
-$('#porch-closeup').onclick=()=>{stop();target.set(0,2.1,5.2);theta=.18;distance=15;elevation=.24;setCamera();$('#viewname').textContent='Front porch · finish preview';$('#height').value=14};
+$('#steps-closeup').onclick=()=>{stop();target.set(2.3,1.2,6.7+PZ);theta=.38;distance=10;elevation=.32;setCamera();$('#viewname').textContent='Porch steps · color preview';$('#height').value=18};
+$('#porch-closeup').onclick=()=>{stop();target.set(0,2.1,5.2+PZ);theta=.18;distance=15;elevation=.24;setCamera();$('#viewname').textContent='Front porch · finish preview';$('#height').value=14};
 $('#future-back').onclick=()=>{stop();futureMode=true;applyFuture();target.set(0,2,-9);theta=3.8;distance=31;elevation=.57;setCamera();$('#viewname').textContent='Future backyard · patio & path to shed';$('#height').value=Math.round(elevation*180/Math.PI)};
 
 const svgNS='http://www.w3.org/2000/svg';
@@ -219,8 +218,8 @@ const names={front:'Front porch',right:'Driveway side',back:'Rear screened porch
 document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{stop();let v=b.dataset.view;target.set(0,3,v==='site'?-7:(v==='back'&&futureMode?-8:0));theta=({front:0,right:Math.PI/2,back:Math.PI,left:-Math.PI/2,site:.6})[v];distance=v==='site'?47:(v==='back'&&futureMode?32:25);elevation=v==='site'?.7:(v==='back'&&futureMode?.55:.35);setCamera();$('#viewname').textContent=names[v];$('#height').value=elevation*180/Math.PI});
 $('#reset').onclick=reset;$('#height').oninput=e=>{stop();const offset=camera.position.clone().sub(controls.target);theta=Math.atan2(offset.x,offset.z);distance=offset.length();target.copy(controls.target);elevation=Number(e.target.value)*Math.PI/180;setCamera()};
 $('#tour').onclick=()=>{if(touring){stop();return}touring=true;elapsed=0;theta=0;target.set(0,2.4,0);distance=24;elevation=.22;$('#tour').textContent='Ⅱ Pause walk-around';$('#tour').setAttribute('aria-pressed','true');setCamera()};controls.addEventListener('start',stop);
-const porchPose=()=>{const t=new THREE.Vector3(0,2.1,5.2),th=.18,d=15,el=.24;return {position:new THREE.Vector3(t.x+Math.sin(th)*d*Math.cos(el),t.y+d*Math.sin(el),t.z+Math.cos(th)*d*Math.cos(el)),target:t}};
-const interior=createInterior({scene,camera,renderer,host,controls,doors:{front:frontDoor,rear:rearDoor},glassLower,hemisphere,exteriorPose:porchPose,onEnter:stop,onExit:()=>{target.set(0,2.1,5.2);theta=.18;distance=15;elevation=.24;setCamera();$('#viewname').textContent='Front porch';$('#height').value=14}});
+const porchPose=()=>{const t=new THREE.Vector3(0,2.1,5.2+PZ),th=.18,d=15,el=.24;return {position:new THREE.Vector3(t.x+Math.sin(th)*d*Math.cos(el),t.y+d*Math.sin(el),t.z+Math.cos(th)*d*Math.cos(el)),target:t}};
+const interior=createInterior({scene,camera,renderer,host,controls,doors:{front:frontDoor,rear:rearDoor},glassLower,hemisphere,exteriorPose:porchPose,onEnter:stop,onExit:()=>{target.set(0,2.1,5.2+PZ);theta=.18;distance=15;elevation=.24;setCamera();$('#viewname').textContent='Front porch';$('#height').value=14}});
 $('#enter').onclick=()=>{stop();interior.enter()};
 mergeStatic(home);mergeStatic(interior.group);
 host.addEventListener('keydown',e=>{if(interior.active)return;if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key))return;e.preventDefault();if(e.key===' '){$('#tour').click();return}stop();const off=camera.position.clone().sub(controls.target);theta=Math.atan2(off.x,off.z);distance=off.length();elevation=Math.asin(off.y/distance);target.copy(controls.target);if(e.key==='ArrowLeft')theta-=.12;if(e.key==='ArrowRight')theta+=.12;if(e.key==='ArrowUp')elevation=Math.min(1.3,elevation+.06);if(e.key==='ArrowDown')elevation=Math.max(.06,elevation-.06);setCamera()});
