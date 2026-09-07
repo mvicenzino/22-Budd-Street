@@ -125,7 +125,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   }
   slab(F.y - .1, F.y, null);
   slab(F.ceil, S.y, [STAIR.x0, STAIR.upperZ1, STAIR.x1, STAIR.landingZ1]);
-  slab(S.ceil, L.y, [LOFT_STAIR.x0, LOFT_STAIR.z1, LOFT_STAIR.x1, LOFT_STAIR.z0]);
+  slab(S.ceil, L.y, [LOFT_STAIR.x0, Math.min(LOFT_STAIR.z0, LOFT_STAIR.z1), LOFT_STAIR.x1, Math.max(LOFT_STAIR.z0, LOFT_STAIR.z1)]);
 
   // ---- Rooms own their wall paint -----------------------------------------------------------
   const roomById = byId(ROOMS);
@@ -254,18 +254,19 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     const n = Math.max(1, Math.round(Math.abs(z1 - z0) / .18));
     for (let i = 1; i < n; i++) box(.03, .86, .03, x, y, z0 + (z1 - z0) * i / n, trim);
   }
+  // A straight flight from zStart to zEnd (either direction); solid below each tread down to `base`.
   function flight(x0, x1, zStart, zEnd, yStart, yEnd, steps, base, railSide, fill = palette.woodLight) {
-    const w = x1 - x0, cx = (x0 + x1) / 2, run = (zStart - zEnd) / steps, rise = (yEnd - yStart) / steps;
+    const w = x1 - x0, cx = (x0 + x1) / 2, dir = Math.sign(zEnd - zStart), run = Math.abs(zEnd - zStart) / steps, rise = (yEnd - yStart) / steps;
     for (let i = 0; i < steps; i++) {
-      const z = zStart - run / 2 - i * run, top = yStart + (i + 1) * rise;
+      const z = zStart + dir * (run / 2 + i * run), top = yStart + (i + 1) * rise;
       box(w, top - base, run, cx, base, z, fill);
-      box(w, .035, run + .04, cx, top, z - .02, palette.wood);
+      box(w, .035, run + .04, cx, top, z + dir * .02, palette.wood);
     }
     if (railSide) {
       const rx = railSide < 0 ? x0 - .03 : x1 + .03;
-      box(.09, 1.02, .09, rx, yStart, zStart + .05, palette.wood);
-      beam([rx, yStart + .92, zStart + .05], [rx, yEnd + .92, zEnd], .06, palette.wood);
-      for (let i = 0; i < steps; i++) box(.03, .86, .03, rx, yStart + (i + 1) * rise, zStart - run / 2 - i * run, trim);
+      box(.09, 1.02, .09, rx, yStart, zStart - dir * .05, palette.wood);
+      beam([rx, yStart + .92, zStart - dir * .05], [rx, yEnd + .92, zEnd], .06, palette.wood);
+      for (let i = 0; i < steps; i++) box(.03, .86, .03, rx, yStart + (i + 1) * rise, zStart + dir * (run / 2 + i * run), trim);
     }
   }
   flight(STAIR.x0, STAIR.x1, STAIR.lowerZ0, STAIR.lowerZ1, F.y, STAIR.landingY, 6, F.y, -1);
@@ -274,10 +275,10 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   railing(STAIR.x0 - .03, STAIR.lowerZ1, STAIR.landingZ1 + .05, STAIR.landingY);
   flight(STAIR.x0, STAIR.x1, STAIR.landingZ1, STAIR.upperZ1, STAIR.landingY, S.y, 10, STAIR.landingY, 0);
   railing(STAIR.x0 - .03, -.37 - .05, STAIR.upperZ1 + .3, S.y);
-  flight(LOFT_STAIR.x0, LOFT_STAIR.x1, LOFT_STAIR.z0, LOFT_STAIR.z1, S.y, L.y, 13, S.y, -1, paintFor('hall2')); // enclosed underside reads as wall
-  railing(LOFT_STAIR.x0 - .03, LOFT_STAIR.z0 + .05, LOFT_STAIR.z1 + .35, L.y);
-  railing(LOFT_STAIR.x1 + .03, LOFT_STAIR.z0 + .05, LOFT_STAIR.z1 + .35, L.y);
-  beam([LOFT_STAIR.x0 - .03, L.y + .92, LOFT_STAIR.z0 + .05], [LOFT_STAIR.x1 + .03, L.y + .92, LOFT_STAIR.z0 + .05], .06, palette.wood);
+  flight(LOFT_STAIR.x0, LOFT_STAIR.x1, LOFT_STAIR.z0, LOFT_STAIR.z1, S.y, L.y, 13, S.y, 0, paintFor('hall2')); // enclosed flight, underside reads as wall
+  railing(LOFT_STAIR.x0 - .03, LOFT_STAIR.z0 - .05, LOFT_STAIR.z1 - .35, L.y);
+  railing(LOFT_STAIR.x1 + .03, LOFT_STAIR.z0 - .05, LOFT_STAIR.z1 - .35, L.y);
+  beam([LOFT_STAIR.x0 - .03, L.y + .92, LOFT_STAIR.z0 - .05], [LOFT_STAIR.x1 + .03, L.y + .92, LOFT_STAIR.z0 - .05], .06, palette.wood);
 
   // ---- Furniture helpers -----------------------------------------------------------------
   function sofa(x, z, len, angle, y = F.y) {
@@ -532,7 +533,15 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     panelDoor(bx - bw / 2, bw / 2 - .01, 1, -1.5, .82, 1.22);
     panelDoor(bx + bw / 2, bw / 2 - .01, -1, 0, .82, 1.22);
   }
-  beam([-.1, S.y + 1.7, -3.2], [1.4, S.y + 1.7, -3.2], .03, steel); // upstairs closet rod
+  {
+    // Walk-in closet off the back bedroom: rods on the rear and right walls, a shelf above, linen shelves in the hall notch.
+    beam([-.15, S.y + 1.75, -3.55], [1.35, S.y + 1.75, -3.55], .03, steel);
+    box(1.5, .025, .35, .6, S.y + 1.95, -3.62, trim);
+    beam([1.45, S.y + 1.75, -3.35], [1.45, S.y + 1.75, -2.35], .03, steel);
+    ['#e8e2d5', '#2f3236', '#7c8fb0', '#c9c4bb', '#5a4b42', '#9fb0c8', '#dfe5ea'].forEach((c, i) => box(.05, .8, .34, -.05 + i * .2, S.y + .93, -3.55, mat(c, {roughness: .9})));
+    ['#b8ad9c', '#4a4f57', '#d9dde0'].forEach((c, i) => box(.34, .8, .05, 1.45, S.y + .93, -3.2 + i * .25, mat(c, {roughness: .9})));
+    for (let i = 0; i < 4; i++) box(.9, .02, .55, 1.1, S.y + .5 + i * .45, -2.45, trim);
+  }
 
   // ---- Room builders: furniture, rugs and layouts, rebuilt when a design choice changes ----------
   const roomGroups = {};
@@ -548,6 +557,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     bedFrontL: {wall: 'dove', rug: 'blue', layout: 'left', layouts: {left: 'Bed on the left wall', front: 'Bed under the front windows'}},
     bedFrontR: {wall: 'dove', rug: 'sand', layout: 'right', layouts: {right: 'Bed on the driveway wall', front: 'Bed under the front windows'}},
     bath: {wall: 'mist'},
+    walkin: {wall: 'dove'},
     loft: {wall: 'dove', rug: 'blue', layout: 'back', layouts: {back: 'Bed at the back gable', front: 'Bed at the front gable'}},
   };
   const builders = {
@@ -728,8 +738,8 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     hall2(_, rugMat) { rug(2.2, .8, 1.3, -1.25, S.y, rugMat); plant(3.6, -1.9, S.y); },
     bedBack(layout, rugMat) {
       rug(2.4, 2.4, -2.1, -2.1, S.y, rugMat);
-      if (layout === 'back') { bed(-2.9, -3.8, -1.3, -1.8, 'z-', palette.quilt); nightstand(-3.3, -3.5); nightstand(-.9, -3.5); dresser(-3.55, -1.0, 1.1, .5, S.y, Math.PI / 2); }
-      else { bed(-3.8, -3.8, -2.2, -1.8, 'x-', palette.quilt); nightstand(-3.55, -1.5); dresser(-1.2, -3.6, 1.1, .5); }
+      if (layout === 'back') { bed(-3.1, -3.8, -1.5, -1.8, 'z-', palette.quilt); nightstand(-3.5, -3.5); nightstand(-1.1, -3.5); dresser(-3.55, -1.0, 1.1, .5, S.y, Math.PI / 2); }
+      else { bed(-3.8, -3.8, -2.2, -1.8, 'x-', palette.quilt); nightstand(-3.55, -1.5); dresser(-1.7, -3.6, 1.1, .5); }
     },
     bedFrontL(layout, rugMat) {
       rug(2.6, 2.4, -2.1, 2.3, S.y, rugMat);
@@ -742,6 +752,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       else { bed(1.7, 2.3, 3.8, 3.8, 'x+', palette.quilt); nightstand(1.45, 3.5); dresser(2.72, 1.2, 1, .45, S.y, -Math.PI / 2); }
     },
     bath() {},
+    walkin() {},
     loft(layout, rugMat) {
       if (layout === 'front') {
         rug(1.9, 1.6, -.4, -1.5, L.y + .02, rugMat);
@@ -885,7 +896,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     return el;
   };
   const shortName = name => name.replace('Front bedroom ', 'Bed ').replace('Back bedroom', 'Back bed').replace('Loft bedroom', 'Loft')
-    .replace(' room', '').replace('Upstairs ', '').replace('Hall bathroom', 'Bath').replace('Screened porch', 'Porch').replace('Front porch', 'Porch');
+    .replace(' room', '').replace('Upstairs ', '').replace('Hall bathroom', 'Bath').replace('Walk-in closet', 'Closet').replace('Screened porch', 'Porch').replace('Front porch', 'Porch');
   const roomShapes = {}, levelLayers = {};
   for (const key of Object.keys(LEVELS)) {
     const layer = svg('g', {class: 'map-level', display: 'none'});
