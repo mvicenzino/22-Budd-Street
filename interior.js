@@ -2,9 +2,9 @@
 // street-view style camera (stand at a node, drag to look, click an arrow to step), and applies
 // the interior design choices (flooring, furniture style and placement, rugs, wall colors, kitchen).
 import * as THREE from 'three';
-import {INNER, EYE, LEVELS, OPENINGS, PARTITIONS, STAIR, LOFT_STAIR, ROOMS, NODES} from './plan.js';
+import {INNER, EYE, LEVELS, GRADE, OPENINGS, PARTITIONS, STAIR, LOFT_STAIR, ROOMS, NODES} from './plan.js';
 import {mergeStatic} from './merge.js';
-import {FLOORING, WALL_COLORS, RUGS, KITCHEN_FLOORS, COUNTERS, loadDesign, saveDesign, createDesignPanel} from './design.js';
+import {FLOORING, WALL_COLORS, RUGS, KITCHEN_FLOORS, COUNTERS, BASEMENT_FLOORS, loadDesign, saveDesign, createDesignPanel} from './design.js';
 
 const $ = s => document.querySelector(s);
 const ease = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
@@ -12,9 +12,9 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const shortest = (from, to) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from));
 const yawBetween = (a, b) => Math.atan2(-(b.x - a.x), -(b.z - a.z));
 const T = .14; // partition thickness
-const F = LEVELS.first, S = LEVELS.second, L = LEVELS.loft;
+const F = LEVELS.first, S = LEVELS.second, L = LEVELS.loft, B = LEVELS.basement;
 const byId = list => Object.fromEntries(list.map(i => [i.id, i]));
-const FLOOR_BY_ID = byId(FLOORING), WALL_BY_ID = byId(WALL_COLORS), RUG_BY_ID = byId(RUGS), KFLOOR_BY_ID = byId(KITCHEN_FLOORS), COUNTER_BY_ID = byId(COUNTERS);
+const FLOOR_BY_ID = byId(FLOORING), WALL_BY_ID = byId(WALL_COLORS), RUG_BY_ID = byId(RUGS), KFLOOR_BY_ID = byId(KITCHEN_FLOORS), COUNTER_BY_ID = byId(COUNTERS), BFLOOR_BY_ID = byId(BASEMENT_FLOORS);
 
 // Small deterministic random source so generated textures look the same on every visit.
 function seeded(seed) {
@@ -28,6 +28,39 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   const cabinet = mat('#ebe8df', {roughness: .5}), steel = mat('#b9c0c4', {metalness: .65, roughness: .3}), black = mat('#2b2f31', {roughness: .5});
   const porcelain = mat('#f4f4f1', {roughness: .3}), leaf = mat('#4f7a4a'), tile = mat('#e4e6e3', {roughness: .4});
   const carpet = mat('#c9bfae'), paneGlass = mat('#7f9a9e', {metalness: .2, roughness: .2, transparent: true, opacity: .5});
+  const subfloor = mat('#c9b48f', {roughness: .9}), joist = mat('#b59a72', {roughness: .85});
+  // Basement finishes: block walls and a concrete slab, generated once.
+  function noiseCanvas(base, spots, blocks) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 512;
+    const g = c.getContext('2d'), rnd = seeded(blocks ? 41 : 43);
+    g.fillStyle = base;
+    g.fillRect(0, 0, 512, 512);
+    for (let i = 0; i < 6000; i++) {
+      g.fillStyle = spots[i % spots.length];
+      g.globalAlpha = .18 + rnd() * .3;
+      const sz = 1 + rnd() * 3;
+      g.fillRect(rnd() * 512, rnd() * 512, sz, sz);
+    }
+    g.globalAlpha = 1;
+    if (blocks) {
+      g.fillStyle = 'rgba(70,68,64,.35)';
+      for (let y = 0; y < 512; y += 64) {
+        g.fillRect(0, y, 512, 3);
+        for (let x = ((y / 64) % 2) * 64; x < 512; x += 128) g.fillRect(x, y, 3, 64);
+      }
+    }
+    const t = new THREE.CanvasTexture(c); // built before the texture() helper exists
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    return t;
+  }
+  const blockTex = noiseCanvas('#b9b5ad', ['#a09c94', '#cbc7bf', '#8f8b84'], true);
+  blockTex.repeat.set(4, 2);
+  const concreteTex = noiseCanvas('#a9a7a2', ['#93918c', '#bcbab5', '#807e79'], false);
+  concreteTex.repeat.set(6, 6);
+  const basementWall = new THREE.MeshStandardMaterial({map: blockTex, roughness: .95});
   const anisotropy = renderer.capabilities.getMaxAnisotropy();
   const texture = canvas => { const t = new THREE.CanvasTexture(canvas); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = anisotropy; return t; };
 
@@ -123,13 +156,15 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     box(x1 - x0, h, D / 2 - z1, (x0 + x1) / 2, y0, (z1 + D / 2) / 2, mats);
     box(x1 - x0, h, z0 + D / 2, (x0 + x1) / 2, y0, (z0 - D / 2) / 2, mats);
   }
-  slab(F.y - .1, F.y, null);
-  slab(F.ceil, S.y, [STAIR.x0, STAIR.upperZ1, STAIR.x1, STAIR.landingZ1]);
+  slab(F.y - .1, F.y, [STAIR.x0, STAIR.shortTopZ, STAIR.x1, STAIR.upBottomZ], [trim, trim, floorMat, subfloor, trim, trim]); // stairwell column open to the landing below
+  slab(F.ceil, S.y, [STAIR.x0, STAIR.upTopZ - .05, STAIR.x1, 1.2]);
+  const basementFloor = new THREE.MeshStandardMaterial({map: concreteTex, roughness: .9});
+  slab(B.y - .1, B.y, null, [trim, trim, basementFloor, trim, trim, trim]);
   slab(S.ceil, L.y, [LOFT_STAIR.x0, Math.min(LOFT_STAIR.z0, LOFT_STAIR.z1), LOFT_STAIR.x1, Math.max(LOFT_STAIR.z0, LOFT_STAIR.z1)]);
 
   // ---- Rooms own their wall paint -----------------------------------------------------------
   const roomById = byId(ROOMS);
-  const roomPaint = {};
+  const roomPaint = {basement: basementWall};
   const paintFor = id => roomPaint[id] ||= mat(WALL_COLORS[0].color);
   const defaultPaint = paintFor('other');
   function roomAt(level, x, z) {
@@ -210,6 +245,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
         }
         segment(f.axis, linerCoord, a0, a1, cursor, lv.ceil, m, .012);
       }
+      if (lv === B) continue; // block walls: no casings or baseboards
       for (const o of ops) casing(f.axis, f.face, f.side, o.a0, o.a1, o.kind === 'door' ? lv.y : o.y0, o.y1, o.kind === 'window');
       let from = -limit;
       for (const o of ops.filter(o => o.kind === 'door').sort((p, q) => p.a0 - q.a0)) {
@@ -259,7 +295,8 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     const w = x1 - x0, cx = (x0 + x1) / 2, dir = Math.sign(zEnd - zStart), run = Math.abs(zEnd - zStart) / steps, rise = (yEnd - yStart) / steps;
     for (let i = 0; i < steps; i++) {
       const z = zStart + dir * (run / 2 + i * run), top = yStart + (i + 1) * rise;
-      box(w, top - base, run, cx, base, z, fill);
+      if (base === null) box(w, rise + .22, run, cx, top - rise - .22, z, fill); // open flight: treads on a sloped stringer
+      else box(w, top - base, run, cx, base, z, fill);
       box(w, .035, run + .04, cx, top, z + dir * .02, palette.wood);
     }
     if (railSide) {
@@ -269,12 +306,23 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       for (let i = 0; i < steps; i++) box(.03, .86, .03, rx, yStart + (i + 1) * rise, zStart + dir * (run / 2 + i * run), trim);
     }
   }
-  flight(STAIR.x0, STAIR.x1, STAIR.lowerZ0, STAIR.lowerZ1, F.y, STAIR.landingY, 6, F.y, -1);
-  box(STAIR.x1 - STAIR.x0, STAIR.landingY - F.y, STAIR.lowerZ1 - STAIR.landingZ1, (STAIR.x0 + STAIR.x1) / 2, F.y, (STAIR.lowerZ1 + STAIR.landingZ1) / 2, palette.woodLight);
-  box(STAIR.x1 - STAIR.x0, .035, STAIR.lowerZ1 - STAIR.landingZ1, (STAIR.x0 + STAIR.x1) / 2, STAIR.landingY, (STAIR.lowerZ1 + STAIR.landingZ1) / 2, palette.wood);
-  railing(STAIR.x0 - .03, STAIR.lowerZ1, STAIR.landingZ1 + .05, STAIR.landingY);
-  flight(STAIR.x0, STAIR.x1, STAIR.landingZ1, STAIR.upperZ1, STAIR.landingY, S.y, 10, STAIR.landingY, 0);
-  railing(STAIR.x0 - .03, -.37 - .05, STAIR.upperZ1 + .3, S.y);
+  // Main stair column: one open flight from the hall up to the second floor; beneath it the side-door
+  // landing at grade, a short flight up into the kitchen corner and the basement flight down.
+  const sx = (STAIR.x0 + STAIR.x1) / 2, sw = STAIR.x1 - STAIR.x0;
+  flight(STAIR.x0, STAIR.x1, STAIR.upBottomZ, STAIR.upTopZ, F.y, S.y, 15, null, -1);
+  box(.1, .92, STAIR.upBottomZ + .32, STAIR.x0 + .02, F.y, (STAIR.upBottomZ - .32) / 2, paintFor('hall')); // knee wall over the drop to the landing
+  box(sw, .12, STAIR.landingZ1 - STAIR.landingZ0, sx, GRADE - .12, (STAIR.landingZ0 + STAIR.landingZ1) / 2, basementFloor);
+  flight(STAIR.x0, STAIR.x1, STAIR.landingZ0, STAIR.shortTopZ, GRADE, F.y, 5, GRADE - .12, 0);
+  railing(STAIR.x0 - .03, -.32, STAIR.shortTopZ + .25, F.y); // guard along the kitchen side of the stairwell
+  flight(STAIR.x0, STAIR.x1, STAIR.downBottomZ, STAIR.landingZ1, B.y, GRADE, 7, B.y, -1);
+  // Basement structure: joists under the first floor, a girder on a steel column.
+  for (let x = -INNER.x + .2; x < INNER.x; x += .4) box(.05, .2, INNER.z * 2, x, F.y - .3, 0, joist);
+  box(INNER.x * 2, .25, .15, 0, F.y - .55, -.8, joist);
+  {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, F.y - .55 - B.y, 12), steel);
+    post.position.set(1.72, (F.y - .55 + B.y) / 2, -.8);
+    group.add(post);
+  }
   flight(LOFT_STAIR.x0, LOFT_STAIR.x1, LOFT_STAIR.z0, LOFT_STAIR.z1, S.y, L.y, 13, S.y, 0, paintFor('hall2')); // enclosed flight, underside reads as wall
   railing(LOFT_STAIR.x0 - .03, LOFT_STAIR.z0 - .05, LOFT_STAIR.z1 - .35, L.y);
   railing(LOFT_STAIR.x1 + .03, LOFT_STAIR.z0 - .05, LOFT_STAIR.z1 - .35, L.y);
@@ -558,6 +606,8 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     bedFrontR: {wall: 'dove', rug: 'sand', layout: 'right', layouts: {right: 'Bed on the driveway wall', front: 'Bed under the front windows'}},
     bath: {wall: 'mist'},
     walkin: {wall: 'dove'},
+    landing: {wall: 'dove'},
+    basement: {wall: 'dove', layout: 'unfinished', layouts: {unfinished: 'Unfinished, as it is', family: 'Family room with utility closet', office: 'Office and home gym'}},
     loft: {wall: 'dove', rug: 'blue', layout: 'back', layouts: {back: 'Bed at the back gable', front: 'Bed at the front gable'}},
   };
   const builders = {
@@ -632,12 +682,14 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       shade.position.set(tx, F.ceil - 1.05, tz);
       parentGroup.add(shade);
     },
-    kitchen(_, __, k) {
+    kitchen(_, __, d) {
+      const k = d.kitchen;
       const appliance = steel, navyLike = counterMaterial(k.counter), grate = mat('#2a2c2e', {roughness: .7});
       const ovenGlass = mat('#3a4247', {metalness: .3, roughness: .25}), knob = mat('#d8d9d6', {roughness: .4, metalness: .3});
       const rear = -INNER.z, right = INNER.x, depth = .6, h = .9, upperBottom = 1.5, upperTop = 2.4, upperDepth = .33;
-      const kx0 = .5, sideEnd = -1.0;
-      box(right + .32, .012, INNER.z - .32, (right - .32) / 2, F.y, (rear - .32) / 2, kitchenFloorMaterial(k.floor)).castShadow = false;
+      const kx0 = .5, sideEnd = -1.4;
+      box(STAIR.x0 + .32, .012, INNER.z - .32, (STAIR.x0 - .32) / 2, F.y, (rear - .32) / 2, kitchenFloorMaterial(k.floor)).castShadow = false;
+      box(right - STAIR.x0, .012, STAIR.shortTopZ - rear, (right + STAIR.x0) / 2, F.y, (rear + STAIR.shortTopZ) / 2, kitchenFloorMaterial(k.floor)).castShadow = false;
       // Beadboard backsplash, cut around the window over the sink.
       const beadCanvas = document.createElement('canvas');
       beadCanvas.width = 256;
@@ -753,6 +805,87 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     },
     bath() {},
     walkin() {},
+    landing() {},
+    basement(layout, _, d) {
+      const y = B.y, finished = layout !== 'unfinished';
+      const bf = BFLOOR_BY_ID[d.basement.floor] || BASEMENT_FLOORS[0];
+      // Floor finish laid over the slab (the slab itself stays concrete underneath).
+      if (bf.id !== 'concrete') {
+        let m;
+        if (bf.id === 'epoxy') m = mat(bf.color, {roughness: .3, metalness: .05});
+        else if (bf.id === 'carpet') m = mat(bf.color, {roughness: 1});
+        else { const t = floorMat.map.clone(); t.repeat.set(3, 7.5); t.needsUpdate = true; m = new THREE.MeshStandardMaterial({map: t, roughness: .55, color: bf.color}); }
+        box(INNER.x * 2 - .02, .01, INNER.z * 2 - .02, 0, y, 0, m).castShadow = false;
+      }
+      const duct = mat('#c8ccd0', {metalness: .5, roughness: .4});
+      const furnace = (x, z) => {
+        box(.7, 1.5, .9, x, y, z, steel);
+        box(.35, .35, .35, x, y + 1.5, z, steel);
+        box(.3, F.y - .3 - (y + 1.85), .3, x, y + 1.85, z, duct);
+        box(.2, .12, 1.4, x + .45, F.y - .55, z + .4, duct);
+      };
+      const heater = (x, z) => {
+        const cyl = new THREE.Mesh(new THREE.CylinderGeometry(.28, .28, 1.5, 20), mat('#e9e9e6', {roughness: .5}));
+        cyl.position.set(x, y + .75, z);
+        cyl.castShadow = true;
+        parentGroup.add(cyl);
+        box(.06, F.y - .3 - (y + 1.5), .06, x, y + 1.5, z, steel);
+      };
+      if (!finished) {
+        furnace(-3.4, 2.05);
+        heater(1.0, 3.45);
+        box(1.8, .06, .6, .9, y + .85, -3.5, palette.woodLight); // workbench on the rear wall
+        for (const dx of [-.8, .8]) for (const dz of [-.22, .22]) box(.06, .85, .06, .9 + dx, y, -3.5 + dz, palette.woodLight);
+        for (let i = 0; i < 4; i++) box(1.2, .03, .45, -2.6, y + .3 + i * .45, -3.6, steel); // steel shelving
+        for (const sx of [-.58, .58]) for (const sz of [-.2, .2]) box(.03, 1.8, .03, -2.6 + sx, y, -3.6 + sz, steel);
+        for (const [x, z, w] of [[-2.9, -3.6, .4], [-2.3, -3.6, .35], [-2.6, -3.6, .45]]) box(w, .3, .35, x, y + .33, z, mat('#b89a6a', {roughness: .9}));
+        box(.9, .35, .5, 2.6, y, 3.4, mat('#4b5a6a', {roughness: .8})); // storage bins by the stairs
+        box(.9, .35, .5, 2.6, y + .35, 3.4, mat('#5e6f80', {roughness: .8}));
+        return;
+      }
+      // Finished layouts: drywall ceiling and a utility closet around the mechanicals in the front-left corner.
+      const wallH = B.ceil - .24 - y, utilPaint = paintFor('basement');
+      box(INNER.x * 2, .02, INNER.z * 2, 0, B.ceil - .24, 0, ceilingPaint).castShadow = false;
+      box(.12, wallH, INNER.z - 1.0, -2.5, y, (INNER.z + 1.0) / 2, utilPaint);
+      box(.6, wallH, .12, -2.8, y, 1.0, utilPaint);
+      box(.55, wallH, .12, -INNER.x + .275, y, 1.0, utilPaint);
+      box(.75, wallH - 2.05, .12, -3.2, y + 2.05, 1.0, utilPaint); // door head
+      furnace(-3.4, 2.4);
+      heater(-3.0, 3.4);
+      if (layout === 'family') {
+        rug(3.2, 2.4, 0, -2.0, y, rugMaterial('cream'));
+        sofa(0, -1.1, 2.4, Math.PI, y);
+        armchair(-1.9, -2.4, Math.PI / 2 + .3, y);
+        box(1.8, .5, .42, 0, y, -3.6, palette.rustic);
+        box(1.6, .92, .04, 0, y + .95, -3.63, black);
+        box(1.1, .12, 1.1, 0, y + .34, -2.4, palette.rustic);
+        box(1.0, .34, 1.0, 0, y, -2.4, palette.rustic);
+        box(2.7, .04, 1.5, 1.6, y + .74, 1.9, mat('#1f4d7a', {roughness: .6})); // ping-pong table
+        box(2.7, .01, .02, 1.6, y + .8, 1.9, trim);
+        for (const dx of [-1.1, 1.1]) for (const dz of [-.55, .55]) box(.06, .74, .06, 1.6 + dx, y, 1.9 + dz, black);
+        for (let i = 0; i < 4; i++) box(1.6, .03, .35, 3.0, y + .35 + i * .45, -2.0, palette.wood); // shelves on the driveway wall
+        lamp(-1.6, -3.4, y);
+        plant(2.2, -3.3, y);
+      } else {
+        rug(2.4, 2.0, -2.2, -2.4, y, rugMaterial('sand'));
+        box(1.5, .04, .7, -2.4, y + .72, -3.35, palette.wood); // desk under the rear cellar window
+        for (const dx of [-.7, .7]) box(.04, .72, .6, -2.4 + dx, y, -3.35, palette.wood);
+        chair(-2.4, -2.75, Math.PI, y);
+        box(.03, .5, .35, -2.4, y + .76, -3.5, black);
+        for (let i = 0; i < 4; i++) box(1.0, .03, .3, -3.6, y + .3 + i * .5, -2.0, palette.wood); // bookshelf
+        for (const sz of [-.48, .48]) box(.03, 2.0, .3, -3.6, y, -2.0 + sz, palette.wood);
+        box(3.2, .02, 2.4, 1.9, y, -1.6, mat('#3b3d40', {roughness: 1})); // gym mat
+        for (const dx of [-.5, .5]) box(.06, 2.1, .06, 2.9 + dx, y, -3.1, black); // squat rack
+        box(1.2, .05, .05, 2.9, y + 1.8, -3.1, black);
+        box(1.2, .05, .05, 2.9, y + 1.0, -3.1, black);
+        box(.8, .5, 1.6, 3.0, y, 1.3, mat('#2b2f31', {roughness: .5})); // treadmill
+        box(.7, .05, 1.3, 3.0, y + .3, 1.3, black);
+        box(.06, .9, .06, 3.0, y + .5, 2.0, black);
+        box(.6, .3, .06, 3.0, y + 1.4, 2.0, black);
+        box(1.1, .45, .35, 1.4, y, -3.2, mat('#3a3a3a', {roughness: .8})); // bench
+        lamp(-3.5, -3.4, y);
+      }
+    },
     loft(layout, rugMat) {
       if (layout === 'front') {
         rug(1.9, 1.6, -.4, -1.5, L.y + .02, rugMat);
@@ -788,13 +921,18 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     g.traverse(o => { if (o.geometry) o.geometry.dispose(); });
     g.clear();
     parentGroup = g;
-    builders[id](roomChoice(id, 'layout'), rugMaterial(roomChoice(id, 'rug') || 'none'), design.kitchen);
+    builders[id](roomChoice(id, 'layout'), rugMaterial(roomChoice(id, 'rug') || 'none'), design);
     parentGroup = group;
     mergeStatic(g);
   }
   function applyWalls() {
     for (const r of ROOMS) paintFor(r.id).color.set((WALL_BY_ID[roomChoice(r.id, 'wall')] || WALL_COLORS[0]).color);
     defaultPaint.color.set(WALL_COLORS[0].color);
+    // The basement keeps its block walls until a finished layout is chosen.
+    const finished = roomChoice('basement', 'layout') !== 'unfinished';
+    basementWall.map = finished ? null : blockTex;
+    if (!finished) basementWall.color.set('#ffffff');
+    basementWall.needsUpdate = true;
   }
   function applyAll() {
     floorMat.color.set((FLOOR_BY_ID[design.flooring] || FLOORING[0]).color);
@@ -816,6 +954,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   for (const [x, z] of [[2.45, 2.0], [-1.0, 1.7], [-2.1, -2.1], [1.8, -2.0]]) addLight(x, F.ceil - .3, z, 22);
   for (const [x, z] of [[1.5, -1.25], [-2.1, -2.1], [-1.6, 2.2], [2.0, 2.2], [2.75, -3.0]]) addLight(x, S.ceil - .3, z, 13);
   addLight(-.4, L.y + 2.1, 0, 18);
+  for (const [x, z] of [[-1.5, -1.5], [1.5, 1.5], [-2.2, 2.2]]) addLight(x, B.ceil - .35, z, 12);
   const fill = new THREE.AmbientLight('#fff4e6', 0);
   fill.userData.max = .6;
   group.add(fill);
@@ -1102,7 +1241,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       const b = document.createElement('button');
       b.type = 'button';
       b.dataset.node = n.id;
-      b.textContent = roomName(n);
+      b.textContent = n.name || roomName(n);
       b.onclick = () => walkTo(n.id);
       chips.append(b);
     }
@@ -1115,8 +1254,9 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       style: id => { applyStyle(id); saveDesign(design); },
       wall: () => { applyWalls(); saveDesign(design); },
       rug: id => { rebuildRoom(id); saveDesign(design); },
-      layout: id => { rebuildRoom(id); saveDesign(design); },
+      layout: id => { rebuildRoom(id); applyWalls(); saveDesign(design); },
       kitchen: () => { rebuildRoom('kitchen'); saveDesign(design); },
+      basement: () => { rebuildRoom('basement'); saveDesign(design); },
       reset: () => { applyAll(); saveDesign(design); },
     },
   });

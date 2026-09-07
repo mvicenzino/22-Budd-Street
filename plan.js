@@ -13,8 +13,10 @@ export const LEVELS = {
   first: {name: 'First floor', y: 1.1, ceil: 3.85},
   second: {name: 'Second floor', y: 4.15, ceil: 6.75},
   loft: {name: 'Loft', y: 6.85, ceil: 9.5, kneeX: 1.88, kneeTop: 8.3}, // 12'4" wide under the roof
+  basement: {name: 'Basement', y: -1.3, ceil: 1.0}, // 25'8" x 25'7" unfinished, joists under the first floor
 };
-const F = LEVELS.first, S = LEVELS.second, L = LEVELS.loft;
+export const GRADE = .1; // side-door landing height, at grade
+const F = LEVELS.first, S = LEVELS.second, L = LEVELS.loft, B = LEVELS.basement;
 
 // Exterior windows and doors. `a` is the centre along the wall (x for front/rear, z for sides),
 // `y` the centre height, `w`/`h` the opening size. `pair` groups the paired upstairs windows that
@@ -49,20 +51,29 @@ export const FEATURES = [
   {wall: 'right', kind: 'window', a: 2.5, y: 2.35, w: .98, h: 1.5},
   {wall: 'right', kind: 'window', a: -1.4, y: 5.2, w: .98, h: 1.4},
   {wall: 'right', kind: 'window', a: 2.45, y: 5.2, w: .98, h: 1.4},
-  {wall: 'right', kind: 'sidedoor', a: .47, y: 1.15, w: .87, h: 2.1}, // landing / basement entrance
+  {wall: 'right', kind: 'sidedoor', a: .47, y: 1.15, w: .87, h: 2.1}, // side door onto the grade-level landing
+  // Cellar windows in the foundation
+  {wall: 'rear', kind: 'cellar', a: -2.4, y: .45, w: .8, h: .45},
+  {wall: 'rear', kind: 'cellar', a: 2.62, y: .45, w: .8, h: .45},
+  {wall: 'left', kind: 'cellar', a: -2, y: .45, w: .8, h: .45},
+  {wall: 'left', kind: 'cellar', a: 2.05, y: .45, w: .8, h: .45},
+  {wall: 'right', kind: 'cellar', a: -2.28, y: .45, w: .8, h: .45},
+  {wall: 'right', kind: 'cellar', a: 2.4, y: .45, w: .8, h: .45},
 ];
+export const FOUNDATION = {bottom: B.y - .15, top: SHELL.base};
 
 // Openings the shell walls are cut around, derived from the features above.
 export const OPENINGS = {front: [], rear: [], left: [], right: []};
 for (const f of FEATURES) {
-  if (f.kind === 'gable' || f.kind === 'sidedoor') continue;
-  const isDoor = f.kind === 'door' || f.kind === 'french';
-  OPENINGS[f.wall].push({a0: f.a - f.w / 2, a1: f.a + f.w / 2, y0: isDoor ? SHELL.base : f.y - f.h / 2, y1: f.y + f.h / 2, kind: isDoor ? 'door' : 'window'});
+  if (f.kind === 'gable') continue;
+  const isDoor = f.kind === 'door' || f.kind === 'french' || f.kind === 'sidedoor';
+  OPENINGS[f.wall].push({a0: f.a - f.w / 2, a1: f.a + f.w / 2, y0: isDoor && f.kind !== 'sidedoor' ? SHELL.base : f.y - f.h / 2, y1: f.y + f.h / 2, kind: isDoor ? 'door' : 'window'});
 }
 
-// Main stair, in the hallway against the driveway wall: lower flight up to a landing at the side
-// door, then a steep upper flight to the second-floor hall (the two drawings disagree slightly).
-export const STAIR = {x0: 2.98, x1: INNER.x, lowerZ0: 2.2, lowerZ1: 1.1, landingZ1: .6, upperZ1: -.9, landingY: F.y + 1.05};
+// Stair column against the driveway wall (2'10" wide). One straight flight rises from the hallway
+// to the second floor; beneath it the side door opens onto a grade-level landing, with a short flight
+// up into the kitchen corner and the basement flight down toward the front.
+export const STAIR = {x0: 2.98, x1: INNER.x, upBottomZ: 2.2, upTopZ: -.7, landingZ0: .05, landingZ1: .9, landingY: GRADE, shortTopZ: -.95, downBottomZ: 2.0};
 // Loft stair (2'9" wide): enters from the upstairs hall and climbs toward the front inside an
 // enclosed box that protrudes into the front-right bedroom; the loft is reached only from the hall.
 export const LOFT_STAIR = {x0: .65, x1: 1.45, z0: -1, z1: .85};
@@ -74,8 +85,7 @@ export const PARTITIONS = [
   {level: 'first', axis: 'x', coord: -.32, c0: -INNER.x, c1: 1.95, openings: [{a0: -2.7, a1: -.85, y1: 2.2}]},            // living | dining
   {level: 'first', axis: 'z', coord: 1.95, c0: -.32, c1: INNER.z, openings: [{a0: 0, a1: 3, y1: 2.2}]},                     // living | hallway
   {level: 'first', axis: 'z', coord: -.32, c0: -INNER.z, c1: -.32, openings: [{a0: -3.6, a1: -2.9, y1: 2.05, door: true}, {a0: -1.75, a1: -.9, y1: 2.2}]}, // dining | kitchen, powder room door
-  {level: 'first', axis: 'x', coord: -.32, c0: 1.95, c1: INNER.x, openings: [{a0: 1.95, a1: 2.8, y1: 2.2}]},                // hallway | kitchen corridor, landing wall
-  {level: 'first', axis: 'z', coord: STAIR.x0, c0: STAIR.upperZ1, c1: -.32, openings: []},                                  // upper flight enclosure
+  {level: 'first', axis: 'x', coord: -.32, c0: 1.95, c1: INNER.x, openings: [{a0: 1.95, a1: 2.8, y1: 2.2}, {a0: STAIR.x0, a1: INNER.x}]}, // hallway | kitchen corridor; the stairwell column is open
   {level: 'first', axis: 'x', coord: -.9, c0: 1.05, c1: 1.7, openings: []},                                                 // pantry closet
   {level: 'first', axis: 'z', coord: 1.05, c0: -.9, c1: -.32, openings: []},
   {level: 'first', axis: 'z', coord: 1.7, c0: -.9, c1: -.32, openings: []},
@@ -100,7 +110,7 @@ export const PARTITIONS = [
   {level: 'second', axis: 'z', coord: .62, c0: -2.76, c1: -2.12, openings: []},
   {level: 'second', axis: 'z', coord: 1.58, c0: -INNER.z, c1: -2.12, openings: []},                                         // walk-in closet | bath
   {level: 'second', axis: 'z', coord: STAIR.x0, c0: -.37, c1: 2.1, openings: []},                                           // stair column | front-right bedroom (7'5")
-  {level: 'second', axis: 'x', coord: .9, c0: STAIR.x0, c1: INNER.x, openings: []},                                         // stairwell | bedroom closet
+  {level: 'second', axis: 'x', coord: 1.25, c0: STAIR.x0, c1: INNER.x, openings: []},                                        // stairwell | bedroom closet
   {level: 'second', axis: 'x', coord: 2.1, c0: STAIR.x0, c1: INNER.x, openings: [{a0: 3.2, a1: 3.7, y1: 2.05, door: true}]}, // bedroom closet door (3'2")
 ];
 
@@ -109,6 +119,7 @@ export const PARTITIONS = [
 export const ROOMS = [
   {id: 'porch', level: 'first', name: 'Front porch', rect: [-4.15, SHELL.z, 4.15, SHELL.z + 2.15], outside: true},
   {id: 'hallCloset', level: 'first', name: 'Closet', rect: [3.1, 3.15, INNER.x, INNER.z], minor: true},
+  {id: 'landing', level: 'first', name: 'Side door landing', rect: [STAIR.x0, -.32, INNER.x, STAIR.upBottomZ], minor: true},
   {id: 'hall', level: 'first', name: 'Hallway', rect: [1.95, -.32, INNER.x, INNER.z]},
   {id: 'living', level: 'first', name: 'Living room', rect: [-INNER.x, -.32, 1.95, INNER.z]},
   {id: 'powder', level: 'first', name: 'Powder room', rect: [-.32, -INNER.z, .5, -2.6], minor: true},
@@ -119,14 +130,15 @@ export const ROOMS = [
   {id: 'walkin', level: 'second', name: 'Walk-in closet', rect: [-.32, -INNER.z, 1.58, -2.12]},
   {id: 'bath', level: 'second', name: 'Hall bathroom', rect: [1.58, -INNER.z, INNER.x, -2.12]},
   {id: 'hall2', level: 'second', name: 'Upstairs hall', rect: [-.32, -2.12, INNER.x, -.37]},
-  {id: 'stairwell', level: 'second', name: 'Stair', rect: [STAIR.x0, -.37, INNER.x, .9], minor: true},
+  {id: 'stairwell', level: 'second', name: 'Stair', rect: [STAIR.x0, -.37, INNER.x, 1.25], minor: true},
   {id: 'loftstair', level: 'second', name: 'Stair', rect: [.62, -.37, LOFT_STAIR.x1 + .07, LOFT_STAIR.z1 + .07], minor: true},
-  {id: 'closet3', level: 'second', name: 'Closet', rect: [STAIR.x0, .9, INNER.x, 2.1], minor: true},
+  {id: 'closet3', level: 'second', name: 'Closet', rect: [STAIR.x0, 1.25, INNER.x, 2.1], minor: true},
   {id: 'closets', level: 'second', name: 'Closets', rect: [-INNER.x, -.37, -.32, .35], minor: true},
   {id: 'bedBack', level: 'second', name: 'Back bedroom', rect: [-INNER.x, -INNER.z, -.32, -.37]},
   {id: 'bedFrontL', level: 'second', name: 'Front bedroom left', rect: [-INNER.x, -.37, .62, INNER.z]},
   {id: 'bedFrontR', level: 'second', name: 'Front bedroom right', rect: [.62, -.37, INNER.x, INNER.z]},
   {id: 'loft', level: 'loft', name: 'Loft bedroom', rect: [-L.kneeX, -INNER.z, L.kneeX, INNER.z]},
+  {id: 'basement', level: 'basement', name: 'Basement', rect: [-INNER.x, -INNER.z, INNER.x, INNER.z]},
 ];
 
 // Street-view style nodes: where you can stand, and where you can step to from there.
@@ -134,7 +146,9 @@ export const ROOMS = [
 // swings open before the trip. `via` lists waypoints [x, z, floorY] for trips along stairs
 // or around corners.
 const stairX = (STAIR.x0 + STAIR.x1) / 2, loftX = (LOFT_STAIR.x0 + LOFT_STAIR.x1) / 2;
-const mainStairUp = [[stairX, STAIR.lowerZ0 - .1, F.y], [stairX, (STAIR.lowerZ1 + STAIR.landingZ1) / 2, STAIR.landingY], [stairX, STAIR.upperZ1 - .15, S.y]];
+const mainStairUp = [[stairX, STAIR.upBottomZ + .2, F.y], [stairX, STAIR.upTopZ - .3, S.y]];
+const toLanding = [[stairX, STAIR.shortTopZ - .2, F.y]];
+const toBasement = [[stairX, STAIR.downBottomZ + .3, B.y]];
 const loftStairUp = [[loftX, LOFT_STAIR.z0 - .35, S.y], [loftX, LOFT_STAIR.z1 + .3, L.y]];
 const reverse = via => [...via].reverse();
 export const NODES = [
@@ -142,7 +156,10 @@ export const NODES = [
   {id: 'hall', room: 'hall', x: 2.45, z: 2.6, look: [2.4, -.3], links: [{to: 'porch', door: 'front'}, {to: 'living'}, {to: 'kitchen', via: [[2.4, -.6, F.y]]}, {to: 'hall2', via: mainStairUp, label: 'Upstairs'}]},
   {id: 'living', room: 'living', x: -.1, z: 1.6, look: [-2.2, 3.4], links: [{to: 'hall'}, {to: 'dining'}]},
   {id: 'dining', room: 'dining', x: -1.5, z: -1.1, look: [-2.1, -2.6], links: [{to: 'living'}, {to: 'kitchen'}, {to: 'rear', door: 'rear'}]},
-  {id: 'kitchen', room: 'kitchen', x: 2.2, z: -1.15, look: [2.5, -3.85], links: [{to: 'hall', via: [[2.4, -.6, F.y]]}, {to: 'dining'}]},
+  {id: 'kitchen', room: 'kitchen', x: 2.2, z: -1.15, look: [2.5, -3.85], links: [{to: 'hall', via: [[2.4, -.6, F.y]]}, {to: 'dining'}, {to: 'landing', via: toLanding, label: 'Down to side door'}]},
+  {id: 'landing', room: 'landing', x: stairX, z: (STAIR.landingZ0 + STAIR.landingZ1) / 2, floor: GRADE, look: [3.3, -1.2], links: [{to: 'kitchen', via: reverse(toLanding), label: 'Up to kitchen'}, {to: 'basement', via: toBasement, label: 'Down to basement'}]},
+  {id: 'basement', room: 'basement', name: 'Basement, by the stairs', x: 1.9, z: 1.5, look: [-2, -1.5], links: [{to: 'landing', via: reverse(toBasement), label: 'Up to side door'}, {to: 'basementRear'}]},
+  {id: 'basementRear', room: 'basement', name: 'Basement, far corner', x: -1.6, z: -1.8, look: [2.5, 2.5], links: [{to: 'basement'}]},
   {id: 'rear', room: 'rear', x: -1.9, z: -SHELL.z - 1.4, links: [{to: 'dining', door: 'rear'}]},
   {id: 'hall2', room: 'hall2', x: 2.2, z: -1.25, look: [-.3, -1.25], links: [{to: 'hall', via: reverse(mainStairUp), label: 'Downstairs'}, {to: 'bedBack'}, {to: 'bedFrontL', via: [[.1, -1, S.y], [.15, .6, S.y]]}, {to: 'bedFrontR', via: [[2.4, -.8, S.y]]}, {to: 'bath'}, {to: 'loft', via: loftStairUp, label: 'Up to loft'}, {to: 'walkin', via: [[-.6, -1.6, S.y], [-.6, -3.2, S.y]]}]},
   {id: 'bedBack', room: 'bedBack', x: -1.5, z: -1.6, look: [-3, -2.8], links: [{to: 'hall2'}, {to: 'walkin', via: [[-.6, -3.2, S.y]]}]},

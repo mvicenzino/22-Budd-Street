@@ -53,15 +53,22 @@ export const COUNTERS = [
 
 export const ISLANDS = [{id: 'none', name: 'No island'}, {id: 'small', name: 'Small island'}];
 
-export const DEFAULT_DESIGN = {flooring: 'natural', style: 'traditional', kitchen: {floor: 'checker', counter: 'alabaster', island: 'none'}, rooms: {}};
+export const BASEMENT_FLOORS = [
+  {id: 'concrete', name: 'Concrete (existing)', color: '#a9a7a2'},
+  {id: 'epoxy', name: 'Epoxy gray', color: '#8e9297'},
+  {id: 'carpet', name: 'Carpet tile', color: '#b7b0a4'},
+  ...FLOORING.map(f => ({...f, name: f.name + ' LVP'})),
+];
+
+export const DEFAULT_DESIGN = {flooring: 'natural', style: 'traditional', kitchen: {floor: 'checker', counter: 'alabaster', island: 'none'}, basement: {floor: 'concrete'}, rooms: {}};
 const STORAGE_KEY = 'budd-street-design';
 
 export function loadDesign() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (saved && typeof saved === 'object') return {...DEFAULT_DESIGN, ...saved, kitchen: {...DEFAULT_DESIGN.kitchen, ...(saved.kitchen || {})}, rooms: {...(saved.rooms || {})}};
+    if (saved && typeof saved === 'object') return {...DEFAULT_DESIGN, ...saved, kitchen: {...DEFAULT_DESIGN.kitchen, ...(saved.kitchen || {})}, basement: {...DEFAULT_DESIGN.basement, ...(saved.basement || {})}, rooms: {...(saved.rooms || {})}};
   } catch {}
-  return {...DEFAULT_DESIGN, kitchen: {...DEFAULT_DESIGN.kitchen}, rooms: {}};
+  return {...DEFAULT_DESIGN, kitchen: {...DEFAULT_DESIGN.kitchen}, basement: {...DEFAULT_DESIGN.basement}, rooms: {}};
 }
 export function saveDesign(design) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(design)); } catch {}
@@ -119,6 +126,10 @@ export function createDesignPanel({root, design, roomDefaults, hooks}) {
     b.onclick = () => { design.kitchen.island = i.id; pressOnly(islandRow, i.id); hooks.kitchen(design.kitchen); };
     islandRow.append(b);
   }
+  // Basement-only controls: floor finish (the layout preset uses the shared placement select).
+  const basementFloorRow = el('div', {class: 'paint-swatches design-floor'});
+  for (const f of BASEMENT_FLOORS) basementFloorRow.append(swatch(f, design.basement.floor === f.id, id => { design.basement.floor = id; pressOnly(basementFloorRow, id); hooks.basement(design.basement); }));
+  const basementSection = el('div', {class: 'design-kitchen'}, el('div', {class: 'paint-label design-sub', text: 'Basement floor'}), basementFloorRow);
   const kitchenSection = el('div', {class: 'design-kitchen'},
     el('div', {class: 'paint-label design-sub', text: 'Kitchen floor'}), kitchenFloorRow,
     el('div', {class: 'paint-label design-sub', text: 'Countertops'}), counterRow,
@@ -139,6 +150,8 @@ export function createDesignPanel({root, design, roomDefaults, hooks}) {
     design.style = DEFAULT_DESIGN.style;
     design.rooms = {};
     design.kitchen = {...DEFAULT_DESIGN.kitchen};
+    design.basement = {...DEFAULT_DESIGN.basement};
+    pressOnly(basementFloorRow, design.basement.floor);
     pressOnly(floorRow, design.flooring);
     pressOnly(styleRow, design.style);
     pressOnly(kitchenFloorRow, design.kitchen.floor);
@@ -153,7 +166,7 @@ export function createDesignPanel({root, design, roomDefaults, hooks}) {
     el('div', {class: 'paint-label', text: 'Furniture style'}), styleRow,
     roomTitle,
     el('div', {class: 'paint-label design-sub', text: 'Wall color'}), wallRow,
-    rugRow, layoutRow, kitchenSection,
+    rugRow, layoutRow, kitchenSection, basementSection,
     el('p', {class: 'design-note', text: 'Choices are saved in this browser. Walk to a room to design it.'}),
     reset,
   );
@@ -171,6 +184,7 @@ export function createDesignPanel({root, design, roomDefaults, hooks}) {
     for (const [key, label] of Object.entries(layouts)) layoutSelect.append(el('option', {value: key, text: label}));
     if (!layoutRow.hidden) layoutSelect.value = state.layout || defaults.layout;
     kitchenSection.hidden = id !== 'kitchen';
+    basementSection.hidden = id !== 'basement';
   }
   return {setRoom};
 }

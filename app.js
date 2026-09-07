@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {OrbitControls} from './OrbitControls.js';
-import {SHELL,OPENINGS,FEATURES} from './plan.js';
+import {SHELL,OPENINGS,FEATURES,FOUNDATION} from './plan.js';
 import {createInterior} from './interior.js';
 import {mergeStatic} from './merge.js';
 const $=s=>document.querySelector(s);
@@ -18,18 +18,19 @@ function box(w,h,d,x,y,z,m=white,parent=home){const a=new THREE.Mesh(new THREE.B
 function beam(a,b,width,m,parent=home){const av=new THREE.Vector3(...a),bv=new THREE.Vector3(...b),d=bv.clone().sub(av);const mesh=box(width,d.length(),width,0,0,0,m,parent);mesh.position.copy(av.add(bv).multiplyScalar(.5));mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());return mesh}
 function face(points,m,parent=home){const g=new THREE.BufferGeometry();const verts=[];for(let i=1;i<points.length-1;i++)verts.push(...points[0],...points[i],...points[i+1]);g.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));g.computeVertexNormals();const mesh=new THREE.Mesh(g,m);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh}
 // Main body: front faces +Z; driveway is +X.
-const FZ=SHELL.z,FX=SHELL.x;box(FX*2,.9,FZ*2,0,.45,0,stone);
+const FZ=SHELL.z,FX=SHELL.x,concrete=mat('#b5b2ab',{roughness:.95});
 // Exterior walls are a hollow shell with real window and door openings so the interior walkthrough can see out.
-function shellWall(axis,coord,c0,c1,openings,faces){const {base:y0,top:y1,thick}=SHELL;const emit=(a0,a1,b0,b1)=>{if(a1-a0<.005||b1-b0<.005)return;axis==='x'?box(a1-a0,b1-b0,thick,(a0+a1)/2,(b0+b1)/2,coord,faces):box(thick,b1-b0,a1-a0,coord,(b0+b1)/2,(a0+a1)/2,faces)};
+function shellWall(axis,coord,c0,c1,allOpenings,faces,y0=SHELL.base,y1=SHELL.top,thick=SHELL.thick){const openings=allOpenings.filter(o=>o.y1>y0&&o.y0<y1);const emit=(a0,a1,b0,b1)=>{if(a1-a0<.005||b1-b0<.005)return;axis==='x'?box(a1-a0,b1-b0,thick,(a0+a1)/2,(b0+b1)/2,coord,faces):box(thick,b1-b0,a1-a0,coord,(b0+b1)/2,(a0+a1)/2,faces)};
 // Split the wall into vertical strips at every opening edge, then fill each strip around the openings that span it.
 const edges=[...new Set([c0,c1,...openings.flatMap(o=>[o.a0,o.a1])])].filter(a=>a>=c0&&a<=c1).sort((p,q)=>p-q);
-for(let i=0;i<edges.length-1;i++){const xa=edges[i],xb=edges[i+1];let cursor=y0;for(const o of openings.filter(o=>o.a0<=xa+.001&&o.a1>=xb-.001).sort((p,q)=>p.y0-q.y0)){emit(xa,xb,cursor,o.y0);cursor=Math.max(cursor,o.y1)}emit(xa,xb,cursor,y1)}}
+for(let i=0;i<edges.length-1;i++){const xa=edges[i],xb=edges[i+1];let cursor=y0;for(const o of openings.filter(o=>o.a0<=xa+.001&&o.a1>=xb-.001).sort((p,q)=>p.y0-q.y0)){emit(xa,xb,cursor,Math.min(o.y0,y1));cursor=Math.max(cursor,o.y1)}emit(xa,xb,cursor,y1)}}
 function shellSeams(axis,coord,c0,c1,openings){for(let y=1;y<6.8;y+=.15){let spans=[[c0,c1]];for(const o of openings){if(y<o.y0||y>o.y1)continue;spans=spans.flatMap(([a,b])=>b<=o.a0||a>=o.a1?[[a,b]]:[[a,Math.min(b,o.a0)],[Math.max(a,o.a1),b]].filter(([p,q])=>q-p>.01))}for(const [a,b]of spans)axis==='x'?box(b-a,.025,.03,(a+b)/2,y,coord,sidingSeams):box(.03,.025,b-a,coord,y,(a+b)/2,sidingSeams)}}
 const inset=SHELL.thick/2;
 shellWall('x',SHELL.z-inset,-SHELL.x,SHELL.x,OPENINGS.front,[trim,trim,trim,trim,siding,paint]);
 shellWall('x',-SHELL.z+inset,-SHELL.x,SHELL.x,OPENINGS.rear,[trim,trim,trim,trim,paint,siding]);
 shellWall('z',SHELL.x-inset,-SHELL.z+SHELL.thick,SHELL.z-SHELL.thick,OPENINGS.right,[siding,paint,trim,trim,trim,trim]);
 shellWall('z',-SHELL.x+inset,-SHELL.z+SHELL.thick,SHELL.z-SHELL.thick,OPENINGS.left,[paint,siding,trim,trim,trim,trim]);
+for(const [axis,coord,c0,c1,ops,faces]of [['x',FZ-inset,-FX,FX,OPENINGS.front,[stone,stone,stone,stone,stone,concrete]],['x',-FZ+inset,-FX,FX,OPENINGS.rear,[stone,stone,stone,stone,concrete,stone]],['z',FX-inset,-FZ+SHELL.thick,FZ-SHELL.thick,OPENINGS.right,[stone,concrete,stone,stone,stone,stone]],['z',-FX+inset,-FZ+SHELL.thick,FZ-SHELL.thick,OPENINGS.left,[concrete,stone,stone,stone,stone,stone]]])shellWall(axis,coord,c0,c1,ops,faces,FOUNDATION.bottom,FOUNDATION.top);
 const doubleSiding=mat('#d9dbcf',{side:THREE.DoubleSide}),doubleRoof=mat('#72685b',{side:THREE.DoubleSide});
 for(const z of [-FZ,FZ]){face([[-4,6.8,z],[4,6.8,z],[0,9.6,z]],doubleSiding);for(let y=6.9;y<9.5;y+=.15){let w=8*(9.6-y)/2.8;box(w,.025,.025,0,y,z,sidingSeams)}}
 shellSeams('x',FZ+.02,-4,4,OPENINGS.front);shellSeams('x',-FZ-.02,-4,4,OPENINGS.rear);shellSeams('z',4.02,-FZ,FZ,OPENINGS.right);shellSeams('z',-4.02,-FZ,FZ,OPENINGS.left);
@@ -44,7 +45,7 @@ for(let y=8.15;y<9.8;y+=.16)box(.67,.018,.67,1.7,y,-1.3,stone);
 function windowAt(x,y,z,w=1,h=1.35,angle=0,shutters=false){const g=new THREE.Group();g.position.set(x,y,z);g.rotation.y=angle;home.add(g);for(const yy of [h/2+.04,-h/2-.04])box(w+.16,.08,.11,0,yy,0,trim,g);for(const xx of [-w/2-.04,w/2+.04])box(.08,h,.11,xx,0,0,trim,g);box(w,h,.045,0,0,.07,y<7?glassLower:glass,g);for(const xx of [-w/2,w/2])box(.045,h,.075,xx,0,.10,white,g);box(w,.065,.09,0,0,.10,white,g);for(const xx of [-w/6,w/6])box(.018,h,.03,xx,0,.10,white,g);for(const yy of [-h/3,h/3])box(w,.018,.03,0,yy,.10,white,g);box(w+.23,.065,.19,0,-h/2-.08,.04,trim,g);if(shutters)for(const side of [-1,1]){box(.31,h+.1,.09,side*(w/2+.28),0,.01,shutterFinish,g);for(let yy=-h/2;yy<h/2;yy+=.09)box(.26,.018,.03,side*(w/2+.28),yy,.07,shutterFinish,g)}return g}
 // Windows and doors are placed from the measured plan (FEATURES); shell openings match them.
 const wallPose={front:f=>[f.a,FZ+.05,0],rear:f=>[f.a,-FZ-.05,Math.PI],left:f=>[-FX-.09,f.a,-Math.PI/2],right:f=>[FX+.09,f.a,Math.PI/2]};
-for(const f of FEATURES){if(f.kind!=='window'&&f.kind!=='gable')continue;const [x,z,angle]=wallPose[f.wall](f);windowAt(x,f.y,z,f.w,f.h,angle);
+for(const f of FEATURES){if(f.kind!=='window'&&f.kind!=='gable'&&f.kind!=='cellar')continue;const [x,z,angle]=wallPose[f.wall](f);windowAt(x,f.y,z,f.w,f.h,angle);
 if(f.shutters)box(.28,f.h+.15,.08,x+f.shutters*(f.w/2+.28),f.y,FZ+.08,shutterFinish);}
 for(const center of [-1.95,1.85]){for(const x of [center-1.08,center+1.08]){box(.31,1.45,.09,x,5.2,FZ+.08,shutterFinish);for(let y=4.53;y<5.9;y+=.085)box(.27,.017,.025,x,y,FZ+.14,shutterFinish)}}
 function door(x,y,z,angle=0,w=.95,h=2.15,finish=white){const g=new THREE.Group();g.position.set(x,y,z);g.rotation.y=angle;home.add(g);for(const xx of [-w/2-.0375,w/2+.0375])box(.075,h+.13,.12,xx,0,0,trim,g);box(w+.15,.075,.12,0,h/2+.0275,0,trim,g);const hinge=new THREE.Group();hinge.userData.dynamic=true;hinge.position.set(-w/2,0,.08);g.add(hinge);box(w,h,.05,w/2,0,0,finish,hinge);box(w-.17,h*.64,.035,w/2,h*.12,.04,glassLower,hinge);box(w-.17,.06,.03,w/2,-h*.2,.065,finish,hinge);box(.06,.06,.06,w*.85,-.05,.09,stone,hinge);return hinge}
@@ -56,7 +57,7 @@ box(pw,h,.045,cx,0,0,glassLower,hinge);for(const sx of [-1,1])box(stile,h,.05,cx
 for(let i=1;i<3;i++)box(.022,gh,.052,cx-gw/2+gw*i/3,gy,0,white,hinge);for(let j=1;j<5;j++)box(gw,.022,.052,cx,gy-gh/2+gh*j/5,0,white,hinge);
 box(.05,.05,.05,cx-side*(pw/2-.12),-.05,.06,stone,hinge);return hinge})}
 // Four windows on left; driveway has an elevated small kitchen window and basement entrance.
-const sideFeature=FEATURES.find(f=>f.kind==='sidedoor');door(FX+.09,sideFeature.y,sideFeature.a,Math.PI/2,sideFeature.w,sideFeature.h);for(const z of [-2.65,2.6])windowAt(FX+.09,.43,z,.85,.46,Math.PI/2);
+const sideFeature=FEATURES.find(f=>f.kind==='sidedoor');const sideDoor=door(FX+.09,sideFeature.y,sideFeature.a,Math.PI/2,sideFeature.w,sideFeature.h);
 const rearFeature=FEATURES.find(f=>f.kind==='french'),rearDoor=frenchDoor(rearFeature.a,rearFeature.y,-FZ-.05,Math.PI,rearFeature.w,rearFeature.h);
 // Front porch and entry stairs. Dedicated finishes keep the rear porch unchanged.
 const porchFloorFinish=wood.clone(),porchStepFinish=red.clone(),porchRailFinish=trim.clone(),stairRailFinish=red.clone();
@@ -96,9 +97,10 @@ for(const x of [1.83,2.68])box(.075,2.25,.09,x,2.2,(-7.44-PZ),trim);box(.91,.075
 for(let i=0;i<6;i++)box(1.1,(6-i)*.17,.29,2.25,(6-i)*.085,(-7.56-PZ)-i*.28,red);for(const x of [1.66,2.85])beam([x,1.96,(-7.4-PZ)],[x,1.02,(-9-PZ)],.075,red);
 // Downspouts and foundation mortar joints.
 for(const [x,z]of [[4.12,FZ-.15],[-4.12,-FZ+.15]])box(.075,6.5,.075,x,3.4,z,trim);
-for(let y=.15;y<.9;y+=.22){box(8,.02,FZ*2+.02,0,y,0,stone)}
+for(let y=.15;y<.9;y+=.22){for(const z of [FZ+.005,-FZ-.005])box(8,.02,.03,0,y,z,stone);for(const x of [FX+.005,-FX-.005])box(.03,.02,FZ*2,x,y,0,stone)} // mortar courses on the foundation above grade
 // Contextual property, kept schematic because no survey was supplied.
-box(44,.2,53,0,-.16,-8,grass,scene);box(44,.12,6.3,0,-.01,12.4,asphalt,scene);box(44,.12,1.3,0,.035,8.7,mat('#b9b7ac'),scene);box(2.25,.05,1.15,2.65,.06,8.1,mat('#b9b7ac'),scene);box(3.15,.045,30,6,.025,-5.9,asphalt,scene);
+// Lawn in four strips around the foundation so the basement below grade stays open.
+const gx=FX+.08,gz=FZ+.08;box(22-gx,.2,53,(22+gx)/2,-.16,-8,grass,scene);box(22-gx,.2,53,-(22+gx)/2,-.16,-8,grass,scene);box(gx*2,.2,26.5-gz-8,0,-.16,(18.5+gz)/2,grass,scene);box(gx*2,.2,26.5+8-gz,0,-.16,-(34.5+gz)/2,grass,scene);box(44,.12,6.3,0,-.01,12.4,asphalt,scene);box(44,.12,1.3,0,.035,8.7,mat('#b9b7ac'),scene);box(2.25,.05,1.15,2.65,.06,8.1,mat('#b9b7ac'),scene);box(3.15,.045,30,6,.025,-5.9,asphalt,scene);
 for(let x=-21;x<21;x+=3.4)box(1.7,.01,.09,x,.06,12.5,mat('#d7cda2'),scene);
 // Detached barn from earlier exterior references.
 const barn=new THREE.Group();barn.position.set(5,0,-19);scene.add(barn);box(5.6,2.8,4.3,0,1.4,0,siding.clone(),barn);for(const z of [-2.15,2.15])face([[-2.8,2.8,z],[2.8,2.8,z],[0,4.2,z]],doubleSiding.clone(),barn);face([[-3,2.8,2.4],[-3,2.8,-2.4],[0,4.3,-2.4],[0,4.3,2.4]],doubleRoof,barn);face([[0,4.3,2.4],[0,4.3,-2.4],[3,2.8,-2.4],[3,2.8,2.4]],doubleRoof,barn);for(const x of [-1.23,1.23]){box(2.35,2.4,.08,x,1.2,2.2,red,barn);box(.6,.6,.11,x,1.85,2.27,glass,barn);for(const dx of [-.32,.32])box(.055,.68,.055,x+dx,1.85,2.34,trim,barn)}for(const x of [-2.6,0,2.6])box(.09,2.5,.12,x,1.25,2.25,trim,barn);
