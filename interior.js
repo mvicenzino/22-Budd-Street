@@ -779,7 +779,12 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       baseCab(kx0, rangeX[0]);
       baseCab(sinkX[0], sinkX[1]);
       baseCab(sinkX[1], right);
-      box(right - rangeX[1] + .02, .04, depth + .03, (rangeX[1] + right) / 2, F.y + h, rear + depth / 2 + .015, navyLike);
+      const basinW = .56, basinD = .40, basinX = (sinkX[0] + sinkX[1]) / 2, basinZ = rear + depth / 2 + .015, cz = rear + depth / 2 + .015, cd = depth + .03;
+      const bx0 = basinX - basinW / 2, bx1 = basinX + basinW / 2, bz0 = basinZ - basinD / 2, bz1 = basinZ + basinD / 2;
+      box(bx0 - sinkX[0], .04, cd, (sinkX[0] + bx0) / 2, F.y + h, cz, navyLike);
+      box(right + .01 - bx1, .04, cd, (bx1 + right + .01) / 2, F.y + h, cz, navyLike);
+      box(basinW, .04, bz0 - (cz - cd / 2), basinX, F.y + h, (cz - cd / 2 + bz0) / 2, navyLike);
+      box(basinW, .04, cz + cd / 2 - bz1, basinX, F.y + h, (bz1 + cz + cd / 2) / 2, navyLike);
       box(rangeX[0] - kx0 + .02, .04, depth + .03, (kx0 + rangeX[0]) / 2, F.y + h, rear + depth / 2 + .015, navyLike);
       box(depth, h - .1, sideEnd - rear - depth, right - depth / 2, F.y + .1, (rear + depth + sideEnd) / 2, cabinet);
       box(depth - .08, .1, sideEnd - rear - depth, right - depth / 2 - .04, F.y, (rear + depth + sideEnd) / 2, grate);
@@ -788,10 +793,15 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       box(.5, .3, .38, right - .3, F.y + h + .04, -2.75, appliance); // microwave
       box(.36, .2, .01, right - .55, F.y + h + .09, -2.75, ovenGlass);
       // Sink under the rear window.
-      box(.56, .18, .42, (sinkX[0] + sinkX[1]) / 2, F.y + h - .14, rear + depth / 2, steel);
-      box(.44, .14, .32, (sinkX[0] + sinkX[1]) / 2, F.y + h - .1, rear + depth / 2, mat('#9da4a7', {metalness: .6, roughness: .35}));
-      box(.02, .22, .02, (sinkX[0] + sinkX[1]) / 2, F.y + h + .04, rear + .12, steel);
-      box(.02, .02, .18, (sinkX[0] + sinkX[1]) / 2, F.y + h + .25, rear + .2, steel);
+      const basinFloor = mat('#9da4a7', {metalness: .6, roughness: .35}), basinDepth = .18;
+      box(basinW, .02, basinD, basinX, F.y + h + .04 - basinDepth, basinZ, basinFloor);
+      for (const sx of [-1, 1]) box(.02, basinDepth, basinD, basinX + sx * (basinW / 2 - .01), F.y + h + .04 - basinDepth, basinZ, steel);
+      for (const sz of [-1, 1]) box(basinW, basinDepth, .02, basinX, F.y + h + .04 - basinDepth, basinZ + sz * (basinD / 2 - .01), steel);
+      for (const sx of [-1, 1]) box(.03, .012, basinD + .06, basinX + sx * (basinW / 2 + .015), F.y + h + .04, basinZ, steel); // rim
+      for (const sz of [-1, 1]) box(basinW + .06, .012, .03, basinX, F.y + h + .04, basinZ + sz * (basinD / 2 + .015), steel);
+      box(.06, .012, .06, basinX, F.y + h + .04 - basinDepth + .02, basinZ, black); // drain
+      box(.035, .24, .035, basinX, F.y + h + .04, rear + .1, steel); // faucet
+      box(.035, .035, .2, basinX, F.y + h + .26, rear + .19, steel);
       // Dishwasher.
       box(dishX[1] - dishX[0] - .02, h - .04, depth, (dishX[0] + dishX[1]) / 2, F.y + .02, rear + depth / 2, appliance);
       box(dishX[1] - dishX[0] - .1, .05, .01, (dishX[0] + dishX[1]) / 2, F.y + h - .1, rear + depth + .005, grate);
@@ -1204,6 +1214,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     $('#interior-status').textContent = 'Click an arrow to step forward · drag to look around · scroll out for a floor overview';
     for (const chip of document.querySelectorAll('#room-chips button')) chip.setAttribute('aria-pressed', String(chip.dataset.node === node.id));
     designPanel.setRoom(node.room, roomName(node));
+    placeDims();
   }
   function walkTo(id) {
     if (state !== 'inside' || busy() || !current || id === current.id) return;
@@ -1212,6 +1223,8 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     exitOverview(true);
     arrows.visible = false;
     hotspots.replaceChildren();
+    dims.replaceChildren();
+    dimItems = [];
     let from = current;
     for (const link of path) {
       travel(link, from, path.length > 1 ? .8 : 1);
@@ -1219,6 +1232,58 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     }
     $('#viewname').textContent = 'Walking to the ' + roomName(nodeById[id]).toLowerCase();
   }
+
+  // ---- Dimension pills: plan sizes for the room you are in, or every room on the level in overview ----
+  const dims = $('#dims');
+  let dimsOn = false, dimItems = [];
+  const feet = m => { const inches = Math.round(m / .0254); return `${Math.floor(inches / 12)}'${inches % 12}"`; };
+  function placeDims() {
+    dims.replaceChildren();
+    dimItems = [];
+    hotspots.hidden = !!(dimsOn && overview); // arrow labels would collide with the pills from above; the arrows stay clickable
+    if (!dimsOn || !current || state !== 'inside') return;
+    const level = levelOf(current), floorY = LEVELS[level].y;
+    const rooms = ROOMS.filter(r => r.level === level && !r.outside && (overview ? !r.minor : r.id === current.room));
+    const seen = new Set();
+    const add = (x, y, z, text, cls) => {
+      const el = document.createElement('span');
+      el.className = 'dim-pill' + (cls ? ' ' + cls : '');
+      el.textContent = text;
+      dims.append(el);
+      dimItems.push({pos: new THREE.Vector3(x, y, z), el});
+    };
+    for (const r of rooms) {
+      const [x0, z0, x1, z1] = r.rect, w = x1 - x0, d = z1 - z0;
+      add((x0 + x1) / 2, floorY + (overview ? .3 : 1.85), (z0 + z1) / 2, `${r.name} · ${feet(w)} × ${feet(d)}`, 'room');
+      const y = floorY + (overview ? .25 : 1.35), inset = overview ? .3 : .12;
+      for (const [key, x, z, len] of [
+        [`z${z0.toFixed(2)}:${x0.toFixed(2)}-${x1.toFixed(2)}`, (x0 + x1) / 2, z0 + inset, w],
+        [`z${z1.toFixed(2)}:${x0.toFixed(2)}-${x1.toFixed(2)}`, (x0 + x1) / 2, z1 - inset, w],
+        [`x${x0.toFixed(2)}:${z0.toFixed(2)}-${z1.toFixed(2)}`, x0 + inset, (z0 + z1) / 2, d],
+        [`x${x1.toFixed(2)}:${z0.toFixed(2)}-${z1.toFixed(2)}`, x1 - inset, (z0 + z1) / 2, d],
+      ]) {
+        if (seen.has(key)) continue;
+        seen.add(key);
+        add(x, y, z, feet(len));
+      }
+    }
+  }
+  function projectDims() {
+    if (!dimItems.length) return;
+    const v = new THREE.Vector3(), w = host.clientWidth, h = host.clientHeight;
+    for (const item of dimItems) {
+      v.copy(item.pos).project(camera);
+      const visible = v.z < 1 && Math.abs(v.x) < 1.05 && Math.abs(v.y) < 1.05;
+      item.el.hidden = !visible;
+      if (visible) item.el.style.transform = `translate(calc(${(v.x + 1) / 2 * w}px - 50%), calc(${(1 - v.y) / 2 * h}px - 50%))`;
+    }
+  }
+  $('#dims-toggle').onclick = () => {
+    dimsOn = !dimsOn;
+    $('#dims-toggle').textContent = dimsOn ? 'Hide dimensions' : 'Show dimensions';
+    $('#dims-toggle').setAttribute('aria-pressed', String(dimsOn));
+    placeDims();
+  };
 
   // ---- Floor overview: slice the model above the current level and orbit the room from above ----
   const OVERVIEW_MIN = 3.2, OVERVIEW_MAX = 15;
@@ -1249,7 +1314,9 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       camera.quaternion.slerpQuaternions(q0, q1, t);
       camera.fov = lerp(f0, 55, t);
       camera.updateProjectionMatrix();
-    }, () => { fov = 55; applyOverview(); });
+    }, () => { fov = 55; applyOverview(); placeDims(); });
+    dims.replaceChildren();
+    dimItems = [];
     $('#overview-toggle').textContent = 'Back to eye level';
     $('#interior-status').textContent = 'Drag to orbit · scroll in to return to eye level';
     $('#viewname').textContent = LEVELS[level].name + ' · overview';
@@ -1258,6 +1325,8 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     if (!overview) return;
     renderer.clippingPlanes = [];
     overview = null;
+    dims.replaceChildren();
+    dimItems = [];
     const dest = new THREE.Vector3(current.x, floorOf(current) + EYE, current.z), q1 = quaternionFor(yaw, pitch);
     $('#overview-toggle').textContent = 'Floor overview';
     if (immediate) {
@@ -1451,6 +1520,8 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     state = 'exiting';
     arrows.visible = false;
     hotspots.replaceChildren();
+    dims.replaceChildren();
+    dimItems = [];
     $('#viewname').textContent = 'Heading back outside';
     let from = current;
     for (const link of pathTo(current.id, 'porch')) {
@@ -1490,6 +1561,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     }
     if (state !== 'outside') {
       projectLabels();
+      projectDims();
       updateMinimap();
     }
   }
