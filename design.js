@@ -32,6 +32,7 @@ export const WALL_COLORS = [
 export const RUGS = [
   {id: 'none', name: 'No rug'},
   {id: 'cream', name: 'Cream wool', field: '#d6cebf', border: '#bfb3a0'},
+  {id: 'vintage', name: 'Vintage blue and rust (existing)', field: '#8c9ab0', border: '#b25a45', pattern: true, accent: '#e3d6c2'},
   {id: 'blue', name: 'Blue Persian', field: '#6c7d8a', border: '#3f4c58', pattern: true},
   {id: 'sand', name: 'Sand jute', field: '#c2ad8d', border: '#a68f6e'},
   {id: 'sage', name: 'Sage', field: '#a3b19e', border: '#7f8d7a'},

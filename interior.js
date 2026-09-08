@@ -71,7 +71,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     linen: mat('#e9e4d8'), quilt: mat('#7c8b9a'), quiltWarm: mat('#b98c6b'), frame: mat('#2b2f31', {roughness: .5}),
   };
   const STYLE_COLORS = {
-    traditional: {wood: '#7d5b3f', woodLight: '#a88760', rustic: '#7a6650', fabric: '#8f9ca4', cushion: '#d8d3c6', sectional: '#cbc2b1', pillow: '#a9b2a8', linen: '#e9e4d8', quilt: '#7c8b9a', quiltWarm: '#b98c6b', frame: '#2b2f31'},
+    traditional: {wood: '#7d5b3f', woodLight: '#c9b18f', rustic: '#4a3b31', fabric: '#82827a', cushion: '#8f8f86', sectional: '#82827a', pillow: '#8a5a3f', linen: '#e9e4d8', quilt: '#7c8b9a', quiltWarm: '#b98c6b', frame: '#2b2f31'},
     modern: {wood: '#2e3033', woodLight: '#cbb392', rustic: '#3a3c3f', fabric: '#4d5359', cushion: '#e7e4dd', sectional: '#585d63', pillow: '#c9b79a', linen: '#f2f1ee', quilt: '#3f464c', quiltWarm: '#8a7b6a', frame: '#1e2022'},
     coastal: {wood: '#d9cfbf', woodLight: '#e4dccd', rustic: '#cbbfae', fabric: '#cfc5b2', cushion: '#f3f1ea', sectional: '#e2dccf', pillow: '#9fb8c4', linen: '#f7f5f0', quilt: '#9fb8c4', quiltWarm: '#d8c9b0', frame: '#8a8f93'},
     farmhouse: {wood: '#7a6650', woodLight: '#b39a78', rustic: '#6b5642', fabric: '#b8ad9c', cushion: '#ebe5d8', sectional: '#d5cbba', pillow: '#a8543d', linen: '#efe9dd', quilt: '#a8543d', quiltWarm: '#c9b18f', frame: '#3b3a37'},
@@ -451,6 +451,15 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       g.beginPath();
       g.ellipse(256, 256, 120, 90, 0, 0, Math.PI * 2);
       g.stroke();
+      if (r.accent) {
+        g.fillStyle = r.accent;
+        g.globalAlpha = .55;
+        g.beginPath();
+        g.ellipse(256, 256, 96, 70, 0, 0, Math.PI * 2);
+        g.fill();
+        for (let i = 0; i < 40; i++) { g.globalAlpha = .4; g.fillRect(70 + rnd() * 370, 70 + rnd() * 370, 4 + rnd() * 10, 4 + rnd() * 10); }
+        g.globalAlpha = 1;
+      }
     }
     return rugMaterials[id] = new THREE.MeshStandardMaterial({map: texture(c), roughness: .95});
   }
@@ -594,7 +603,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   // ---- Room builders: furniture, rugs and layouts, rebuilt when a design choice changes ----------
   const roomGroups = {};
   const roomDefaults = {
-    living: {wall: 'dove', rug: 'cream', layout: 'windows', layouts: {windows: 'Sectional under the front windows', side: 'Sectional on the side wall', classic: 'Sofa and two armchairs'}},
+    living: {wall: 'dove', rug: 'vintage', layout: 'windows', layouts: {windows: 'Sectional under the front windows', side: 'Sectional on the side wall', classic: 'Sofa and two armchairs'}},
     hall: {wall: 'dove', rug: 'sand'},
     dining: {wall: 'dove', rug: 'sand', layout: 'centered', layouts: {centered: 'Table centered', window: 'Table along the window wall'}},
     kitchen: {wall: 'dove'},
@@ -627,23 +636,54 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
         drum(cx, F.ceil - .2, 1.8);
         return;
       }
-      rug(3.6, 2.9, cx, 1.8, F.y, rugMat);
+      rug(3.6, 2.9, -1.3, 1.8, F.y, rugMat);
+      // A run of the sectional: platform, piped seat cushions, plump back cushions along `backSide`.
+      const piping = mat('#767569', {roughness: .9});
       const seat = (x0, z0, x1, z1, backSide) => {
-        const w = x1 - x0, d = z1 - z0, sx = (x0 + x1) / 2, sz = (z0 + z1) / 2;
+        const w = x1 - x0, d = z1 - z0, sx = (x0 + x1) / 2, sz = (z0 + z1) / 2, alongX = backSide === 'z+';
         box(w, .4, d, sx, F.y, sz, palette.sectional);
-        box(w - .04, .14, d - .3, sx + (backSide === 'x-' ? .14 : 0), F.y + .4, sz + (backSide === 'z+' ? -.14 : 0), palette.sectional);
-        if (backSide === 'z+') box(w, .5, .24, sx, F.y + .32, z1 - .12, palette.sectional);
-        if (backSide === 'x-') box(.24, .5, d, x0 + .12, F.y + .32, sz, palette.sectional);
+        const len = alongX ? w : d, n = Math.max(1, Math.round(len / .85)), cw = len / n - .04;
+        for (let i = 0; i < n; i++) {
+          const c = (alongX ? x0 : z0) + (i + .5) * len / n;
+          const cx = alongX ? c : sx + .13, cz = alongX ? sz - .13 : c;
+          box(alongX ? cw : d - .3, .15, alongX ? d - .3 : cw, cx, F.y + .4, cz, palette.sectional);
+          box(alongX ? cw + .01 : d - .29, .012, alongX ? d - .29 : cw + .01, cx, F.y + .55, cz, piping); // piped edge
+          box(alongX ? cw - .04 : d - .34, .014, alongX ? d - .34 : cw - .04, cx, F.y + .56, cz, palette.sectional);
+          const bx = alongX ? c : x0 + .16, bz = alongX ? z1 - .16 : c;
+          box(alongX ? cw - .02 : .24, .52, alongX ? .24 : cw - .02, bx, F.y + .44, bz, palette.sectional); // back cushion
+          box(alongX ? cw - .01 : .25, .012, alongX ? .25 : cw - .01, bx, F.y + .96, bz, piping);
+        }
+        if (alongX) box(w, .5, .12, sx, F.y + .3, z1 - .06, palette.sectional);
+        else box(.12, .5, d, x0 + .06, F.y + .3, sz, palette.sectional);
+      };
+      // Rolled arm at the end of a run.
+      const arm = (x, z, alongX) => {
+        // `alongX` means the arm caps a run that goes along x, so the roll itself lies along z.
+        const roll = new THREE.Mesh(new THREE.CylinderGeometry(.16, .16, .95, 18), palette.sectional);
+        roll.rotation.set(alongX ? Math.PI / 2 : 0, 0, alongX ? 0 : Math.PI / 2);
+        roll.position.set(x, F.y + .62, z);
+        roll.castShadow = true;
+        parentGroup.add(roll);
+        box(alongX ? .3 : .95, .62, alongX ? .95 : .3, x, F.y, z, palette.sectional);
+      };
+      // Trunk-style coffee table: dark distressed box with lighter plank lines.
+      const trunk = (x, z) => {
+        box(1.1, .12, 1.1, x, F.y + .34, z, palette.rustic);
+        box(1.0, .34, 1.0, x, F.y, z, palette.rustic);
+        const plank = mat('#6b5646', {roughness: .8});
+        for (const s of [-1, 1]) { box(.02, .3, .8, x + s * .505, F.y + .02, z, plank); box(.8, .3, .02, x, F.y + .02, z + s * .505, plank); }
+        for (const s of [-1, 1]) { box(.02, .02, 1.0, x + s * .5, F.y + .3, z, plank); box(1.0, .02, .02, x, F.y + .3, z + s * .5, plank); }
       };
       if (layout === 'side') {
         // Sectional along the left wall, chaise toward the front windows, TV on the hallway wall.
-        seat(-3.8, .0, -2.85, 3.2, 'x-');
-        seat(-2.85, 2.25, -1.75, 3.2, 'z+');
-        box(.95, .3, .22, -2.3, F.y + .4, 3.2 - .11, palette.sectional);
-        box(.22, .3, .95, -2.85 + .11, F.y + .4, .45, palette.sectional);
-        for (const z of [.5, 1.4, 2.3]) box(.14, .42, .5, -3.65, F.y + .55, z, palette.pillow);
-        box(1.1, .12, 1.1, -1.5, F.y + .34, 1.3, palette.rustic);
-        box(1.0, .34, 1.0, -1.5, F.y, 1.3, palette.rustic);
+        seat(-3.8, .3, -2.85, 2.3, 'x-');
+        seat(-2.85, 2.25, -1.55, 3.2, 'z+');
+        box(.95, .62, .95, -3.325, F.y, 2.775, palette.sectional); // corner wedge
+        box(.85, .5, .12, -3.325, F.y + .3, 3.14, palette.sectional);
+        arm(-3.325, .15, false);
+        arm(-1.4, 2.725, true);
+        for (const [x, z] of [[-3.55, 1.0], [-1.9, 3.0]]) box(.5, .42, .14, x, F.y + .55, z, palette.pillow);
+        trunk(-1.5, 1.3);
         box(1.8, .5, .42, .55, F.y, -.03, palette.rustic);
         box(1.6, .92, .04, .55, F.y + 1.05, -.06, black);
         box(1.2, .06, .1, .55, F.y + .52, -.04, black);
@@ -652,19 +692,23 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
         drum(cx, F.ceil - .2, 1.8);
         return;
       }
-      seat(-3.6, 2.9, -.4, 3.85, 'z+');
-      box(.22, .3, .95, -.4 - .11, F.y + .4, 3.37, palette.sectional);
-      seat(-3.6, 1.9, -2.65, 2.9, 'x-');
-      box(.95, .3, .22, -3.12, F.y + .4, 1.9 + .11, palette.sectional);
-      for (const x of [-3.1, -2.25, -1.35, -.65]) box(.5, .42, .14, x, F.y + .55, 3.7, palette.pillow);
-      box(.5, .42, .14, -3.4, F.y + .55, 2.4, palette.pillow);
-      box(1.1, .12, 1.1, -1.4, F.y + .34, 1.3, palette.rustic);
-      box(1.0, .34, 1.0, -1.4, F.y, 1.3, palette.rustic);
+      // Long run centred on the three front windows, return on the left held off the wall,
+      // right side of the room left open for a table or chairs.
+      seat(-2.35, 2.9, .05, 3.85, 'z+');
+      seat(-3.3, 1.65, -2.35, 2.9, 'x-');
+      box(.95, .62, .95, -2.825, F.y, 3.375, palette.sectional); // corner wedge
+      box(.85, .5, .12, -2.825, F.y + .3, 3.79, palette.sectional);
+      box(.12, .5, .85, -3.24, F.y + .3, 3.375, palette.sectional);
+      arm(.2, 3.375, true);
+      arm(-2.825, 1.5, false);
+      for (const [x, z] of [[-.7, 3.65], [-3.05, 2.2]]) box(.5, .42, .14, x, F.y + .55, z, palette.pillow);
+      box(.4, .36, .14, -1.9, F.y + .55, 3.65, mat('#5f6a75', {roughness: .95})); // gray-blue throw pillow
+      trunk(-1.15, 1.3);
       box(1.8, .5, .42, .55, F.y, -.03, palette.rustic);
       box(1.6, .92, .04, .55, F.y + 1.05, -.06, black);
       box(1.2, .06, .1, .55, F.y + .52, -.04, black);
       lamp(1.65, 3.5);
-      plant(-3.5, .1);
+      plant(-3.55, 3.5);
       drum(cx, F.ceil - .2, 1.8);
     },
     hall(_, rugMat) { rug(.8, 2.6, 2.47, 1.6, F.y, rugMat); },
@@ -674,8 +718,8 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       rug(along ? 2.2 : 2.6, along ? 2.6 : 2.2, tx + (along ? .3 : 0), tz, F.y, rugMat);
       box(tw, .05, td, tx, F.y + .72, tz, palette.wood);
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(.06, .72, .06, tx + sx * (tw / 2 - .13), F.y, tz + sz * (td / 2 - .13), palette.wood);
-      if (along) for (const z of [-2.55, -1.65]) chair(tx + .8, z, -Math.PI / 2);
-      else for (const x of [-2.65, -1.75]) { chair(x, -1.65, Math.PI); chair(x, -2.95, 0); }
+      if (along) for (const z of [-2.55, -1.65]) chair(tx + .8, z, -Math.PI / 2, F.y, palette.woodLight);
+      else for (const x of [-2.65, -1.75]) { chair(x, -1.65, Math.PI, F.y, palette.woodLight); chair(x, -2.95, 0, F.y, palette.woodLight); }
       plant(-3.55, -.65);
       box(.01, .95, .01, tx, F.ceil - .95, tz, black);
       const shade = new THREE.Mesh(new THREE.CylinderGeometry(.2, .3, .24, 24, 1, true), mat('#3a3f42', {side: THREE.DoubleSide}));
@@ -945,18 +989,18 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   // Warm room lights plus a soft fill; only meaningful once the camera is inside.
   const lights = [];
   const addLight = (x, y, z, max) => {
-    const l = new THREE.PointLight('#ffe0bd', 0, 10, 2);
+    const l = new THREE.PointLight('#fff3e4', 0, 10, 2);
     l.position.set(x, y, z);
     l.userData.max = max;
     group.add(l);
     lights.push(l);
   };
-  for (const [x, z] of [[2.45, 2.0], [-1.0, 1.7], [-2.1, -2.1], [1.8, -2.0]]) addLight(x, F.ceil - .3, z, 22);
-  for (const [x, z] of [[1.5, -1.25], [-2.1, -2.1], [-1.6, 2.2], [2.0, 2.2], [2.75, -3.0]]) addLight(x, S.ceil - .3, z, 13);
-  addLight(-.4, L.y + 2.1, 0, 18);
+  for (const [x, z] of [[2.45, 2.0], [-1.0, 1.7], [-2.1, -2.1], [1.8, -2.0]]) addLight(x, F.ceil - .3, z, 12);
+  for (const [x, z] of [[1.5, -1.25], [-2.1, -2.1], [-1.6, 2.2], [2.0, 2.2], [2.75, -3.0]]) addLight(x, S.ceil - .3, z, 9);
+  addLight(-.4, L.y + 2.1, 0, 12);
   for (const [x, z] of [[-1.5, -1.5], [1.5, 1.5], [-2.2, 2.2]]) addLight(x, B.ceil - .35, z, 12);
-  const fill = new THREE.AmbientLight('#fff4e6', 0);
-  fill.userData.max = .6;
+  const fill = new THREE.AmbientLight('#f6f5f2', 0);
+  fill.userData.max = .42;
   group.add(fill);
   lights.push(fill);
 
@@ -1342,9 +1386,9 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     $('#design-panel').hidden = tab.dataset.tab !== 'design';
   };
 
-  const groundOutside = hemisphere.groundColor.clone(), groundInside = new THREE.Color('#d8d2c6');
+  const groundOutside = hemisphere.groundColor.clone(), groundInside = new THREE.Color('#cfcfca'), skyOutside = hemisphere.intensity, skyInside = 1.2;
   function slerpTo(duration, position, quaternion, fovTo, glassTo, lightTo, done) {
-    const p0 = camera.position.clone(), q0 = camera.quaternion.clone(), f0 = camera.fov, g0 = glassLower.opacity, l0 = lights[0].intensity / lights[0].userData.max, c0 = hemisphere.groundColor.clone();
+    const p0 = camera.position.clone(), q0 = camera.quaternion.clone(), f0 = camera.fov, g0 = glassLower.opacity, l0 = lights[0].intensity / lights[0].userData.max, c0 = hemisphere.groundColor.clone(), h0 = hemisphere.intensity;
     tween(duration, t => {
       camera.position.lerpVectors(p0, position, t);
       camera.quaternion.slerpQuaternions(q0, quaternion, t);
@@ -1353,6 +1397,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       glassLower.opacity = lerp(g0, glassTo, t);
       for (const l of lights) l.intensity = lerp(l0, lightTo, t) * l.userData.max;
       hemisphere.groundColor.lerpColors(c0, lightTo ? groundInside : groundOutside, t);
+      hemisphere.intensity = lerp(h0, lightTo ? skyInside : skyOutside, t);
     }, done);
   }
 
