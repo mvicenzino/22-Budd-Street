@@ -324,6 +324,19 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     group.add(post);
   }
   flight(LOFT_STAIR.x0, LOFT_STAIR.x1, LOFT_STAIR.z0, LOFT_STAIR.z1, S.y, L.y, 13, S.y, 0, paintFor('hall2')); // enclosed flight, underside reads as wall
+  {
+    // Door from the upstairs hall onto the loft stair; swings into the hall when you head up.
+    const [d0, d1] = LOFT_STAIR.door, hinge = new THREE.Group();
+    hinge.userData.dynamic = true;
+    hinge.position.set(d0 + .01, S.y, -.37);
+    group.add(hinge);
+    const w = d1 - d0 - .02;
+    box(w, 2.02, .04, w / 2, 0, 0, trim, hinge);
+    box(w - .16, .78, .012, w / 2, 1.1, .026, cabinet, hinge);
+    box(w - .16, .78, .012, w / 2, .16, .026, cabinet, hinge);
+    box(.03, .03, .03, w - .07, .95, .035, mat('#c9a955', {metalness: .8, roughness: .3}), hinge);
+    doors.loft = hinge;
+  }
   railing(LOFT_STAIR.x0 - .03, LOFT_STAIR.z0 - .05, LOFT_STAIR.z1 - .35, L.y);
   railing(LOFT_STAIR.x1 + .03, LOFT_STAIR.z0 - .05, LOFT_STAIR.z1 - .35, L.y);
   beam([LOFT_STAIR.x0 - .03, L.y + .92, LOFT_STAIR.z0 - .05], [LOFT_STAIR.x1 + .03, L.y + .92, LOFT_STAIR.z0 - .05], .06, palette.wood);
@@ -1126,12 +1139,12 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   const busy = () => queue.length > 0;
 
   const quaternionFor = (y, p) => new THREE.Quaternion().setFromEuler(new THREE.Euler(p, y, 0, 'YXZ'));
-  const doorState = {front: 0, rear: 0};
+  const doorState = {front: 0, rear: 0, loft: 0};
   function setDoor(name, k) {
     const d = doors[name];
     if (!d) return;
     // A French pair is two hinges that swing in mirror.
-    (Array.isArray(d) ? d : [d]).forEach((hinge, i) => { hinge.rotation.y = (i === 1 ? -1 : 1) * 1.75 * k; });
+    (Array.isArray(d) ? d : [d]).forEach((hinge, i) => { hinge.rotation.y = (i === 1 ? -1 : 1) * (name === 'loft' ? 1.6 : 1.75) * k; }); // positive swings toward -z, into the hall for the loft door
   }
   function moveSegment(from, dest, duration, door) {
     const dx = dest.x - from.x, dz = dest.z - from.z, dy = dest.y - from.y, flat = Math.hypot(dx, dz);

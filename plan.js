@@ -74,9 +74,9 @@ for (const f of FEATURES) {
 // to the second floor; beneath it the side door opens onto a grade-level landing, with a short flight
 // up into the kitchen corner and the basement flight down toward the front.
 export const STAIR = {x0: 2.98, x1: INNER.x, upBottomZ: 2.2, upTopZ: -.7, landingZ0: .05, landingZ1: .9, landingY: GRADE, shortTopZ: -.95, downBottomZ: 2.0};
-// Loft stair (2'9" wide): enters from the upstairs hall and climbs toward the front inside an
-// enclosed box that protrudes into the front-right bedroom; the loft is reached only from the hall.
-export const LOFT_STAIR = {x0: .65, x1: 1.45, z0: -1, z1: .85};
+// Loft stair (2'9" wide): behind a door in the upstairs hall wall, climbing toward the front inside
+// an enclosed box that protrudes into the front-right bedroom; the loft is reached only from the hall.
+export const LOFT_STAIR = {x0: .65, x1: 1.45, z0: -.3, z1: 1.55, door: [.68, 1.42]};
 
 // Interior partitions per level. `axis` is the direction the wall runs; `coord` is its fixed position.
 // Openings without `door` are cased; `y1` is the head height above the level's floor (omit for full height).
@@ -100,7 +100,7 @@ export const PARTITIONS = [
   {level: 'second', axis: 'z', coord: -2.62, c0: -.37, c1: .35, openings: []},                                              // closet dividers
   {level: 'second', axis: 'z', coord: -1.68, c0: -.37, c1: .35, openings: []},
   {level: 'second', axis: 'z', coord: -.32, c0: -.37, c1: .35, openings: []},                                               // closets | vestibule
-  {level: 'second', axis: 'x', coord: -.37, c0: -.32, c1: INNER.x, openings: [{a0: -.25, a1: .45, y1: 2.05, door: true}, {a0: LOFT_STAIR.x0 - .03, a1: LOFT_STAIR.x1 + .05}, {a0: 2.1, a1: 2.7, y1: 2.05, door: true}, {a0: STAIR.x0, a1: INNER.x}]}, // hall | front bedrooms, stairwell open
+  {level: 'second', axis: 'x', coord: -.37, c0: -.32, c1: INNER.x, openings: [{a0: -.25, a1: .45, y1: 2.05, door: true}, {a0: LOFT_STAIR.door[0], a1: LOFT_STAIR.door[1], y1: 2.05, door: true}, {a0: 2.1, a1: 2.7, y1: 2.05, door: true}, {a0: STAIR.x0, a1: INNER.x}]}, // hall | front bedrooms: loft stair door, bedroom door, stairwell open
   {level: 'second', axis: 'z', coord: -.32, c0: -INNER.z, c1: -.37, openings: [{a0: -3.65, a1: -2.95, y1: 2.05, door: true}, {a0: -1.95, a1: -1.2, y1: 2.05, door: true}]}, // back bedroom | walk-in closet door, hall door
   {level: 'second', axis: 'z', coord: .62, c0: -.37, c1: INNER.z, openings: []},                                            // front left | front right
   {level: 'second', axis: 'z', coord: LOFT_STAIR.x1 + .07, c0: -.37, c1: LOFT_STAIR.z1 + .07, openings: []},                // loft stair box inside the front-right bedroom
@@ -161,11 +161,11 @@ export const NODES = [
   {id: 'basement', room: 'basement', name: 'Basement, by the stairs', x: 1.9, z: 1.5, look: [-2, -1.5], links: [{to: 'landing', via: reverse(toBasement), label: 'Up to side door'}, {to: 'basementRear'}]},
   {id: 'basementRear', room: 'basement', name: 'Basement, far corner', x: -1.6, z: -1.8, look: [2.5, 2.5], links: [{to: 'basement'}]},
   {id: 'rear', room: 'rear', x: -1.9, z: -SHELL.z - 1.4, links: [{to: 'dining', door: 'rear'}]},
-  {id: 'hall2', room: 'hall2', x: 2.2, z: -1.25, look: [-.3, -1.25], links: [{to: 'hall', via: reverse(mainStairUp), label: 'Downstairs'}, {to: 'bedBack'}, {to: 'bedFrontL', via: [[.1, -1, S.y], [.15, .6, S.y]]}, {to: 'bedFrontR', via: [[2.4, -.8, S.y]]}, {to: 'bath'}, {to: 'loft', via: loftStairUp, label: 'Up to loft'}, {to: 'walkin', via: [[-.6, -1.6, S.y], [-.6, -3.2, S.y]]}]},
+  {id: 'hall2', room: 'hall2', x: 2.2, z: -1.25, look: [-.3, -1.25], links: [{to: 'hall', via: reverse(mainStairUp), label: 'Downstairs'}, {to: 'bedBack'}, {to: 'bedFrontL', via: [[.1, -1, S.y], [.15, .6, S.y]]}, {to: 'bedFrontR', via: [[2.4, -.8, S.y]]}, {to: 'bath'}, {to: 'loft', via: loftStairUp, door: 'loft', label: 'Up to loft'}, {to: 'walkin', via: [[-.6, -1.6, S.y], [-.6, -3.2, S.y]]}]},
   {id: 'bedBack', room: 'bedBack', x: -1.5, z: -1.6, look: [-3, -2.8], links: [{to: 'hall2'}, {to: 'walkin', via: [[-.6, -3.2, S.y]]}]},
   {id: 'walkin', room: 'walkin', x: .3, z: -3.1, look: [1.4, -3.5], links: [{to: 'bedBack', via: [[-.6, -3.2, S.y]]}]},
   {id: 'bedFrontL', room: 'bedFrontL', x: -1.2, z: 2.2, look: [-2.8, 2.4], links: [{to: 'hall2', via: [[.15, .6, S.y], [.1, -1, S.y]]}]},
   {id: 'bedFrontR', room: 'bedFrontR', x: 2.1, z: 1.6, look: [2.75, 3.05], links: [{to: 'hall2', via: [[2.4, -.8, S.y]]}]},
   {id: 'bath', room: 'bath', x: 3.25, z: -2.45, look: [1.9, -3.3], links: [{to: 'hall2'}]},
-  {id: 'loft', room: 'loft', x: -.4, z: 1.7, look: [-.3, -3.8], links: [{to: 'hall2', via: reverse(loftStairUp), label: 'Down to the hall'}]},
+  {id: 'loft', room: 'loft', x: -.4, z: 1.7, look: [-.3, -3.8], links: [{to: 'hall2', via: reverse(loftStairUp), door: 'loft', label: 'Down to the hall'}]},
 ];
