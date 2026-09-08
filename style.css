@@ -78,3 +78,5 @@ body[data-mode="interior"] #scene{cursor:grab}
 #design-reset{background:#edf3f6;font-size:13px}
 .interior-transport{width:232px}
 @media(max-width:800px){.panel-tabs{flex:0 0 auto;width:150px}#design-panel{flex:0 0 auto;width:260px;max-height:220px;overflow-y:auto;padding-right:4px}#design-panel .paint-swatches{grid-template-columns:repeat(3,minmax(0,1fr))}.interior-transport{width:auto;align-items:flex-start}}
+#overview-toggle{background:#edf3f6}
+@media(max-width:800px){#overview-toggle{flex:0 0 auto;padding:8px 10px;font-size:12px}}

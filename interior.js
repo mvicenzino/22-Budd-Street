@@ -1073,11 +1073,13 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
 
   // ---- Camera state and input --------------------------------------------------------
   let state = 'outside', current = null, yaw = 0, pitch = 0, fov = 62;
+  let overview = null; // {yaw, pitch, dist, target}: cutaway view of the current floor from above
   const queue = [];
   const tween = (duration, step, done) => queue.push({duration, step, done, t: 0});
   const applyLook = () => { camera.rotation.set(pitch, yaw, 0, 'YXZ'); };
   const busy = () => queue.length > 0;
 
+  const quaternionFor = (y, p) => new THREE.Quaternion().setFromEuler(new THREE.Euler(p, y, 0, 'YXZ'));
   const doorState = {front: 0, rear: 0};
   function setDoor(name, k) {
     const d = doors[name];
@@ -1140,7 +1142,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     placeArrows(node);
     arrows.visible = true;
     $('#viewname').textContent = roomName(node) + ' · ' + LEVELS[levelOf(node)].name.toLowerCase();
-    $('#interior-status').textContent = 'Click an arrow to step forward · drag to look around';
+    $('#interior-status').textContent = 'Click an arrow to step forward · drag to look around · scroll out for a floor overview';
     for (const chip of document.querySelectorAll('#room-chips button')) chip.setAttribute('aria-pressed', String(chip.dataset.node === node.id));
     designPanel.setRoom(node.room, roomName(node));
   }
@@ -1148,6 +1150,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     if (state !== 'inside' || busy() || !current || id === current.id) return;
     const path = pathTo(current.id, id);
     if (!path.length) return;
+    exitOverview(true);
     arrows.visible = false;
     hotspots.replaceChildren();
     let from = current;
@@ -1157,6 +1160,64 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     }
     $('#viewname').textContent = 'Walking to the ' + roomName(nodeById[id]).toLowerCase();
   }
+
+  // ---- Floor overview: slice the model above the current level and orbit the room from above ----
+  const OVERVIEW_MIN = 3.2, OVERVIEW_MAX = 15;
+  function overviewPose(o) {
+    const cp = Math.cos(o.pitch);
+    return o.target.clone().add(new THREE.Vector3(Math.sin(o.yaw) * o.dist * cp, o.dist * Math.sin(o.pitch), Math.cos(o.yaw) * o.dist * cp));
+  }
+  function applyOverview() {
+    camera.position.copy(overviewPose(overview));
+    camera.lookAt(overview.target);
+  }
+  function clipAbove(level) {
+    const lv = LEVELS[level], cut = lv === L ? L.kneeTop + .3 : lv.ceil - .12;
+    renderer.clippingPlanes = [new THREE.Plane(new THREE.Vector3(0, -1, 0), cut)];
+  }
+  function enterOverview() {
+    if (state !== 'inside' || busy() || !current || overview) return;
+    const level = levelOf(current);
+    overview = {yaw, pitch: .95, dist: 6.5, target: new THREE.Vector3(current.x, floorOf(current) + .9, current.z)};
+    clipAbove(level);
+    const p0 = camera.position.clone(), q0 = camera.quaternion.clone(), f0 = camera.fov;
+    const probe = camera.clone();
+    probe.position.copy(overviewPose(overview));
+    probe.lookAt(overview.target);
+    const q1 = probe.quaternion.clone(), p1 = probe.position.clone();
+    tween(.9, t => {
+      camera.position.lerpVectors(p0, p1, t);
+      camera.quaternion.slerpQuaternions(q0, q1, t);
+      camera.fov = lerp(f0, 55, t);
+      camera.updateProjectionMatrix();
+    }, () => { fov = 55; applyOverview(); });
+    $('#overview-toggle').textContent = 'Back to eye level';
+    $('#interior-status').textContent = 'Drag to orbit · scroll in to return to eye level';
+    $('#viewname').textContent = LEVELS[level].name + ' · overview';
+  }
+  function exitOverview(immediate = false) {
+    if (!overview) return;
+    renderer.clippingPlanes = [];
+    overview = null;
+    const dest = new THREE.Vector3(current.x, floorOf(current) + EYE, current.z), q1 = quaternionFor(yaw, pitch);
+    $('#overview-toggle').textContent = 'Floor overview';
+    if (immediate) {
+      camera.position.copy(dest);
+      fov = 62;
+      camera.fov = fov;
+      camera.updateProjectionMatrix();
+      applyLook();
+      return;
+    }
+    const p0 = camera.position.clone(), q0 = camera.quaternion.clone(), f0 = camera.fov;
+    tween(.8, t => {
+      camera.position.lerpVectors(p0, dest, t);
+      camera.quaternion.slerpQuaternions(q0, q1, t);
+      camera.fov = lerp(f0, 62, t);
+      camera.updateProjectionMatrix();
+    }, () => { fov = 62; applyLook(); settle(current); });
+  }
+  $('#overview-toggle').onclick = () => overview ? exitOverview() : enterOverview();
 
   const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2();
   let down = null, dragging = false, hovered = null;
@@ -1169,7 +1230,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   }
   host.addEventListener('pointerdown', e => {
     if (state !== 'inside') return;
-    down = {x: e.clientX, y: e.clientY, yaw, pitch};
+    down = overview ? {x: e.clientX, y: e.clientY, yaw: overview.yaw, pitch: overview.pitch} : {x: e.clientX, y: e.clientY, yaw, pitch};
     dragging = false;
     host.setPointerCapture(e.pointerId);
   });
@@ -1179,10 +1240,16 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       const dx = e.clientX - down.x, dy = e.clientY - down.y;
       if (Math.hypot(dx, dy) > 4) dragging = true;
       if (dragging && !busy()) {
-        const k = fov / host.clientHeight * Math.PI / 180;
-        yaw = down.yaw + dx * k;
-        pitch = Math.max(-1.05, Math.min(1.05, down.pitch + dy * k));
-        applyLook();
+        if (overview) {
+          overview.yaw = down.yaw - dx * .006;
+          overview.pitch = Math.max(.3, Math.min(1.45, down.pitch + dy * .005));
+          applyOverview();
+        } else {
+          const k = fov / host.clientHeight * Math.PI / 180;
+          yaw = down.yaw + dx * k;
+          pitch = Math.max(-1.05, Math.min(1.05, down.pitch + dy * k));
+          applyLook();
+        }
       }
       return;
     }
@@ -1207,12 +1274,21 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   host.addEventListener('wheel', e => {
     if (state !== 'inside') return;
     e.preventDefault();
-    fov = Math.max(34, Math.min(88, fov + e.deltaY * .04));
+    if (busy()) return;
+    if (overview) {
+      overview.dist = Math.max(OVERVIEW_MIN, Math.min(OVERVIEW_MAX, overview.dist * (1 + e.deltaY * .0012)));
+      if (overview.dist <= OVERVIEW_MIN + .01 && e.deltaY < 0) exitOverview();
+      else applyOverview();
+      return;
+    }
+    const next = fov + e.deltaY * .04;
+    if (next > 92 && e.deltaY > 0) { enterOverview(); return; }
+    fov = Math.max(34, Math.min(92, next));
     camera.fov = fov;
     camera.updateProjectionMatrix();
   }, {passive: false});
   host.addEventListener('keydown', e => {
-    if (state !== 'inside' || busy()) return;
+    if (state !== 'inside' || busy() || overview) return;
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
       e.preventDefault();
       yaw += e.key === 'ArrowLeft' ? .14 : -.14;
@@ -1279,7 +1355,6 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       hemisphere.groundColor.lerpColors(c0, lightTo ? groundInside : groundOutside, t);
     }, done);
   }
-  const quaternionFor = (y, p) => new THREE.Quaternion().setFromEuler(new THREE.Euler(p, y, 0, 'YXZ'));
 
   function enter() {
     if (state !== 'outside') return;
@@ -1312,6 +1387,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
 
   function exit() {
     if (state !== 'inside' || busy()) return;
+    exitOverview(true);
     state = 'exiting';
     arrows.visible = false;
     hotspots.replaceChildren();
