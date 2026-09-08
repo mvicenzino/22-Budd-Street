@@ -40,7 +40,7 @@ export const RUGS = [
   {id: 'terracotta', name: 'Terracotta kilim', field: '#b8694a', border: '#7e4530', pattern: true},
 ];
 
-export const KITCHEN_FLOORS = [{id: 'checker', name: 'Checkerboard (existing)', color: '#d9d5c8'}, ...FLOORING];
+export const KITCHEN_FLOORS = [{id: 'match', name: 'Match the house floor', color: '#c9a074'}, {id: 'checker', name: 'Checkerboard (existing)', color: '#d9d5c8'}, ...FLOORING];
 
 export const COUNTERS = [
   {id: 'alabaster', name: 'Alabaster quartz', base: '#f4f2ed', vein: '#cfcac0', kind: 'marble', veins: 5},
@@ -61,12 +61,17 @@ export const BASEMENT_FLOORS = [
   ...FLOORING.map(f => ({...f, name: f.name + ' LVP'})),
 ];
 
-export const DEFAULT_DESIGN = {flooring: 'natural', style: 'traditional', kitchen: {floor: 'checker', counter: 'alabaster', island: 'none'}, basement: {floor: 'concrete'}, rooms: {}};
+export const DEFAULT_DESIGN = {version: 2, flooring: 'natural', style: 'traditional', kitchen: {floor: 'match', counter: 'alabaster', island: 'none'}, basement: {floor: 'concrete'}, rooms: {}};
 const STORAGE_KEY = 'budd-street-design';
 
 export function loadDesign() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (saved && typeof saved === 'object') {
+      // Version 2 made the kitchen floor follow the house wood by default.
+      if ((saved.version || 1) < 2 && saved.kitchen?.floor === 'checker') saved.kitchen.floor = 'match';
+      saved.version = DEFAULT_DESIGN.version;
+    }
     if (saved && typeof saved === 'object') return {...DEFAULT_DESIGN, ...saved, kitchen: {...DEFAULT_DESIGN.kitchen, ...(saved.kitchen || {})}, basement: {...DEFAULT_DESIGN.basement, ...(saved.basement || {})}, rooms: {...(saved.rooms || {})}};
   } catch {}
   return {...DEFAULT_DESIGN, kitchen: {...DEFAULT_DESIGN.kitchen}, basement: {...DEFAULT_DESIGN.basement}, rooms: {}};

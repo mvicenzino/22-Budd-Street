@@ -732,8 +732,10 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       const ovenGlass = mat('#3a4247', {metalness: .3, roughness: .25}), knob = mat('#d8d9d6', {roughness: .4, metalness: .3});
       const rear = -INNER.z, right = INNER.x, depth = .6, h = .9, upperBottom = 1.5, upperTop = 2.4, upperDepth = .33;
       const kx0 = .5, sideEnd = -1.4;
-      box(STAIR.x0 + .32, .012, INNER.z - .32, (STAIR.x0 - .32) / 2, F.y, (rear - .32) / 2, kitchenFloorMaterial(k.floor)).castShadow = false;
-      box(right - STAIR.x0, .012, STAIR.shortTopZ - rear, (right + STAIR.x0) / 2, F.y, (rear + STAIR.shortTopZ) / 2, kitchenFloorMaterial(k.floor)).castShadow = false;
+      if (k.floor !== 'match') { // 'match' leaves the house floor showing through
+        box(STAIR.x0 + .32, .012, INNER.z - .32, (STAIR.x0 - .32) / 2, F.y, (rear - .32) / 2, kitchenFloorMaterial(k.floor)).castShadow = false;
+        box(right - STAIR.x0, .012, STAIR.shortTopZ - rear, (right + STAIR.x0) / 2, F.y, (rear + STAIR.shortTopZ) / 2, kitchenFloorMaterial(k.floor)).castShadow = false;
+      }
       // Beadboard backsplash, cut around the window over the sink.
       const beadCanvas = document.createElement('canvas');
       beadCanvas.width = 256;
@@ -1370,7 +1372,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   const designPanel = createDesignPanel({
     root: $('#design-panel'), design, roomDefaults: id => roomDefaults[id] || {wall: 'dove'},
     hooks: {
-      flooring: id => { floorMat.color.set(FLOOR_BY_ID[id].color); if (design.kitchen.floor !== 'checker') rebuildRoom('kitchen'); saveDesign(design); },
+      flooring: id => { floorMat.color.set(FLOOR_BY_ID[id].color); if (design.kitchen.floor !== 'checker' && design.kitchen.floor !== 'match') rebuildRoom('kitchen'); saveDesign(design); },
       style: id => { applyStyle(id); saveDesign(design); },
       wall: () => { applyWalls(); saveDesign(design); },
       rug: id => { rebuildRoom(id); saveDesign(design); },
