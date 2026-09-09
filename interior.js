@@ -874,6 +874,38 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       box(upperDepth, upperTop - upperBottom, sideEnd - rear - upperDepth, right - upperDepth / 2, F.y + upperBottom, (rear + upperDepth + sideEnd) / 2, cabinet);
       for (const z of [-3.2, -2.0]) for (const dz of [-.06, .06]) box(.02, .02, .02, right - upperDepth - .01, F.y + upperBottom + .1, z + dz, knob);
       box(right - kx0, .06, upperDepth + .02, (right + kx0) / 2, F.y + upperTop, rear + upperDepth / 2, cabinet);
+      // Peninsula: an L-return off the end of the driveway-wall counter, seating on the south side.
+      // Placed from model coordinates: side counter ends at z = sideEnd, wall face at x = right.
+      const pen = k.peninsula || {};
+      if (pen.show) {
+        const inch = .0254, L = (pen.length || 51) * inch, D = (pen.depth || 24) * inch, OH = (pen.overhang || 12) * inch;
+        const x0 = right - L, x1 = right - depth, z1 = sideEnd, z0 = sideEnd - D; // cabinet footprint, joining the side run
+        const cx = (x0 + x1) / 2, cw = x1 - x0;
+        box(cw, h - .1, D, cx, F.y + .1, (z0 + z1) / 2, cabinet);
+        box(cw - .08, .1, D - .08, cx, F.y, (z0 + z1) / 2, grate);
+        box(cw + .015, .04, D + OH + .015, (x0 - .015 + x1) / 2, F.y + h, (z0 - OH + z1) / 2 + .0075, navyLike); // top, overhang to the south
+        // Kitchen-facing (north) storage: a stack of three drawers on the west, a door on the east.
+        const dw = Math.min(.5, cw * .45), dx = x0 + dw / 2, doorX = (x0 + dw + x1) / 2, doorW = x1 - x0 - dw;
+        for (let i = 0; i < 3; i++) {
+          box(dw - .05, .2, .012, dx, F.y + .12 + i * .245, z1 + .006, trim);
+          box(.02, .02, .02, dx, F.y + .22 + i * .245, z1 + .015, knob);
+        }
+        box(doorW - .05, h - .22, .012, doorX, F.y + .12, z1 + .006, trim);
+        box(.02, .02, .02, doorX - doorW / 2 + .08, F.y + .62, z1 + .015, knob);
+        box(.005, h - .3, .01, x0 + dw, F.y + .14, z1 + .008, mat('#d9d6cc'));
+        // Counter-height stools tucked under the overhang.
+        const n = pen.stools || 0, seatY = F.y + .66;
+        for (let i = 0; i < n; i++) {
+          const sx = n === 1 ? cx : x0 + (i + .5) * cw / n, sz = z0 - OH * .45;
+          const seat = new THREE.Mesh(new THREE.CylinderGeometry(.16, .16, .03, 20), palette.woodLight);
+          seat.position.set(sx, seatY + .015, sz);
+          seat.castShadow = true;
+          parentGroup.add(seat);
+          for (const lx of [-.11, .11]) for (const lz of [-.11, .11]) box(.02, seatY - F.y, .02, sx + lx, F.y, sz + lz, palette.frame);
+          box(.24, .015, .015, sx, F.y + .25, sz - .11, palette.frame);
+          box(.24, .015, .015, sx, F.y + .25, sz + .11, palette.frame);
+        }
+      }
       // Optional small island in the middle of the room.
       if (k.island === 'small') {
         box(1.2, h - .1, .7, 1.9, F.y + .1, -2.1, cabinet);

@@ -54,6 +54,15 @@ export const COUNTERS = [
 
 export const ISLANDS = [{id: 'none', name: 'No island'}, {id: 'small', name: 'Small island'}];
 
+// Peninsula off the end of the driveway-wall counter (inches, as specified).
+export const PENINSULA = {
+  show: [{id: true, name: 'Show'}, {id: false, name: 'Hide'}],
+  length: [48, 51, 54],
+  depth: [24, 27],
+  stools: [0, 1, 2],
+  overhang: [10, 12],
+};
+
 export const BASEMENT_FLOORS = [
   {id: 'concrete', name: 'Concrete (existing)', color: '#a9a7a2'},
   {id: 'epoxy', name: 'Epoxy gray', color: '#8e9297'},
@@ -61,7 +70,7 @@ export const BASEMENT_FLOORS = [
   ...FLOORING.map(f => ({...f, name: f.name + ' LVP'})),
 ];
 
-export const DEFAULT_DESIGN = {version: 2, flooring: 'natural', style: 'traditional', kitchen: {floor: 'match', counter: 'alabaster', island: 'none'}, basement: {floor: 'concrete'}, rooms: {}};
+export const DEFAULT_DESIGN = {version: 2, flooring: 'natural', style: 'traditional', kitchen: {floor: 'match', counter: 'alabaster', island: 'none', peninsula: {show: true, length: 51, depth: 24, overhang: 12, stools: 2}}, basement: {floor: 'concrete'}, rooms: {}};
 const STORAGE_KEY = 'budd-street-design';
 
 export function loadDesign() {
@@ -71,6 +80,7 @@ export function loadDesign() {
       // Version 2 made the kitchen floor follow the house wood by default.
       if ((saved.version || 1) < 2 && saved.kitchen?.floor === 'checker') saved.kitchen.floor = 'match';
       saved.version = DEFAULT_DESIGN.version;
+      if (saved.kitchen) saved.kitchen.peninsula = {...DEFAULT_DESIGN.kitchen.peninsula, ...(saved.kitchen.peninsula || {})};
     }
     if (saved && typeof saved === 'object') return {...DEFAULT_DESIGN, ...saved, kitchen: {...DEFAULT_DESIGN.kitchen, ...(saved.kitchen || {})}, basement: {...DEFAULT_DESIGN.basement, ...(saved.basement || {})}, rooms: {...(saved.rooms || {})}};
   } catch {}
@@ -136,10 +146,30 @@ export function createDesignPanel({root, design, roomDefaults, hooks}) {
   const basementFloorRow = el('div', {class: 'paint-swatches design-floor'});
   for (const f of BASEMENT_FLOORS) basementFloorRow.append(swatch(f, design.basement.floor === f.id, id => { design.basement.floor = id; pressOnly(basementFloorRow, id); hooks.basement(design.basement); }));
   const basementSection = el('div', {class: 'design-kitchen'}, el('div', {class: 'paint-label design-sub', text: 'Basement floor'}), basementFloorRow);
+  // Peninsula controls: each row is a set of small toggle buttons.
+  const pen = design.kitchen.peninsula;
+  const choiceRow = (key, options, label) => {
+    const row = el('div', {class: 'style-options design-choices'});
+    for (const o of options) {
+      const id = typeof o === 'object' ? o.id : o, name = typeof o === 'object' ? o.name : label(o);
+      const b = el('button', {type: 'button', 'data-id': String(id), 'aria-pressed': String(pen[key] === id)}, el('strong', {text: name}));
+      b.onclick = () => { pen[key] = id; pressOnly(row, String(id)); hooks.kitchen(design.kitchen); };
+      row.append(b);
+    }
+    return row;
+  };
+  const peninsulaRows = [
+    ['Peninsula', choiceRow('show', PENINSULA.show)],
+    ['Peninsula length', choiceRow('length', PENINSULA.length, v => `${v}"`)],
+    ['Peninsula depth', choiceRow('depth', PENINSULA.depth, v => `${v}"`)],
+    ['Counter overhang', choiceRow('overhang', PENINSULA.overhang, v => `${v}"`)],
+    ['Stools', choiceRow('stools', PENINSULA.stools, v => String(v))],
+  ].flatMap(([title, row]) => [el('div', {class: 'paint-label design-sub', text: title}), row]);
   const kitchenSection = el('div', {class: 'design-kitchen'},
     el('div', {class: 'paint-label design-sub', text: 'Kitchen floor'}), kitchenFloorRow,
     el('div', {class: 'paint-label design-sub', text: 'Countertops'}), counterRow,
-    el('div', {class: 'paint-label design-sub', text: 'Island'}), islandRow);
+    el('div', {class: 'paint-label design-sub', text: 'Island'}), islandRow,
+    ...peninsulaRows);
 
   let currentRoom = null;
   const roomState = id => (design.rooms[id] ||= {});
@@ -155,7 +185,9 @@ export function createDesignPanel({root, design, roomDefaults, hooks}) {
     design.flooring = DEFAULT_DESIGN.flooring;
     design.style = DEFAULT_DESIGN.style;
     design.rooms = {};
-    design.kitchen = {...DEFAULT_DESIGN.kitchen};
+    design.kitchen = {...DEFAULT_DESIGN.kitchen, peninsula: {...DEFAULT_DESIGN.kitchen.peninsula}};
+    Object.assign(pen, design.kitchen.peninsula);
+    for (const row of root.querySelectorAll('.design-choices')) for (const b of row.querySelectorAll('[data-id]')) b.setAttribute('aria-pressed', String(String(pen[['show', 'length', 'depth', 'overhang', 'stools'][[...root.querySelectorAll('.design-choices')].indexOf(row)]]) === b.dataset.id));
     design.basement = {...DEFAULT_DESIGN.basement};
     pressOnly(basementFloorRow, design.basement.floor);
     pressOnly(floorRow, design.flooring);
