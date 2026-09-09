@@ -144,7 +144,37 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     t.repeat.set(3, 7.5);
     return t;
   }
-  const floorMat = new THREE.MeshStandardMaterial({map: plankTexture(), roughness: .55, color: FLOORING[0].color});
+  // Height-to-normal conversion for procedural surfaces; `heightAt` returns 0..1 on a grid.
+  function normalTexture(sizePx, heightAt, strength, repeat) {
+    const c = document.createElement('canvas');
+    c.width = c.height = sizePx;
+    const g = c.getContext('2d'), img = g.createImageData(sizePx, sizePx), d = img.data;
+    const h = (x, y) => heightAt(((x % sizePx) + sizePx) % sizePx, ((y % sizePx) + sizePx) % sizePx);
+    for (let y = 0; y < sizePx; y++) for (let x = 0; x < sizePx; x++) {
+      const dx = (h(x + 1, y) - h(x - 1, y)) * strength, dy = (h(x, y + 1) - h(x, y - 1)) * strength;
+      const len = Math.hypot(dx, dy, 1), i = (y * sizePx + x) * 4;
+      d[i] = (-dx / len * .5 + .5) * 255;
+      d[i + 1] = (-dy / len * .5 + .5) * 255;
+      d[i + 2] = (1 / len * .5 + .5) * 255;
+      d[i + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+    const t = new THREE.CanvasTexture(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.copy(repeat);
+    t.anisotropy = anisotropy;
+    return t;
+  }
+  const grainRnd = seeded(11), grainPhase = Array.from({length: 8}, () => grainRnd() * 100);
+  const plankNormal = normalTexture(256, (x, y) => {
+    const row = Math.floor(y / 32), local = y % 32;
+    const seam = local < 2 || local > 29 ? 0 : 1;                                  // groove between planks
+    const grain = Math.sin((x * .35 + Math.sin(x * .05 + grainPhase[row]) * 6 + local * .4)) * .5 + .5;
+    return seam * (.7 + .3 * grain);
+  }, 2.2, new THREE.Vector2(3, 7.5));
+  const fabricNormal = normalTexture(128, (x, y) => ((x % 4 < 2) !== (y % 4 < 2) ? 1 : 0) * .6 + (Math.sin(x * 1.7) * Math.sin(y * 1.3)) * .2 + .2, 1.6, new THREE.Vector2(14, 14));
+  const floorMat = new THREE.MeshStandardMaterial({map: plankTexture(), normalMap: plankNormal, normalScale: new THREE.Vector2(.6, .6), roughness: .48, color: FLOORING[0].color});
+  for (const m of ['fabric', 'cushion', 'sectional', 'pillow']) { palette[m].normalMap = fabricNormal; palette[m].normalScale = new THREE.Vector2(.35, .35); palette[m].roughness = .92; }
   const slabMats = [trim, trim, floorMat, ceilingPaint, trim, trim];
   const W = INNER.x * 2 + .2, D = INNER.z * 2 + .2;
   function slab(y0, y1, hole, mats = slabMats) {
@@ -165,7 +195,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   // ---- Rooms own their wall paint -----------------------------------------------------------
   const roomById = byId(ROOMS);
   const roomPaint = {basement: basementWall};
-  const paintFor = id => roomPaint[id] ||= mat(WALL_COLORS[0].color);
+  const paintFor = id => roomPaint[id] ||= mat(WALL_COLORS[0].color, {roughness: .72});
   const defaultPaint = paintFor('other');
   function roomAt(level, x, z) {
     const r = ROOMS.find(r => r.level === level && !r.outside && x >= r.rect[0] && x <= r.rect[2] && z >= r.rect[1] && z <= r.rect[3]);
@@ -474,7 +504,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
         g.globalAlpha = 1;
       }
     }
-    return rugMaterials[id] = new THREE.MeshStandardMaterial({map: texture(c), roughness: .95});
+    return rugMaterials[id] = new THREE.MeshStandardMaterial({map: texture(c), normalMap: fabricNormal, normalScale: new THREE.Vector2(.5, .5), roughness: .95});
   }
   function rug(w, d, x, z, y, material) {
     if (material) box(w, .02, d, x, y, z, material);
@@ -1025,7 +1055,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   addLight(-.4, L.y + 2.1, 0, 12);
   for (const [x, z] of [[-1.5, -1.5], [1.5, 1.5], [-2.2, 2.2]]) addLight(x, B.ceil - .35, z, 12);
   const fill = new THREE.AmbientLight('#f6f5f2', 0);
-  fill.userData.max = .42;
+  fill.userData.max = .28; // the sky environment now supplies most of the indirect light
   group.add(fill);
   lights.push(fill);
 
@@ -1073,6 +1103,8 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       g.rotation.y = yawBetween(node, first);
       const a = new THREE.Mesh(arrowGeo, arrowMat), r = new THREE.Mesh(ringGeo, ringMat);
       a.renderOrder = r.renderOrder = 5;
+      a.layers.set(1); // overlay layer: skipped by the ambient-occlusion depth pass
+      r.layers.set(1);
       g.add(a, r);
       arrows.add(g);
       const label = document.createElement('button');
