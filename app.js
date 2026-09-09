@@ -112,6 +112,21 @@ const barn=new THREE.Group();barn.position.set(5,0,-19);scene.add(barn);box(5.6,
 function shrub(x,z,s=1){const mesh=new THREE.Mesh(new THREE.IcosahedronGeometry(s,2),mat('#486446'));mesh.scale.set(1,.8,.85);mesh.position.set(x,s*.6,z);mesh.castShadow=true;scene.add(mesh)}
 for(const [x,z,s]of [[-2.5,7.1+PZ,.8],[-3.9,7+PZ,.9],[4.3,5.6+PZ,1.05],[-5.2,-1,.75],[-5.2,-3,.75],[-5.2,1,.75]])shrub(x,z,s);
 const fence=mat('#465854');for(let z=-24;z<=7;z+=2.6)box(.055,1.3,.055,9,.65,z,fence,scene);for(const y of [.18,1.22])box(.045,.035,31,9,y,-8.5,fence,scene);
+// Dark blue Model 3 in the driveway, nose to the street, backed up to the rear corner of the house
+// and charging from the outlet beside the air-conditioning condenser.
+{const paintBlue=mat('#1b2a52',{metalness:.65,roughness:.32}),glassDark=mat('#1a2430',{metalness:.5,roughness:.15,transparent:true,opacity:.85}),tire=mat('#1c1c1c',{roughness:.9}),rim=mat('#c9ccd0',{metalness:.7,roughness:.35}),lamp=mat('#e8f0ff',{emissive:'#cfe0ff',emissiveIntensity:.35}),tail=mat('#c0202a',{emissive:'#7a0d14',emissiveIntensity:.4}),cable=mat('#202224',{roughness:.6}),unitGray=mat('#cfd3d6',{roughness:.6}),grille=mat('#3c4145',{roughness:.7});
+const car=new THREE.Group();car.position.set(6,.05,-1.6);home.add(car);
+box(1.85,.5,4.6,0,.55,0,paintBlue,car);const hood=box(1.75,.12,1.4,0,.83,1.55,paintBlue,car);hood.rotation.x=.09;box(1.75,.1,.9,0,.86,-1.8,paintBlue,car);
+box(1.62,.42,2.3,0,1.05,-.1,glassDark,car);box(1.5,.04,1.6,0,1.27,-.15,paintBlue,car);
+const shield=box(1.62,.02,1.0,0,1.0,1.05,glassDark,car);shield.rotation.x=-.6;const rear=box(1.62,.02,.9,0,1.0,-1.35,glassDark,car);rear.rotation.x=.72;
+for(const sx of [-1,1]){box(.08,.06,.14,sx*1.0,.95,.5,paintBlue,car);box(.35,.08,.05,sx*.62,.75,2.31,lamp,car);box(.6,.07,.05,sx*.55,.8,-2.31,tail,car);for(const z of [.55,-.45])box(.012,.42,.012,sx*.93,.6,z,grille,car);
+for(const z of [1.45,-1.45]){const t=new THREE.Mesh(new THREE.CylinderGeometry(.34,.34,.24,24),tire);t.rotation.z=Math.PI/2;t.position.set(sx*.8,.34,z);t.castShadow=true;car.add(t);const r=new THREE.Mesh(new THREE.CylinderGeometry(.21,.21,.25,16),rim);r.rotation.z=Math.PI/2;r.position.set(sx*.8,.34,z);car.add(r)}}
+box(.06,.06,.12,-.93,.72,-1.95,cable,car); // charge connector seated in the rear-left port
+// Condenser on a pad against the driveway wall, with its outlet on the house.
+const acX=4.62,acZ=-3.55;box(.9,.06,.9,acX,.03,acZ,mat('#b9b7ac'),scene);box(.78,.72,.78,acX,.42,acZ,unitGray,scene);const fan=new THREE.Mesh(new THREE.CylinderGeometry(.3,.3,.03,28),grille);fan.position.set(acX,.79,acZ);scene.add(fan);for(let i=0;i<6;i++)box(.8,.012,.8,acX,.2+i*.09,acZ,grille,scene);
+for(const y of [.35,.42])box(.55,.02,.02,4.3,y,acZ+.2,rim,scene);box(.12,.16,.06,4.03,.55,-3.2,unitGray,scene);box(.03,.05,.02,4.07,.55,-3.2,grille,scene);
+const curve=new THREE.CatmullRomCurve3([new THREE.Vector3(5.07,.77,-3.55),new THREE.Vector3(4.95,.45,-3.62),new THREE.Vector3(4.55,.2,-3.45),new THREE.Vector3(4.2,.3,-3.25),new THREE.Vector3(4.06,.53,-3.2)]);
+const cord=new THREE.Mesh(new THREE.TubeGeometry(curve,32,.014,8,false),cable);cord.castShadow=true;scene.add(cord);}
 // Neutral tree volumes provide context without concealing the house.
 for(const [x,z,s]of [[-11,-14,2.8],[12,-22,3.1],[-12,-25,3.5],[13,-11,2.5]]){box(.35,5,.35,x,2.5,z,wood,scene);const crown=new THREE.Mesh(new THREE.IcosahedronGeometry(s,2),mat('#6f8669',{transparent:true,opacity:.75}));crown.position.set(x,6,z);crown.scale.y=1.2;scene.add(crown)}
 
