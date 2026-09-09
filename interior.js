@@ -218,8 +218,22 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     if (withSill) segment(axis, faceCoord + side * .05, a0 - .12, a1 + .12, y0 - .05, y0, trim, .13);
   }
   // A partition: each piece is painted per side with the color of the room it faces.
+  const brassKnob = mat('#c9a955', {metalness: .8, roughness: .3});
+  // A paneled interior door standing ajar, hinged at `a0`, swinging toward the wall's `side`.
+  function doorPanel(axis, coord, a0, a1, floorY, head, side) {
+    const g = new THREE.Group();
+    const w = a1 - a0 - .03, h = head - floorY - .02, angle = 1.2 * side; // mostly open, the way a house shows
+    g.position.set(axis === 'x' ? a0 + .015 : coord, floorY, axis === 'x' ? coord : a0 + .015);
+    g.rotation.y = axis === 'x' ? -angle : angle - Math.PI / 2; // rotation about y carries local +x toward -z, so lean toward `side`
+    group.add(g);
+    box(w, h, .04, w / 2, 0, 0, trim, g);
+    for (const [yb, hh] of [[.16, h * .38], [h * .56, h * .36]]) for (const sz of [-1, 1]) box(w - .16, hh, .012, w / 2, yb, sz * .026, cabinet, g);
+    for (const sz of [-1, 1]) box(.035, .035, .035, w - .07, .95, sz * .035, brassKnob, g);
+  }
+  const crown = (axis, coord, a0, a1, ceilY, side) => segment(axis, coord + side * .03, a0, a1, ceilY - .09, ceilY, trim, .06);
   function wall(level, axis, coord, c0, c1, openings, floorY, ceilY) {
     const sorted = [...openings].sort((p, q) => p.a0 - q.a0);
+    const finished = level !== 'basement';
     const mats = (a0, a1) => {
       const mid = (a0 + a1) / 2, off = T / 2 + .06;
       const plus = axis === 'x' ? roomAt(level, mid, coord + off) : roomAt(level, coord + off, mid);
@@ -232,9 +246,15 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       segment(axis, coord, cursor, o.a0, floorY, ceilY, mats(cursor, o.a0));
       segment(axis, coord, o.a0, o.a1, head, ceilY, mats(o.a0, o.a1));
       if (o.y1 != null) for (const side of [-1, 1]) casing(axis, coord + side * T / 2, side, o.a0, o.a1, floorY, head, false);
+      if (o.door && !o.hinged) doorPanel(axis, coord, o.a0, o.a1, floorY, head, o.swing || 1);
       cursor = o.a1;
     }
     segment(axis, coord, cursor, c1, floorY, ceilY, mats(cursor, c1));
+    if (finished) for (const side of [-1, 1]) {
+      let from = c0;
+      for (const o of sorted) { if (o.y1 != null) continue; crown(axis, coord + side * T / 2, from, o.a0, ceilY, side); from = o.a1; }
+      crown(axis, coord + side * T / 2, from, c1, ceilY, side);
+    }
     for (const side of [-1, 1]) {
       let from = c0;
       for (const o of sorted) {
@@ -276,6 +296,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
         segment(f.axis, linerCoord, a0, a1, cursor, lv.ceil, m, .012);
       }
       if (lv === B) continue; // block walls: no casings or baseboards
+      crown(f.axis, f.face, -limit, limit, lv.ceil, f.side);
       for (const o of ops) casing(f.axis, f.face, f.side, o.a0, o.a1, o.kind === 'door' ? lv.y : o.y0, o.y1, o.kind === 'window');
       let from = -limit;
       for (const o of ops.filter(o => o.kind === 'door').sort((p, q) => p.a0 - q.a0)) {
@@ -1132,18 +1153,41 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   applyAll();
 
   // Warm room lights plus a soft fill; only meaningful once the camera is inside.
-  const lights = [];
-  const addLight = (x, y, z, max) => {
+  const lights = [], fixtureGlass = mat('#fff4e2', {emissive: '#ffe9c8', emissiveIntensity: .55, roughness: .4});
+  const addLight = (x, y, z, max, fixture = 'flush') => {
     const l = new THREE.PointLight('#fff3e4', 0, 10, 2);
     l.position.set(x, y, z);
     l.userData.max = max;
     group.add(l);
     lights.push(l);
+    const ceilY = y + .3;
+    if (fixture === 'flush') {
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(.14, .14, .03, 24), trim);
+      base.position.set(x, ceilY - .015, z);
+      group.add(base);
+      const dome = new THREE.Mesh(new THREE.SphereGeometry(.16, 24, 12, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), fixtureGlass);
+      dome.position.set(x, ceilY - .03, z);
+      group.add(dome);
+    } else if (fixture === 'fan') {
+      box(.06, .32, .06, x, ceilY - .32, z, trim);
+      const hub = new THREE.Mesh(new THREE.CylinderGeometry(.11, .11, .12, 20), trim);
+      hub.position.set(x, ceilY - .38, z);
+      group.add(hub);
+      for (let i = 0; i < 4; i++) {
+        const blade = box(.6, .012, .12, 0, 0, 0, mat('#efece4', {roughness: .7}));
+        blade.position.set(x + Math.cos(i * Math.PI / 2) * .38, ceilY - .4, z + Math.sin(i * Math.PI / 2) * .38);
+        blade.rotation.y = -i * Math.PI / 2;
+        blade.rotation.z = .08;
+      }
+      const dome = new THREE.Mesh(new THREE.SphereGeometry(.12, 20, 10, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), fixtureGlass);
+      dome.position.set(x, ceilY - .44, z);
+      group.add(dome);
+    }
   };
-  for (const [x, z] of [[2.45, 2.0], [-1.0, 1.7], [-2.1, -2.1], [1.8, -2.0]]) addLight(x, F.ceil - .3, z, 12);
+  for (const [x, z, kind] of [[2.45, 2.0, 'flush'], [-1.0, 1.7, 'none'], [-2.1, -2.1, 'none'], [1.8, -2.0, 'fan']]) addLight(x, F.ceil - .3, z, 12, kind); // living and dining rooms carry their own fixtures
   for (const [x, z] of [[1.5, -1.25], [-2.1, -2.1], [-1.6, 2.2], [2.0, 2.2], [2.75, -3.0]]) addLight(x, S.ceil - .3, z, 9);
   addLight(-.4, L.y + 2.1, 0, 12);
-  for (const [x, z] of [[-1.5, -1.5], [1.5, 1.5], [-2.2, 2.2]]) addLight(x, B.ceil - .35, z, 12);
+  for (const [x, z] of [[-1.5, -1.5], [1.5, 1.5], [-2.2, 2.2]]) addLight(x, B.ceil - .35, z, 12, 'none');
   const fill = new THREE.AmbientLight('#f6f5f2', 0);
   fill.userData.max = .28; // the sky environment now supplies most of the indirect light
   group.add(fill);
@@ -1582,6 +1626,48 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     }
   }
   $('#exit-interior').onclick = () => exit();
+
+  // ---- Guided tour: walk every stop in order, pause with a slow pan at each, stop on any input ----
+  const TOUR = ['hall', 'living', 'dining', 'kitchenEntry', 'kitchen', 'kitchenSink', 'kitchenWork', 'landing', 'basement', 'basementRear', 'hall2', 'bedFrontR', 'bedFrontL', 'bedBack', 'walkin', 'bath', 'loft'];
+  let tour = null;
+  const tourButton = $('#tour-toggle');
+  function tourStep() {
+    if (!tour) return;
+    if (tour.index >= TOUR.length) return stopTour();
+    const id = TOUR[tour.index++];
+    if (current && current.id !== id) walkTo(id);
+    const wait = () => {
+      if (!tour) return;
+      if (busy() || state !== 'inside') { tour.timer = setTimeout(wait, 120); return; }
+      // Look around slowly: a gentle sweep to the right and back, then move on.
+      const startYaw = yaw, sweep = .42;
+      tween(4.2, t => { yaw = startYaw + Math.sin(t * Math.PI * 2) * sweep; applyLook(); }, () => { if (tour) tour.timer = setTimeout(tourStep, 350); });
+      queue[queue.length - 1].pan = true;
+    };
+    tour.timer = setTimeout(wait, 150);
+  }
+  function startTour() {
+    if (state !== 'inside' || busy()) return;
+    exitOverview(true);
+    tour = {index: 0, timer: 0};
+    tourButton.textContent = '■ Stop tour';
+    tourButton.setAttribute('aria-pressed', 'true');
+    document.body.dataset.tour = 'on';
+    tourStep();
+  }
+  function stopTour() {
+    if (!tour) return;
+    clearTimeout(tour.timer);
+    tour = null;
+    tourButton.textContent = '▶ Take the tour';
+    tourButton.setAttribute('aria-pressed', 'false');
+    delete document.body.dataset.tour;
+    // Cancel a pan in progress so the view stays where the visitor grabbed it.
+    if (queue.length && queue[0].pan) queue.shift();
+  }
+  tourButton.onclick = () => tour ? stopTour() : startTour();
+  for (const type of ['pointerdown', 'wheel', 'keydown']) host.addEventListener(type, () => { if (tour) stopTour(); }, {capture: true});
+  for (const chip of chips.querySelectorAll('button')) chip.addEventListener('click', () => { if (tour) stopTour(); }, {capture: true});
   const designPanel = createDesignPanel({
     root: $('#design-panel'), design, roomDefaults: id => roomDefaults[id] || {wall: 'dove'},
     hooks: {
@@ -1647,6 +1733,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
 
   function exit() {
     if (state !== 'inside' || busy()) return;
+    stopTour();
     exitOverview(true);
     state = 'exiting';
     arrows.visible = false;

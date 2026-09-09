@@ -78,8 +78,8 @@ body[data-mode="interior"] #scene{cursor:grab}
 #design-reset{background:#edf3f6;font-size:13px}
 .interior-transport{width:232px}
 @media(max-width:800px){.panel-tabs{flex:0 0 auto;width:150px}#design-panel{flex:0 0 auto;width:260px;max-height:220px;overflow-y:auto;padding-right:4px}#design-panel .paint-swatches{grid-template-columns:repeat(3,minmax(0,1fr))}.interior-transport{width:auto;align-items:flex-start}}
-#overview-toggle{background:#edf3f6}
-@media(max-width:800px){#overview-toggle{flex:0 0 auto;padding:8px 10px;font-size:12px}}
+#overview-toggle{background:#edf3f6}#tour-toggle{background:#193f56;color:white;border-color:#193f56}#tour-toggle:hover{background:#285a76}#tour-toggle[aria-pressed=true]{background:#8a3b2f;border-color:#8a3b2f}body[data-tour=on] #hotspots{opacity:.35}
+@media(max-width:800px){#overview-toggle,#tour-toggle{flex:0 0 auto;padding:8px 10px;font-size:12px}}
 #dims{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .dim-pill{position:absolute;left:0;top:0;padding:3px 9px;font-size:11px;font-weight:650;letter-spacing:.01em;background:#ffffffe8;color:#193f56;border:1px solid #193f5633;border-radius:999px;white-space:nowrap;box-shadow:0 2px 10px #0f2a3a22}
 .dim-pill.room{font-size:12px;background:#193f56;color:#fff;border-color:#193f56}
