@@ -874,36 +874,39 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       box(upperDepth, upperTop - upperBottom, sideEnd - rear - upperDepth, right - upperDepth / 2, F.y + upperBottom, (rear + upperDepth + sideEnd) / 2, cabinet);
       for (const z of [-3.2, -2.0]) for (const dz of [-.06, .06]) box(.02, .02, .02, right - upperDepth - .01, F.y + upperBottom + .1, z + dz, knob);
       box(right - kx0, .06, upperDepth + .02, (right + kx0) / 2, F.y + upperTop, rear + upperDepth / 2, cabinet);
-      // Peninsula: an L-return off the end of the driveway-wall counter, seating on the south side.
-      // Placed from model coordinates: side counter ends at z = sideEnd, wall face at x = right.
+      // Peninsula perpendicular to the short wall at the kitchen entrance (the pantry's kitchen-facing
+      // end, x 1.05..1.7 at z = -.9, beside the hallway opening). It runs south into the room, drawers
+      // toward the range and sink on the west, seating overhang toward the hallway side on the east.
+      const pantryFace = -.9, pantryX1 = 1.7;
+      for (const [w, hh, d, x, y, z] of [[.65, upperBottom + .6, .02, 1.375, F.y, pantryFace - .011], [.02, upperBottom + .6, .58, pantryX1 + .011, F.y, -.61]]) box(w, hh, d, x, y, z, beadboard(w > .1 ? w : d)); // beadboard on the stub wall
       const pen = k.peninsula || {};
       if (pen.show) {
         const inch = .0254, L = (pen.length || 51) * inch, D = (pen.depth || 24) * inch, OH = (pen.overhang || 12) * inch;
-        const x0 = right - L, x1 = right - depth, z1 = sideEnd, z0 = sideEnd - D; // cabinet footprint, joining the side run
-        const cx = (x0 + x1) / 2, cw = x1 - x0;
-        box(cw, h - .1, D, cx, F.y + .1, (z0 + z1) / 2, cabinet);
-        box(cw - .08, .1, D - .08, cx, F.y, (z0 + z1) / 2, grate);
-        box(cw + .015, .04, D + OH + .015, (x0 - .015 + x1) / 2, F.y + h, (z0 - OH + z1) / 2 + .0075, navyLike); // top, overhang to the south
-        // Kitchen-facing (north) storage: a stack of three drawers on the west, a door on the east.
-        const dw = Math.min(.5, cw * .45), dx = x0 + dw / 2, doorX = (x0 + dw + x1) / 2, doorW = x1 - x0 - dw;
+        const x0 = 1.35, x1 = x0 + D, z1 = pantryFace, z0 = z1 - L; // cabinet footprint: 36" to the fridge face on the west
+        const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+        box(D, h - .1, L, cx, F.y + .1, cz, cabinet);
+        box(D - .08, .1, L - .08, cx, F.y, cz, grate);
+        box(D + OH + .015, .04, L + .015, (x0 - .015 + x1 + OH) / 2, F.y + h, cz - .0075, navyLike); // top, overhang to the east
+        box(.005, h - .3, L - .1, x1 + .003, F.y + .14, cz, mat('#d9d6cc')); // panel seam on the seating side
+        // Kitchen-facing (west) storage: three drawers toward the entrance, a door beyond.
+        const dw = Math.min(.55, L * .45), dz = z1 - dw / 2, doorZ = (z0 + z1 - dw) / 2, doorW = L - dw;
         for (let i = 0; i < 3; i++) {
-          box(dw - .05, .2, .012, dx, F.y + .12 + i * .245, z1 + .006, trim);
-          box(.02, .02, .02, dx, F.y + .22 + i * .245, z1 + .015, knob);
+          box(.012, .2, dw - .05, x0 - .006, F.y + .12 + i * .245, dz, trim);
+          box(.02, .02, .02, x0 - .015, F.y + .22 + i * .245, dz, knob);
         }
-        box(doorW - .05, h - .22, .012, doorX, F.y + .12, z1 + .006, trim);
-        box(.02, .02, .02, doorX - doorW / 2 + .08, F.y + .62, z1 + .015, knob);
-        box(.005, h - .3, .01, x0 + dw, F.y + .14, z1 + .008, mat('#d9d6cc'));
-        // Counter-height stools tucked under the overhang.
+        box(.012, h - .22, doorW - .05, x0 - .006, F.y + .12, doorZ, trim);
+        box(.02, .02, .02, x0 - .015, F.y + .62, doorZ + doorW / 2 - .08, knob);
+        // Counter-height stools tucked under the east overhang.
         const n = pen.stools || 0, seatY = F.y + .66;
         for (let i = 0; i < n; i++) {
-          const sx = n === 1 ? cx : x0 + (i + .5) * cw / n, sz = z0 - OH * .45;
+          const sz = n === 1 ? cz : z0 + (i + .5) * L / n, sx = x1 + OH * .45;
           const seat = new THREE.Mesh(new THREE.CylinderGeometry(.16, .16, .03, 20), palette.woodLight);
           seat.position.set(sx, seatY + .015, sz);
           seat.castShadow = true;
           parentGroup.add(seat);
           for (const lx of [-.11, .11]) for (const lz of [-.11, .11]) box(.02, seatY - F.y, .02, sx + lx, F.y, sz + lz, palette.frame);
-          box(.24, .015, .015, sx, F.y + .25, sz - .11, palette.frame);
-          box(.24, .015, .015, sx, F.y + .25, sz + .11, palette.frame);
+          box(.015, .015, .24, sx - .11, F.y + .25, sz, palette.frame);
+          box(.015, .015, .24, sx + .11, F.y + .25, sz, palette.frame);
         }
       }
       // Optional small island in the middle of the room.
