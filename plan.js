@@ -86,9 +86,6 @@ export const PARTITIONS = [
   {level: 'first', axis: 'z', coord: 1.95, c0: -.32, c1: INNER.z, openings: [{a0: 0, a1: 3, y1: 2.2}]},                     // living | hallway
   {level: 'first', axis: 'z', coord: -.32, c0: -INNER.z, c1: -.32, openings: [{a0: -3.6, a1: -2.9, y1: 2.05, door: true}, {a0: -1.75, a1: -.9, y1: 2.2}]}, // dining | kitchen, powder room door
   {level: 'first', axis: 'x', coord: -.32, c0: 1.95, c1: INNER.x, openings: [{a0: 1.95, a1: 2.8, y1: 2.2}, {a0: STAIR.x0, a1: INNER.x}]}, // hallway | kitchen corridor; the stairwell column is open
-  {level: 'first', axis: 'x', coord: -.9, c0: 1.05, c1: 1.7, openings: []},                                                 // pantry closet
-  {level: 'first', axis: 'z', coord: 1.05, c0: -.9, c1: -.32, openings: []},
-  {level: 'first', axis: 'z', coord: 1.7, c0: -.9, c1: -.32, openings: []},
   {level: 'first', axis: 'z', coord: .5, c0: -INNER.z, c1: -2.6, openings: []},                                             // powder room (2'9" x 4'2")
   {level: 'first', axis: 'x', coord: -2.6, c0: -.32, c1: .5, openings: []},                                                 // powder room front, fridge alcove side
   {level: 'first', axis: 'x', coord: -1.75, c0: -.32, c1: .5, openings: []},                                                // fridge alcove return, beside the dining entrance
@@ -156,7 +153,7 @@ export const NODES = [
   {id: 'hall', room: 'hall', x: 2.45, z: 2.6, look: [2.4, -.3], links: [{to: 'porch', door: 'front'}, {to: 'living'}, {to: 'kitchenEntry', label: 'Kitchen'}, {to: 'hall2', via: mainStairUp, label: 'Upstairs'}]},
   {id: 'living', room: 'living', x: -.1, z: 1.6, look: [-2.2, 3.4], links: [{to: 'hall'}, {to: 'dining'}]},
   {id: 'dining', room: 'dining', x: -1.5, z: -1.1, look: [-2.1, -2.6], links: [{to: 'living'}, {to: 'kitchenWork', via: [[.9, -1.5, F.y]], label: 'Kitchen'}, {to: 'rear', door: 'rear'}]},
-  {id: 'kitchenEntry', room: 'kitchen', name: 'Kitchen entrance', x: 2.4, z: -.75, look: [2.2, -3.4], links: [{to: 'hall'}, {to: 'kitchen', label: 'By the stools'}, {to: 'kitchenSink', label: 'To the sink'}, {to: 'landing', via: toLanding, door: 'cellar', label: 'Down to side door'}]},
+  {id: 'kitchenEntry', room: 'kitchen', name: 'Kitchen entrance', x: 2.6, z: -.7, look: [2.2, -3.4], links: [{to: 'hall'}, {to: 'kitchen', label: 'By the stools'}, {to: 'kitchenSink', label: 'To the sink'}, {to: 'landing', via: toLanding, door: 'cellar', label: 'Down to side door'}]},
   {id: 'kitchen', room: 'kitchen', name: 'Kitchen, by the stools', x: 2.6, z: -1.75, look: [1.4, -3.4], links: [{to: 'kitchenEntry', label: 'Back to the entrance'}, {to: 'kitchenSink', label: 'To the sink'}, {to: 'kitchenWork', label: 'Over by the range'}, {to: 'landing', via: [[2.55, -1.15, F.y], ...toLanding], door: 'cellar', label: 'Down to side door'}]},
   {id: 'kitchenSink', room: 'kitchen', name: 'Kitchen, at the sink', x: 2.7, z: -2.55, look: [2.7, -3.85], links: [{to: 'kitchen', label: 'By the stools'}, {to: 'kitchenWork', label: 'Over by the range'}, {to: 'kitchenEntry', label: 'Back to the entrance'}]},
   {id: 'kitchenWork', room: 'kitchen', name: 'Kitchen, by the range', x: 1.35, z: -2.5, look: [1.3, -3.85], pitch: -.1, links: [{to: 'kitchenSink', label: 'To the sink'}, {to: 'kitchen', label: 'By the stools'}, {to: 'dining', via: [[.9, -1.5, F.y]]}]},

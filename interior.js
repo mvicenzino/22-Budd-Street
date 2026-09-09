@@ -903,15 +903,34 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       box(upperDepth, upperTop - upperBottom, sideEnd - rear - upperDepth, right - upperDepth / 2, F.y + upperBottom, (rear + upperDepth + sideEnd) / 2, cabinet);
       for (const z of [-3.2, -2.0]) for (const dz of [-.06, .06]) box(.02, .02, .02, right - upperDepth - .01, F.y + upperBottom + .1, z + dz, knob);
       box(right - kx0, .06, upperDepth + .02, (right + kx0) / 2, F.y + upperTop, rear + upperDepth / 2, cabinet); // crown
-      // Peninsula perpendicular to the short wall at the kitchen entrance (the pantry's kitchen-facing
-      // end, x 1.05..1.7 at z = -.9, beside the hallway opening). It runs south into the room, drawers
-      // toward the range and sink on the west, seating overhang toward the hallway side on the east.
-      const pantryFace = -.9, pantryX1 = 1.7;
-      for (const [w, hh, d, x, y, z] of [[.65, upperBottom + .6, .02, 1.375, F.y, pantryFace - .011], [.02, upperBottom + .6, .58, pantryX1 + .011, F.y, -.61]]) box(w, hh, d, x, y, z, beadboard(w > .1 ? w : d)); // beadboard on the stub wall
+      // Built-in pantry wall (from the photo): floor-to-ceiling cabinets on the wall between the dining
+      // corner and the hall opening, four doors below and four above, leaving a short beadboard stub
+      // beside the opening. The plan's 23-inch jog at this wall is the cabinet's depth.
+      const wallFace = -.32 - .07, pantryX = [-.3, 1.45], pantryDepth = .58, pantryH = 2.45, stubX = [pantryX[1], 1.95];
+      {
+        const pw = pantryX[1] - pantryX[0], px = (pantryX[0] + pantryX[1]) / 2, pz = wallFace - pantryDepth / 2, face = wallFace - pantryDepth;
+        const panel = mat('#e4e1d8', {roughness: .55});
+        box(pw, pantryH, pantryDepth, px, F.y, pz, cabinet);
+        box(pw + .04, .07, pantryDepth + .02, px, F.y + pantryH, pz, cabinet); // crown
+        box(pw, .1, pantryDepth - .04, px, F.y, pz + .02, grate);             // toe kick
+        const doorW = pw / 4;
+        for (let i = 0; i < 4; i++) {
+          const dx = pantryX[0] + (i + .5) * doorW;
+          for (const [yb, hh] of [[F.y + .12, 1.32], [F.y + 1.5, .9]]) {
+            box(doorW - .03, hh, .012, dx, yb, face - .006, trim);
+            box(doorW - .18, hh - .16, .006, dx, yb + .08, face - .014, panel); // raised panel
+            box(.022, .022, .022, dx + (i % 2 ? -1 : 1) * (doorW / 2 - .06), yb + hh * .45, face - .02, knob);
+          }
+        }
+        box(.005, pantryH - .2, .006, pantryX[0] + doorW * 2, F.y + .1, face - .009, mat('#cfcbc2')); // centre split
+      }
+      box(stubX[1] - stubX[0], upperTop + .35, .02, (stubX[0] + stubX[1]) / 2, F.y, wallFace - .011, beadboard(stubX[1] - stubX[0])); // beadboard stub
+      // Peninsula perpendicular to that stub, flush with the hall opening's edge, running south into the
+      // room: drawers toward the pantry and range on the west, seating overhang toward the hall on the east.
       const pen = k.peninsula || {};
       if (pen.show) {
         const inch = .0254, L = (pen.length || 42) * inch, D = (pen.depth || 21) * inch, OH = (pen.overhang || 10) * inch;
-        const x1 = pantryX1, x0 = x1 - D, z1 = pantryFace, z0 = z1 - L; // flush with the stub wall's east face, no wider than the stub
+        const x1 = stubX[1], x0 = x1 - D, z1 = wallFace, z0 = z1 - L; // flush with the opening's edge, off the stub wall
         const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
         box(D, h - .1, L, cx, F.y + .1, cz, cabinet);
         box(D - .08, .1, L - .08, cx, F.y, cz, grate);
