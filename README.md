@@ -40,3 +40,29 @@ Design storage version 5 replaces earlier saved wall experiments with this palet
 AgX tone mapping, HDR color where supported, antialiased scene rendering, depth-aware ambient occlusion (8–32 samples by quality), filtered environment lighting and procedural surface detail. The depth pass excludes transparent glazing and navigation overlays; shadow maps render once per frame. Quality controls adjust resolution, antialiasing, occlusion resolution and shadow-map size. Inactive tabs suspend scene rendering and pause tours.
 
 This remains a conceptual, real-time model based on photos and floor plans, not a measured survey or a photorealistic scan. Paint is a digital approximation affected by the simulated lighting and display. The sky photograph is Poly Haven's CC0 “Kloofendal 48d partly cloudy.”
+
+## Cinematic prototype
+
+**Take a cinematic tour** plays a continuous 20-second route from the front porch through the living and dining rooms into the kitchen. Pause, scrub, restart, or return to exploring. Reduced-motion mode starts paused. Hiding the tab pauses playback. The camera follows the same timeline used for the downloadable film; tests verify its wall/door clearance and bounded speed.
+
+The shared model now uses subtle furniture/cabinet bevels, finer wood grain, satin floor reflections and fabric sheen. No room geometry or chosen paint color is replaced. The cinematic route is composed for the default furniture arrangement; a custom layout can alter the framing.
+
+A silent **1920 × 1080, 24 fps MP4** is included in `media/budd-street-cinematic.mp4` and available through **Save film**. It is rendered frame by frame, with 4× MSAA, full-resolution 48-sample ambient occlusion and room titles. This avoids dropped frames during recording on slower devices.
+
+### Reproduce the exports
+
+The website still serves static files without a build step. Export tooling uses development dependencies only:
+
+```sh
+npm ci
+npm run dev
+# In a second terminal; requires Google Chrome and ffmpeg:
+npm run render:film
+npm run test:browser
+# Optional physical-lighting still (five light bounces):
+npm run render:film -- --mode=trace --time=8 --samples=128 --width=1280 --height=720
+```
+
+Set `CHROME_PATH` if Chrome is installed somewhere other than the default macOS location. Exports go to the ignored `rendered/` directory. `--output=...`, `--width=...`, and `--height=...` control the destination and resolution. The path tracer loads only in the export tool, uses a dedicated render context, and does not add work to the interactive renderer. Its stills are lighting studies; the included moving film uses the faster raster pipeline.
+
+`npm run build:renderer` rebuilds the checked-in export bundle from the pinned Three.js-compatible path tracer. Third-party license notices are kept beside the vendored files.

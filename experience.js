@@ -114,6 +114,7 @@ export function createExperience({renderer, post, sun, interior, resize, stopExt
   }
   $('#scene').addEventListener('wheel', pause, {passive:true});
   window.addEventListener('walkthroughchange', event => updateNavigation(event.detail));
+  window.addEventListener('cinemastart', () => {pause();setPanel(false,false);$('#render-settings').open=false;});
   document.addEventListener('visibilitychange', () => { previousFrame = 0; if (document.hidden) pause(); });
   updateNavigation(nav);
 

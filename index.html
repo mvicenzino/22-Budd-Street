@@ -339,6 +339,7 @@
 <p class="note">Proportions estimated from your four photos. The yard, barn location, and dimensions are approximate. A visual study, not a measured survey.</p>
 </aside>
 <div class="exterior-views">
+<button id="cinema-open" class="cinema-invite">▷ <span>Take a cinematic tour</span> <small>20 SEC</small></button>
 <span class="eyebrow">FIND YOUR PERSPECTIVE</span>
 <div class="views" role="group" aria-label="Exterior viewpoints">
 <button data-view="front">Front</button>
@@ -398,6 +399,11 @@
 <span id="bearing">FRONT</span>
 </div>
 <div class="scene-footnote">YOUR HOME, FROM EVERY ANGLE</div>
+<section id="cinema-controls" aria-label="Cinematic house tour" hidden>
+<div class="cinema-top"><a href="./" aria-label="Budd Street home">22 <span>BUDD STREET</span></a><button id="cinema-exit">Back to exploring ↗</button></div>
+<div class="cinema-caption"><span id="cinema-number" class="eyebrow">01 / A WALK THROUGH HOME</span><h2 id="cinema-title">An invitation inside</h2><p id="cinema-subtitle">22 Budd Street</p></div>
+<div class="cinema-bottom"><div class="cinema-buttons"><button id="cinema-play" aria-pressed="false">Play</button><button id="cinema-restart" aria-label="Restart cinematic tour">↺</button><a class="film-download" href="media/budd-street-cinematic.mp4" download="Budd-Street-Cinematic.mp4">Save film ↗</a><span id="cinema-time">00 / 20s</span></div><label class="sr-only" for="cinema-seek">Cinematic tour position</label><input id="cinema-seek" type="range" min="0" max="20" value="0" step="0.05"></div>
+</section>
 </main>
 <dialog id="gallery">
 <div class="dialog-head">

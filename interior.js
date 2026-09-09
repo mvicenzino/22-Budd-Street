@@ -6,6 +6,8 @@ import {defaultWall} from './paint-plan.js';
 import {findPath, smooth} from './navigation.js';
 import {INNER, EYE, LEVELS, GRADE, OPENINGS, PARTITIONS, STAIR, LOFT_STAIR, ROOMS, NODES} from './plan.js';
 import {mergeStatic} from './merge.js';
+import {RoundedBoxGeometry} from './vendor/RoundedBoxGeometry.js';
+import {surfaceTexture} from './materials.js';
 import {FLOORING, WALL_COLORS, RUGS, KITCHEN_FLOORS, COUNTERS, BASEMENT_FLOORS, loadDesign, saveDesign, createDesignPanel} from './design.js';
 
 const $ = s => document.querySelector(s);
@@ -72,6 +74,22 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     fabric: mat('#8f9ca4'), cushion: mat('#d8d3c6'), sectional: mat('#cbc2b1', {roughness: .95}), pillow: mat('#a9b2a8', {roughness: .95}),
     linen: mat('#e9e4d8'), quilt: mat('#7c8b9a'), quiltWarm: mat('#b98c6b'), frame: mat('#2b2f31', {roughness: .5}),
   };
+  for (const role of ['fabric','cushion','sectional','pillow','linen','quilt','quiltWarm']) {
+    const previous=palette[role];
+    palette[role]=new THREE.MeshPhysicalMaterial({color:previous.color,roughness:.86,sheen:.55,sheenRoughness:.8,sheenColor:new THREE.Color('#ded8c9')});
+    palette[role].userData.edgeRadius=role==='pillow'?.065:.035;
+    previous.dispose();
+  }
+  const furnitureGrain=surfaceTexture(renderer,'oak',[1,1]);
+  for (const role of ['wood','woodLight','rustic']) {
+    palette[role].map=furnitureGrain;
+    palette[role].bumpMap=furnitureGrain;
+    palette[role].bumpScale=.003;
+    palette[role].userData.edgeRadius=.006;
+  }
+  cabinet.userData.edgeRadius=.004;
+  steel.userData.edgeRadius=.005;
+  porcelain.userData.edgeRadius=.009;
   const STYLE_COLORS = {
     traditional: {wood: '#7d5b3f', woodLight: '#c9b18f', rustic: '#4a3b31', fabric: '#82827a', cushion: '#8f8f86', sectional: '#82827a', pillow: '#8a5a3f', linen: '#e9e4d8', quilt: '#7c8b9a', quiltWarm: '#b98c6b', frame: '#2b2f31'},
     modern: {wood: '#2e3033', woodLight: '#cbb392', rustic: '#3a3c3f', fabric: '#4d5359', cushion: '#e7e4dd', sectional: '#585d63', pillow: '#c9b79a', linen: '#f2f1ee', quilt: '#3f464c', quiltWarm: '#8a7b6a', frame: '#1e2022'},
@@ -89,7 +107,9 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   let parentGroup = group; // where box() puts new meshes; room builders retarget this
 
   function box(w, h, d, x, yBottom, z, m, parent = parentGroup) {
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+    const radius=!Array.isArray(m)&&m.userData.edgeRadius;
+    const geometry=radius&&Math.min(w,h,d)>.024 ? new RoundedBoxGeometry(w,h,d,2,Math.min(radius,Math.min(w,h,d)*.24)) : new THREE.BoxGeometry(w,h,d);
+    const mesh = new THREE.Mesh(geometry, m);
     mesh.position.set(x, yBottom + h / 2, z);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -128,16 +148,17 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     for (let r = 0; r < rows; r++) {
       const tone = 216 + Math.floor(rnd() * 30);
       g.fillStyle = `rgb(${tone},${tone - 2},${tone - 5})`;
-      g.fillRect(0, r * h, 1024, h - 4);
-      g.fillStyle = 'rgba(60,40,25,.5)';
-      g.fillRect(0, r * h + h - 4, 1024, 4);
-      g.fillRect(Math.floor(rnd() * 1024), r * h, 4, h);
-      g.strokeStyle = 'rgba(90,60,35,.16)';
-      g.lineWidth = 2;
-      for (let i = 0; i < 6; i++) {
+      g.fillRect(0, r * h, 1024, h - 2);
+      g.fillStyle = 'rgba(60,40,25,.32)';
+      g.fillRect(0, r * h + h - 2, 1024, 2);
+      g.fillRect(Math.floor(rnd() * 1024), r * h, 2, h);
+      g.strokeStyle = 'rgba(90,60,35,.095)';
+      g.lineWidth = .65;
+      for (let i = 0; i < 38; i++) {
         g.beginPath();
-        g.moveTo(0, r * h + 12 + i * 18);
-        g.lineTo(1024, r * h + 8 + i * 18 + Math.floor(rnd() * 5));
+        const gy=r*h+3+i*3.2, phase=rnd()*9;
+        g.moveTo(0,gy);
+        for(let x=0;x<=1024;x+=16)g.lineTo(x,gy+Math.sin(x*.014+phase)*1.4+Math.sin(x*.035+phase)*.5);
         g.stroke();
       }
     }
@@ -175,7 +196,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     return seam * (.7 + .3 * grain);
   }, 2.2, new THREE.Vector2(3, 7.5));
   const fabricNormal = normalTexture(128, (x, y) => ((x % 4 < 2) !== (y % 4 < 2) ? 1 : 0) * .6 + (Math.sin(x * 1.7) * Math.sin(y * 1.3)) * .2 + .2, 1.6, new THREE.Vector2(14, 14));
-  const floorMat = new THREE.MeshStandardMaterial({map: plankTexture(), normalMap: plankNormal, normalScale: new THREE.Vector2(.22, .22), roughness: .58, color: FLOORING[0].color});
+  const floorMat = new THREE.MeshPhysicalMaterial({map: plankTexture(), normalMap: plankNormal, normalScale: new THREE.Vector2(.12, .12), roughness: .46, clearcoat:.12,clearcoatRoughness:.45,color: FLOORING[0].color});
   for (const m of ['fabric', 'cushion', 'sectional', 'pillow', 'linen', 'quilt', 'quiltWarm']) { palette[m].normalMap = fabricNormal; palette[m].normalScale = new THREE.Vector2(.18, .18); palette[m].roughness = .92; }
   const slabMats = [trim, trim, floorMat, ceilingPaint, trim, trim];
   const W = INNER.x * 2 + .2, D = INNER.z * 2 + .2;
@@ -1642,7 +1663,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     $('#design-panel').hidden = tab.dataset.tab !== 'design';
   };
 
-  const groundOutside = hemisphere.groundColor.clone(), groundInside = new THREE.Color('#cfcfca'), skyOutside = hemisphere.intensity, skyInside = 1.2;
+  const groundOutside = hemisphere.groundColor.clone(), groundInside = new THREE.Color('#cfcfca'), skyOutside = hemisphere.intensity, skyInside = .95;
   function slerpTo(duration, position, quaternion, fovTo, glassTo, lightTo, done) {
     const p0 = camera.position.clone(), q0 = camera.quaternion.clone(), f0 = camera.fov, g0 = glassLower.opacity, l0 = lights[0].intensity / lights[0].userData.max, c0 = hemisphere.groundColor.clone(), h0 = hemisphere.intensity;
     tween(duration, t => {
@@ -1726,6 +1747,34 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     else closeDoors();
   }
 
+  let cinemaSnapshot=null;
+  function beginCinema() {
+    if(busy()||!['outside','inside'].includes(state))return false;
+    exitOverview(true);
+    cinemaSnapshot={state,mode:document.body.dataset.mode,position:camera.position.clone(),quaternion:camera.quaternion.clone(),fov:camera.fov,glass:glassLower.opacity,hemisphere:hemisphere.intensity,ground:hemisphere.groundColor.clone(),lights:lights.map(l=>l.intensity),doors:{...doorState},arrows:arrows.visible};
+    state='cinematic';document.body.dataset.mode='cinematic';
+    controls.enabled=false;arrows.visible=false;renderer.clippingPlanes=[];
+    glassLower.opacity=.18;hemisphere.intensity=skyInside;hemisphere.groundColor.copy(groundInside);
+    lights.forEach(l=>{l.intensity=l.userData.max;});
+    return true;
+  }
+  function cinemaFrame(pose) {
+    camera.position.fromArray(pose.position);camera.lookAt(...pose.target);
+    camera.fov=camera.aspect<1?Math.min(86,pose.fov+18):pose.fov;camera.updateProjectionMatrix();
+    setDoor('front',ease(pose.door));
+  }
+  function endCinema() {
+    if(!cinemaSnapshot)return;
+    const saved=cinemaSnapshot;cinemaSnapshot=null;
+    state=saved.state;document.body.dataset.mode=saved.mode||'';
+    camera.position.copy(saved.position);camera.quaternion.copy(saved.quaternion);camera.fov=saved.fov;camera.updateProjectionMatrix();
+    glassLower.opacity=saved.glass;hemisphere.intensity=saved.hemisphere;hemisphere.groundColor.copy(saved.ground);
+    lights.forEach((l,i)=>{l.intensity=saved.lights[i];});
+    Object.assign(doorState,saved.doors);Object.entries(doorState).forEach(([name,k])=>setDoor(name,k));
+    arrows.visible=saved.arrows;controls.enabled=state==='outside';
+    if(state==='inside')settle(current);
+    clock=performance.now();lastState='';
+  }
   let clock = performance.now(), lastState = '';
   const navigationState = () => ({state, current: current?.id, busy: busy(), overview: !!overview});
   function update() {
@@ -1750,5 +1799,5 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     }
   }
 
-  return {get active() { return state !== 'outside'; }, get navigation() { return navigationState(); }, group, enter, exit, walkTo, update};
+  return {get active() { return state !== 'outside'; }, get navigation() { return navigationState(); }, group, enter, exit, walkTo, update,beginCinema,cinemaFrame,endCinema};
 }

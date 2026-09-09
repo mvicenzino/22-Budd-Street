@@ -14,6 +14,7 @@ export function surfaceTexture(renderer, kind, repeat) {
     let value = 212 + noise * 34;
     if (kind === 'roof') value -= y % 32 < 2 || (x + (Math.floor(y / 32) % 2) * 32) % 64 < 1 ? 48 : 0;
     if (kind === 'lawn') value = 210 + noise * 35 + 9 * Math.sin(x * .13) * Math.sin(y * .11);
+    if (kind === 'oak') value = 228 + noise * 9 + 7 * Math.sin(y * 1.3 + Math.sin(x * .045) * 2) + 4 * Math.sin(y * .21 + Math.sin(x * .02));
     data.data[i] = data.data[i + 1] = data.data[i + 2] = value;
     data.data[i + 3] = 255;
   }
