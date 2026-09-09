@@ -3,7 +3,7 @@ import {OrbitControls} from './OrbitControls.js';
 import {SHELL,OPENINGS,FEATURES,FOUNDATION} from './plan.js';
 import {createInterior} from './interior.js';
 import {mergeStatic} from './merge.js';
-import {createPostPipeline,skyEnvironment} from './post.js';
+import {createPostPipeline,skyEnvironment,loadSkyPhoto} from './post.js';
 const $=s=>document.querySelector(s);
 $('#photos').onclick=()=>$('#gallery').showModal();$('#close').onclick=()=>$('#gallery').close();
 try{start()}catch(e){$('#error').hidden=false;console.error(e)}
@@ -14,6 +14,7 @@ const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(
 scene.environment=skyEnvironment(renderer);scene.environmentIntensity=.35;const post=createPostPipeline(renderer);
 const camera=new THREE.PerspectiveCamera(40,1,.1,180),controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.dampingFactor=.075;controls.minDistance=9;controls.maxDistance=65;controls.maxPolarAngle=Math.PI/2-.025;controls.target.set(0,3,0);controls.enablePan=true;
 const hemisphere=new THREE.HemisphereLight('#e4f2ff','#8a8d72',2);scene.add(hemisphere);const sun=new THREE.DirectionalLight('#fff4df',3);sun.position.set(-14,25,16);sun.castShadow=true;sun.shadow.mapSize.set(4096,4096);Object.assign(sun.shadow.camera,{left:-18,right:18,top:18,bottom:-18,near:1,far:90});sun.shadow.camera.updateProjectionMatrix();sun.shadow.bias=-.00015;sun.shadow.normalBias=.025;sun.shadow.radius=2;scene.add(sun);
+loadSkyPhoto(renderer,scene,'sky.jpg',Math.atan2(sun.position.z,sun.position.x));scene.fog.color.set('#dfe8ef');
 const mat=(c,o={})=>new THREE.MeshStandardMaterial({color:c,roughness:.85,...o});const white=mat('#eeeee4'),siding=mat('#d9dbcf'),trim=mat('#f7f6ed'),red=mat('#78332e'),wood=mat('#815142'),stone=mat('#a49172'),dark=mat('#383e3c'),glass=mat('#52696b',{metalness:.25,roughness:.28}),roof=mat('#72685b'),grass=mat('#7c906a'),asphalt=mat('#53595b'),screen=mat('#343e3b',{transparent:true,opacity:.53,side:THREE.DoubleSide,depthWrite:false});
 const sidingSeams=white.clone(),shutterFinish=red.clone(),paint=mat('#f3efe6'),glassLower=mat('#7f9a9e',{metalness:.2,roughness:.2,transparent:true,opacity:.55,depthWrite:false});
 const home=new THREE.Group();scene.add(home);

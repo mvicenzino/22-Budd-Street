@@ -2,7 +2,28 @@
 // tone mapping and a soft vignette. Also builds the procedural sky environment used for reflections.
 import * as THREE from 'three';
 
-// A gentle sky-and-ground gradient, pre-filtered for image-based lighting.
+// Photographed sky (Poly Haven "Kloofendal 48d partly cloudy", CC0), used as the backdrop and,
+// pre-filtered, as the light source for reflections. `sunAzimuth` is the compass angle of the
+// scene's sun light so the photo's sun sits in the same direction.
+export function loadSkyPhoto(renderer, scene, url, sunAzimuth) {
+  new THREE.TextureLoader().load(url, tex => {
+    tex.mapping = THREE.EquirectangularReflectionMapping;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const env = pmrem.fromEquirectangular(tex).texture;
+    pmrem.dispose();
+    const PHOTO_SUN = .565; // azimuth of the sun in this panorama
+    const rotation = sunAzimuth - PHOTO_SUN;
+    scene.environment = env;
+    scene.environmentRotation.set(0, rotation, 0);
+    scene.background = tex;
+    scene.backgroundRotation.set(0, rotation, 0);
+    scene.backgroundBlurriness = .015;
+  });
+}
+
+// A gentle sky-and-ground gradient, used until the photo arrives.
 export function skyEnvironment(renderer) {
   const c = document.createElement('canvas');
   c.width = 1024;
