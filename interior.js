@@ -884,7 +884,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       box(.01, .01, fw - .04, fx + .365, F.y + .68, az, grate);           // freezer drawer line
       box(.01, 1.08, .01, fx + .365, F.y + .7, az, grate);                 // split between the doors
       for (const s of [-1, 1]) box(.025, .7, .025, fx + .385, F.y + .88, az + s * .07, knob);
-      box(.4, .025, .025, fx + .385, F.y + .4, az, knob);
+      box(.025, .025, .4, fx + .385, F.y + .4, az, knob); // freezer drawer handle, lying across the door
       box(aX + .33, upperTop - 1.85, aZ[1] - aZ[0] - .02, (aX - .33) / 2, F.y + 1.85, az, cabinet);
       box(.02, .02, .02, aX + .01, F.y + 1.95, az, knob);
       box(aX + .33, F.ceil - F.y - upperTop, aZ[1] - aZ[0] + .1, (aX - .33) / 2, F.y + upperTop, az, paintFor('kitchen'));
