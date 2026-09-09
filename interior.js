@@ -344,6 +344,21 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   box(sw, .12, STAIR.landingZ1 - STAIR.landingZ0, sx, GRADE - .12, (STAIR.landingZ0 + STAIR.landingZ1) / 2, basementFloor);
   flight(STAIR.x0, STAIR.x1, STAIR.landingZ0, STAIR.shortTopZ, GRADE, F.y, 5, GRADE - .12, 0);
   railing(STAIR.x0 - .03, -.32, STAIR.shortTopZ + .25, F.y); // guard along the kitchen side of the stairwell
+  {
+    // Beadboard door at the top of the short flight (the cellar / side-door stair), hinged on the guard side.
+    const hinge = new THREE.Group();
+    hinge.userData.dynamic = true;
+    hinge.position.set(STAIR.x0 + .02, F.y, STAIR.shortTopZ);
+    group.add(hinge);
+    const w = STAIR.x1 - STAIR.x0 - .05;
+    box(w, 2.02, .04, w / 2, 0, 0, trim, hinge);
+    for (let i = 1; i < 6; i++) box(.006, 1.9, .006, w * i / 6, .06, .022, mat('#d9d6cc'), hinge);
+    box(.03, .03, .03, w - .07, .95, .035, mat('#c9a955', {metalness: .8, roughness: .3}), hinge);
+    doors.cellar = hinge;
+    box(.075, 2.1, .1, STAIR.x0 - .04, F.y, STAIR.shortTopZ, trim); // jambs
+    box(.075, 2.1, .1, STAIR.x1 - .02, F.y, STAIR.shortTopZ, trim);
+    box(STAIR.x1 - STAIR.x0 + .05, .08, .1, (STAIR.x0 + STAIR.x1) / 2, F.y + 2.04, STAIR.shortTopZ, trim);
+  }
   flight(STAIR.x0, STAIR.x1, STAIR.downBottomZ, STAIR.landingZ1, B.y, GRADE, 7, B.y, -1);
   // Basement structure: joists under the first floor, a girder on a steel column.
   for (let x = -INNER.x + .2; x < INNER.x; x += .4) box(.05, .2, INNER.z * 2, x, F.y - .3, 0, joist);
@@ -523,9 +538,11 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     g.fillRect(0, 0, 512, 512);
     if (c.kind === 'marble') {
       g.strokeStyle = c.vein;
-      for (let i = 0; i < c.veins; i++) {
-        g.globalAlpha = .35 + rnd() * .4;
-        g.lineWidth = 1 + rnd() * 2.5;
+      g.lineCap = 'round';
+      for (let i = 0; i < c.veins * 2; i++) {
+        const soft = i % 2 === 0; // alternate a wide faint vein with a fine sharper one
+        g.globalAlpha = soft ? .12 + rnd() * .1 : .3 + rnd() * .3;
+        g.lineWidth = soft ? 6 + rnd() * 8 : .8 + rnd() * 1.6;
         g.beginPath();
         let x = rnd() * 512, y = rnd() * 512;
         g.moveTo(x, y);
@@ -774,7 +791,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       const appliance = steel, navyLike = counterMaterial(k.counter), grate = mat('#2a2c2e', {roughness: .7});
       const ovenGlass = mat('#3a4247', {metalness: .3, roughness: .25}), knob = mat('#d8d9d6', {roughness: .4, metalness: .3});
       const rear = -INNER.z, right = INNER.x, depth = .6, h = .9, upperBottom = 1.5, upperTop = 2.4, upperDepth = .33;
-      const kx0 = .5, sideEnd = -1.4;
+      const kx0 = .5, sideEnd = -1.55, pantryZ = [-1.55, -1.0]; // powder-room face, side-run end, tall pantry
       if (k.floor !== 'match') { // 'match' leaves the house floor showing through
         box(STAIR.x0 + .32, .012, INNER.z - .32, (STAIR.x0 - .32) / 2, F.y, (rear - .32) / 2, kitchenFloorMaterial(k.floor)).castShadow = false;
         box(right - STAIR.x0, .012, STAIR.shortTopZ - rear, (right + STAIR.x0) / 2, F.y, (rear + STAIR.shortTopZ) / 2, kitchenFloorMaterial(k.floor)).castShadow = false;
@@ -795,12 +812,16 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       const bead = texture(beadCanvas);
       bead.wrapS = bead.wrapT = THREE.RepeatWrapping;
       const beadboard = len => { const t = bead.clone(); t.repeat.set(len / .32, 1); t.needsUpdate = true; return new THREE.MeshStandardMaterial({map: t, roughness: .6}); };
-      const winX = [2.25, 3.05], sill = 2.15 - F.y;
+      const winX = [2.25, 3.05], sill = 2.15 - F.y, rangeX = [.94, 1.7], dishX = [1.7, 2.3], sinkX = [2.3, 3.1];
+      // Layout from the plan and video: along the rear wall a corner cabinet, the range, the dishwasher and
+      // the sink under the window; side counter and a tall pantry on the driveway wall by the cellar door.
+      // Beadboard: rear backsplash cut around the window, west wall above the range and a full panel
+      // between range and fridge alcove, east backsplash along the side run.
       box(winX[0] - kx0, upperBottom - h, .02, (kx0 + winX[0]) / 2, F.y + h, rear + .01, beadboard(winX[0] - kx0));
       box(right - winX[1], upperBottom - h, .02, (winX[1] + right) / 2, F.y + h, rear + .01, beadboard(right - winX[1]));
       box(winX[1] - winX[0], sill - h, .02, (winX[0] + winX[1]) / 2, F.y + h, rear + .01, beadboard(winX[1] - winX[0]));
       box(.02, upperBottom - h, sideEnd - rear, right - .01, F.y + h, (rear + sideEnd) / 2, beadboard(sideEnd - rear));
-      const rangeX = [.95, 1.71], dishX = [1.71, 2.31], sinkX = [2.31, 3.11];
+      box(.02, upperTop, -2.6 - rear, kx0 + .01, F.y, (rear - 2.6) / 2, beadboard(-2.6 - rear)); // beadboard panel between the corner and the fridge alcove
       const baseCab = (x0, x1) => {
         box(x1 - x0, h - .1, depth, (x0 + x1) / 2, F.y + .1, rear + depth / 2, cabinet);
         box(x1 - x0, .1, depth - .08, (x0 + x1) / 2, F.y, rear + depth / 2 + .04, grate);
@@ -811,17 +832,26 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       baseCab(sinkX[1], right);
       const basinW = .56, basinD = .40, basinX = (sinkX[0] + sinkX[1]) / 2, basinZ = rear + depth / 2 + .015, cz = rear + depth / 2 + .015, cd = depth + .03;
       const bx0 = basinX - basinW / 2, bx1 = basinX + basinW / 2, bz0 = basinZ - basinD / 2, bz1 = basinZ + basinD / 2;
-      box(bx0 - sinkX[0], .04, cd, (sinkX[0] + bx0) / 2, F.y + h, cz, navyLike);
+      box(rangeX[0] - kx0 + .01, .04, cd, (kx0 - .01 + rangeX[0]) / 2, F.y + h, cz, navyLike); // corner cabinet top
+      box(bx0 - dishX[0] + .01, .04, cd, (dishX[0] - .01 + bx0) / 2, F.y + h, cz, navyLike); // over the dishwasher to the basin
       box(right + .01 - bx1, .04, cd, (bx1 + right + .01) / 2, F.y + h, cz, navyLike);
       box(basinW, .04, bz0 - (cz - cd / 2), basinX, F.y + h, (cz - cd / 2 + bz0) / 2, navyLike);
       box(basinW, .04, cz + cd / 2 - bz1, basinX, F.y + h, (bz1 + cz + cd / 2) / 2, navyLike);
-      box(rangeX[0] - kx0 + .02, .04, depth + .03, (kx0 + rangeX[0]) / 2, F.y + h, rear + depth / 2 + .015, navyLike);
+      // Side run along the driveway wall, then the tall pantry cabinet.
       box(depth, h - .1, sideEnd - rear - depth, right - depth / 2, F.y + .1, (rear + depth + sideEnd) / 2, cabinet);
       box(depth - .08, .1, sideEnd - rear - depth, right - depth / 2 - .04, F.y, (rear + depth + sideEnd) / 2, grate);
       box(depth + .03, .04, sideEnd - rear - depth + .02, right - depth / 2 - .015, F.y + h, (rear + depth + sideEnd) / 2, navyLike);
-      for (const z of [-2.9, -1.8]) box(.02, .02, .02, right - depth - .01, F.y + .62, z, knob);
+      for (const z of [-2.9, -2.0]) box(.02, .02, .02, right - depth - .01, F.y + .62, z, knob);
       box(.5, .3, .38, right - .3, F.y + h + .04, -2.75, appliance); // microwave
       box(.36, .2, .01, right - .55, F.y + h + .09, -2.75, ovenGlass);
+      {
+        const pz = (pantryZ[0] + pantryZ[1]) / 2, pw = pantryZ[1] - pantryZ[0], ph = 2.2;
+        box(depth, ph, pw, right - depth / 2, F.y, pz, cabinet);
+        box(.01, ph - .12, .005, right - depth - .003, F.y + .06, pz, mat('#d9d6cc')); // split between the two doors
+        box(.01, .005, pw - .1, right - depth - .003, F.y + 1.05, pz, mat('#d9d6cc'));  // upper/lower door line
+        for (const dz of [-.06, .06]) for (const y of [.95, 1.2]) box(.02, .02, .02, right - depth - .012, F.y + y, pz + dz, knob);
+        box(depth + .02, .06, pw + .02, right - depth / 2, F.y + ph, pz, cabinet); // crown
+      }
       // Sink under the rear window.
       const basinFloor = mat('#9da4a7', {metalness: .6, roughness: .35}), basinDepth = .18;
       box(basinW, .02, basinD, basinX, F.y + h + .04 - basinDepth, basinZ, basinFloor);
@@ -832,21 +862,20 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       box(.06, .012, .06, basinX, F.y + h + .04 - basinDepth + .02, basinZ, black); // drain
       box(.035, .24, .035, basinX, F.y + h + .04, rear + .1, steel); // faucet
       box(.035, .035, .2, basinX, F.y + h + .26, rear + .19, steel);
-      // Dishwasher.
+      // Dishwasher beside the sink.
       box(dishX[1] - dishX[0] - .02, h - .04, depth, (dishX[0] + dishX[1]) / 2, F.y + .02, rear + depth / 2, appliance);
       box(dishX[1] - dishX[0] - .1, .05, .01, (dishX[0] + dishX[1]) / 2, F.y + h - .1, rear + depth + .005, grate);
-      box(dishX[1] - dishX[0] - .02, .04, depth + .03, (dishX[0] + dishX[1]) / 2, F.y + h, rear + depth / 2 + .015, navyLike);
-      // Four-burner range.
-      const rx = (rangeX[0] + rangeX[1]) / 2, rw = rangeX[1] - rangeX[0];
-      box(rw, h + .02, depth + .05, rx, F.y, rear + depth / 2 + .02, appliance);
-      box(rw - .04, .02, depth - .08, rx, F.y + h + .02, rear + depth / 2 + .02, grate);
+      // Four-burner range on the rear wall beside the dishwasher.
+      const rx = (rangeX[0] + rangeX[1]) / 2, rw = rangeX[1] - rangeX[0], rz = rear + depth / 2 + .02;
+      box(rw, h + .02, depth + .05, rx, F.y, rz, appliance);
+      box(rw - .04, .02, depth - .08, rx, F.y + h + .02, rz, grate);
       for (const dx of [-.19, .19]) for (const dz of [-.14, .14]) {
-        box(.2, .012, .2, rx + dx, F.y + h + .04, rear + depth / 2 + .02 + dz, grate);
-        box(.07, .008, .07, rx + dx, F.y + h + .052, rear + depth / 2 + .02 + dz, black);
+        box(.2, .012, .2, rx + dx, F.y + h + .04, rz + dz, grate);
+        box(.07, .008, .07, rx + dx, F.y + h + .052, rz + dz, black);
       }
-      box(rw, .16, .08, rx, F.y + h + .02, rear + .05, appliance);
+      box(rw, .16, .08, rx, F.y + h + .02, rear + .05, appliance); // backguard
       box(.3, .06, .01, rx, F.y + h + .07, rear + .095, ovenGlass);
-      box(rw - .16, .34, .01, rx, F.y + .28, rear + depth + .06, ovenGlass);
+      box(rw - .16, .34, .01, rx, F.y + .28, rear + depth + .06, ovenGlass); // oven window
       box(rw - .1, .03, .04, rx, F.y + .7, rear + depth + .07, knob);
       for (let i = 0; i < 4; i++) box(.045, .045, .03, rangeX[0] + .12 + i * .17, F.y + .78, rear + depth + .07, knob);
       // French-door refrigerator in its alcove on the dining-room wall, facing the kitchen.
@@ -860,7 +889,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       box(.02, .02, .02, aX + .01, F.y + 1.95, az, knob);
       box(aX + .33, F.ceil - F.y - upperTop, aZ[1] - aZ[0] + .1, (aX - .33) / 2, F.y + upperTop, az, paintFor('kitchen'));
       box(.06, F.ceil - F.y - upperTop, aZ[1] - aZ[0] + .16, aX + .01, F.y + upperTop, az, trim);
-      // Upper cabinets and hood.
+      // Upper cabinets: rear wall either side of the window, hood and cabinet over the range, side wall.
       const upper = (x0, x1, y0 = upperBottom) => {
         box(x1 - x0, upperTop - y0, upperDepth, (x0 + x1) / 2, F.y + y0, rear + upperDepth / 2, cabinet);
         box(.005, upperTop - y0 - .08, .01, (x0 + x1) / 2, F.y + y0 + .04, rear + upperDepth + .003, mat('#d9d6cc'));
@@ -868,12 +897,12 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       };
       upper(kx0, rangeX[0]);
       upper(rangeX[0], rangeX[1], 1.75);
-      box(rangeX[1] - rangeX[0], .12, upperDepth + .1, rx, F.y + 1.62, rear + (upperDepth + .1) / 2, appliance);
+      box(rw, .12, upperDepth + .1, rx, F.y + 1.62, rear + (upperDepth + .1) / 2, appliance); // hood
       upper(rangeX[1], winX[0] - .02);
       upper(winX[1] + .02, right);
       box(upperDepth, upperTop - upperBottom, sideEnd - rear - upperDepth, right - upperDepth / 2, F.y + upperBottom, (rear + upperDepth + sideEnd) / 2, cabinet);
       for (const z of [-3.2, -2.0]) for (const dz of [-.06, .06]) box(.02, .02, .02, right - upperDepth - .01, F.y + upperBottom + .1, z + dz, knob);
-      box(right - kx0, .06, upperDepth + .02, (right + kx0) / 2, F.y + upperTop, rear + upperDepth / 2, cabinet);
+      box(right - kx0, .06, upperDepth + .02, (right + kx0) / 2, F.y + upperTop, rear + upperDepth / 2, cabinet); // crown
       // Peninsula perpendicular to the short wall at the kitchen entrance (the pantry's kitchen-facing
       // end, x 1.05..1.7 at z = -.9, beside the hallway opening). It runs south into the room, drawers
       // toward the range and sink on the west, seating overhang toward the hallway side on the east.
@@ -888,14 +917,21 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
         box(D - .08, .1, L - .08, cx, F.y, cz, grate);
         box(D + OH + .015, .04, L + .015, (x0 - .015 + x1 + OH) / 2, F.y + h, cz - .0075, navyLike); // top, overhang to the east
         box(.005, h - .3, L - .1, x1 + .003, F.y + .14, cz, mat('#d9d6cc')); // panel seam on the seating side
-        // Kitchen-facing (west) storage: three drawers toward the entrance, a door beyond.
-        const dw = Math.min(.55, L * .45), dz = z1 - dw / 2, doorZ = (z0 + z1 - dw) / 2, doorW = L - dw;
+        // Kitchen-facing (west) storage: three shaker drawers toward the entrance, a shaker door beyond,
+        // dark reveals between fronts and brushed cup pulls so the fronts read from across the room.
+        const reveal = mat('#6d6a63', {roughness: .8}), pull = mat('#9aa0a5', {metalness: .8, roughness: .3});
+        const dw = Math.min(.5, L * .5), dz = z1 - dw / 2, doorZ = (z0 + z1 - dw) / 2, doorW = L - dw, faceX = x0 - .008;
+        box(.004, h - .08, L - .02, x0 - .002, F.y + .04, cz, reveal); // shadow line behind the fronts
+        const shaker = (yb, hh, zc, ww) => {
+          box(.016, hh, ww, faceX, yb, zc, trim);
+          box(.006, hh - .09, ww - .09, faceX - .009, yb + .045, zc, cabinet); // recessed panel
+        };
         for (let i = 0; i < 3; i++) {
-          box(.012, .2, dw - .05, x0 - .006, F.y + .12 + i * .245, dz, trim);
-          box(.02, .02, .02, x0 - .015, F.y + .22 + i * .245, dz, knob);
+          shaker(F.y + .1 + i * .255, .225, dz, dw - .02);
+          box(.03, .025, .11, faceX - .022, F.y + .2 + i * .255, dz, pull); // cup pull
         }
-        box(.012, h - .22, doorW - .05, x0 - .006, F.y + .12, doorZ, trim);
-        box(.02, .02, .02, x0 - .015, F.y + .62, doorZ + doorW / 2 - .08, knob);
+        shaker(F.y + .1, h - .19, doorZ, doorW - .02);
+        box(.03, .1, .025, faceX - .022, F.y + .58, doorZ + doorW / 2 - .07, pull);
         // Counter-height stools tucked under the east overhang.
         const n = pen.stools || 0, seatY = F.y + .66;
         for (let i = 0; i < n; i++) {
@@ -1210,13 +1246,14 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   // ---- Camera state and input --------------------------------------------------------
   let state = 'outside', current = null, yaw = 0, pitch = 0, fov = 62;
   let overview = null; // {yaw, pitch, dist, target}: cutaway view of the current floor from above
+  let fovMaxAt = 0; // when the first-person view last hit its widest, for the overview gesture
   const queue = [];
   const tween = (duration, step, done) => queue.push({duration, step, done, t: 0});
   const applyLook = () => { camera.rotation.set(pitch, yaw, 0, 'YXZ'); };
   const busy = () => queue.length > 0;
 
   const quaternionFor = (y, p) => new THREE.Quaternion().setFromEuler(new THREE.Euler(p, y, 0, 'YXZ'));
-  const doorState = {front: 0, rear: 0, loft: 0};
+  const doorState = {front: 0, rear: 0, loft: 0, cellar: 0};
   function setDoor(name, k) {
     const d = doors[name];
     if (!d) return;
@@ -1267,7 +1304,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     showLevel(levelOf(node));
     if (state !== 'inside' || busy()) return;
     const targetYaw = node.look ? shortest(yaw, yawBetween(node, {x: node.look[0], z: node.look[1]})) : yaw;
-    const startYaw = yaw, startPitch = pitch, targetPitch = -.12;
+    const startYaw = yaw, startPitch = pitch, targetPitch = node.pitch ?? -.12; // spots can tilt down toward low features
     tween(Math.abs(targetYaw - startYaw) > .05 ? .8 : .3, t => {
       yaw = lerp(startYaw, targetYaw, t);
       pitch = lerp(startPitch, targetPitch, t);
@@ -1477,7 +1514,15 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       return;
     }
     const next = fov + e.deltaY * .04;
-    if (next > 92 && e.deltaY > 0) { enterOverview(); return; }
+    if (next > 92 && e.deltaY > 0) {
+      // Only lift into the overview on a deliberate second push after the view is already at its widest.
+      if (fov >= 91.9 && performance.now() - fovMaxAt > 250) enterOverview();
+      else if (fov < 91.9) fovMaxAt = performance.now();
+      fov = 92;
+      camera.fov = fov;
+      camera.updateProjectionMatrix();
+      return;
+    }
     fov = Math.max(34, Math.min(92, next));
     camera.fov = fov;
     camera.updateProjectionMatrix();

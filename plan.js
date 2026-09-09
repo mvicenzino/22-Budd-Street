@@ -149,16 +149,18 @@ const stairX = (STAIR.x0 + STAIR.x1) / 2, loftX = (LOFT_STAIR.x0 + LOFT_STAIR.x1
 const mainStairUp = [[stairX, STAIR.upBottomZ + .2, F.y], [stairX, STAIR.upTopZ - .3, S.y]];
 const toLanding = [[stairX, STAIR.shortTopZ - .2, F.y]];
 const toBasement = [[stairX, STAIR.downBottomZ + .3, B.y]];
-const aroundPeninsula = [[.9, -1.5, F.y], [1.3, -2.55, F.y], [2.2, -2.55, F.y]]; // dining to kitchen passes south of the peninsula
 const loftStairUp = [[loftX, LOFT_STAIR.z0 - .35, S.y], [loftX, LOFT_STAIR.z1 + .3, L.y]];
 const reverse = via => [...via].reverse();
 export const NODES = [
   {id: 'porch', room: 'porch', x: 2.72, z: SHELL.z + 2.05, floor: 1.115, links: [{to: 'hall', door: 'front'}]},
-  {id: 'hall', room: 'hall', x: 2.45, z: 2.6, look: [2.4, -.3], links: [{to: 'porch', door: 'front'}, {to: 'living'}, {to: 'kitchen', via: [[2.4, -.6, F.y]]}, {to: 'hall2', via: mainStairUp, label: 'Upstairs'}]},
+  {id: 'hall', room: 'hall', x: 2.45, z: 2.6, look: [2.4, -.3], links: [{to: 'porch', door: 'front'}, {to: 'living'}, {to: 'kitchenEntry', label: 'Kitchen'}, {to: 'hall2', via: mainStairUp, label: 'Upstairs'}]},
   {id: 'living', room: 'living', x: -.1, z: 1.6, look: [-2.2, 3.4], links: [{to: 'hall'}, {to: 'dining'}]},
-  {id: 'dining', room: 'dining', x: -1.5, z: -1.1, look: [-2.1, -2.6], links: [{to: 'living'}, {to: 'kitchen', via: aroundPeninsula}, {to: 'rear', door: 'rear'}]},
-  {id: 'kitchen', room: 'kitchen', x: 2.6, z: -1.75, look: [2.2, -3.85], links: [{to: 'hall', via: [[2.4, -.6, F.y]]}, {to: 'dining', via: reverse(aroundPeninsula)}, {to: 'landing', via: [[2.55, -1.15, F.y], ...toLanding], label: 'Down to side door'}]},
-  {id: 'landing', room: 'landing', x: stairX, z: (STAIR.landingZ0 + STAIR.landingZ1) / 2, floor: GRADE, look: [3.3, -1.2], links: [{to: 'kitchen', via: [...reverse(toLanding), [2.55, -1.15, F.y]], label: 'Up to kitchen'}, {to: 'basement', via: toBasement, label: 'Down to basement'}]},
+  {id: 'dining', room: 'dining', x: -1.5, z: -1.1, look: [-2.1, -2.6], links: [{to: 'living'}, {to: 'kitchenWork', via: [[.9, -1.5, F.y]], label: 'Kitchen'}, {to: 'rear', door: 'rear'}]},
+  {id: 'kitchenEntry', room: 'kitchen', name: 'Kitchen entrance', x: 2.4, z: -.75, look: [2.2, -3.4], links: [{to: 'hall'}, {to: 'kitchen', label: 'By the stools'}, {to: 'kitchenSink', label: 'To the sink'}, {to: 'landing', via: toLanding, door: 'cellar', label: 'Down to side door'}]},
+  {id: 'kitchen', room: 'kitchen', name: 'Kitchen, by the stools', x: 2.6, z: -1.75, look: [1.4, -3.4], links: [{to: 'kitchenEntry', label: 'Back to the entrance'}, {to: 'kitchenSink', label: 'To the sink'}, {to: 'kitchenWork', label: 'Over by the range'}, {to: 'landing', via: [[2.55, -1.15, F.y], ...toLanding], door: 'cellar', label: 'Down to side door'}]},
+  {id: 'kitchenSink', room: 'kitchen', name: 'Kitchen, at the sink', x: 2.7, z: -2.55, look: [2.7, -3.85], links: [{to: 'kitchen', label: 'By the stools'}, {to: 'kitchenWork', label: 'Over by the range'}, {to: 'kitchenEntry', label: 'Back to the entrance'}]},
+  {id: 'kitchenWork', room: 'kitchen', name: 'Kitchen, by the range', x: 1.35, z: -2.5, look: [1.3, -3.85], pitch: -.1, links: [{to: 'kitchenSink', label: 'To the sink'}, {to: 'kitchen', label: 'By the stools'}, {to: 'dining', via: [[.9, -1.5, F.y]]}]},
+  {id: 'landing', room: 'landing', x: stairX, z: (STAIR.landingZ0 + STAIR.landingZ1) / 2, floor: GRADE, look: [3.3, -1.2], links: [{to: 'kitchenEntry', via: reverse(toLanding), door: 'cellar', label: 'Up to kitchen'}, {to: 'basement', via: toBasement, label: 'Down to basement'}]},
   {id: 'basement', room: 'basement', name: 'Basement, by the stairs', x: 1.9, z: 1.5, look: [-2, -1.5], links: [{to: 'landing', via: reverse(toBasement), label: 'Up to side door'}, {to: 'basementRear'}]},
   {id: 'basementRear', room: 'basement', name: 'Basement, far corner', x: -1.6, z: -1.8, look: [2.5, 2.5], links: [{to: 'basement'}]},
   {id: 'rear', room: 'rear', x: -1.9, z: -SHELL.z - 1.4, links: [{to: 'dining', door: 'rear'}]},

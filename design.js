@@ -43,7 +43,7 @@ export const RUGS = [
 export const KITCHEN_FLOORS = [{id: 'match', name: 'Match the house floor', color: '#c9a074'}, {id: 'checker', name: 'Checkerboard (existing)', color: '#d9d5c8'}, ...FLOORING];
 
 export const COUNTERS = [
-  {id: 'alabaster', name: 'Alabaster quartz', base: '#f4f2ed', vein: '#cfcac0', kind: 'marble', veins: 5},
+  {id: 'alabaster', name: 'Alabaster quartz', base: '#f4f2ed', vein: '#a9a398', kind: 'marble', veins: 6},
   {id: 'marble', name: 'White marble', base: '#f1f0ec', vein: '#9a9ea3', kind: 'marble', veins: 8},
   {id: 'navy', name: 'Navy laminate (existing)', base: '#27325f', kind: 'plain'},
   {id: 'quartz', name: 'White quartz', base: '#ececea', speck: ['#d9d9d6', '#c8c8c4'], kind: 'granite', density: .35},
@@ -70,7 +70,7 @@ export const BASEMENT_FLOORS = [
   ...FLOORING.map(f => ({...f, name: f.name + ' LVP'})),
 ];
 
-export const DEFAULT_DESIGN = {version: 3, flooring: 'natural', style: 'traditional', kitchen: {floor: 'match', counter: 'alabaster', island: 'none', peninsula: {show: true, length: 42, depth: 21, overhang: 10, stools: 2}}, basement: {floor: 'concrete'}, rooms: {}};
+export const DEFAULT_DESIGN = {version: 4, flooring: 'natural', style: 'traditional', kitchen: {floor: 'match', counter: 'alabaster', island: 'none', peninsula: {show: true, length: 36, depth: 21, overhang: 10, stools: 2}}, basement: {floor: 'concrete'}, rooms: {}};
 const STORAGE_KEY = 'budd-street-design';
 
 export function loadDesign() {
@@ -84,6 +84,7 @@ export function loadDesign() {
         const pen = saved.kitchen.peninsula = {...DEFAULT_DESIGN.kitchen.peninsula, ...(saved.kitchen.peninsula || {})};
         // Version 3 slimmed the peninsula; snap older choices to the new option sets.
         for (const key of ['length', 'depth', 'overhang']) if (!PENINSULA[key].includes(pen[key])) pen[key] = DEFAULT_DESIGN.kitchen.peninsula[key];
+        if ((saved.version || 1) < 4 && pen.length === 42) pen.length = 36; // version 4 default
       }
     }
     if (saved && typeof saved === 'object') return {...DEFAULT_DESIGN, ...saved, kitchen: {...DEFAULT_DESIGN.kitchen, ...(saved.kitchen || {})}, basement: {...DEFAULT_DESIGN.basement, ...(saved.basement || {})}, rooms: {...(saved.rooms || {})}};
