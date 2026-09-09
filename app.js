@@ -2,20 +2,25 @@ import * as THREE from 'three';
 import {OrbitControls} from './OrbitControls.js';
 import {SHELL,OPENINGS,FEATURES,FOUNDATION} from './plan.js';
 import {createInterior} from './interior.js';
+import {smooth, shortestAngle} from './navigation.js';
+import {createExperience} from './experience.js';
+import {surfaceTexture} from './materials.js';
 import {mergeStatic} from './merge.js';
 import {createPostPipeline,skyEnvironment,loadSkyPhoto} from './post.js';
 const $=s=>document.querySelector(s);
 $('#photos').onclick=()=>$('#gallery').showModal();$('#close').onclick=()=>$('#gallery').close();
-try{start()}catch(e){$('#error').hidden=false;console.error(e)}
+try{start()}catch(e){$('#error').hidden=false;$('#loading').hidden=true;console.error(e)}
 function start(){
 const host=$('#scene'),scene=new THREE.Scene();scene.background=new THREE.Color('#e7edf0');scene.fog=new THREE.Fog('#e7edf0',55,115);
-const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(Math.max(devicePixelRatio,1.5),2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;host.appendChild(renderer.domElement);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.AgXToneMapping;renderer.toneMappingExposure=1.25;host.appendChild(renderer.domElement);
 // Image-based lighting from a procedural sky, plus the AO/tone-mapping pipeline that draws every frame.
-scene.environment=skyEnvironment(renderer);scene.environmentIntensity=.35;const post=createPostPipeline(renderer);
+scene.environment=skyEnvironment(renderer);scene.environmentIntensity=.48;const post=createPostPipeline(renderer);
 const camera=new THREE.PerspectiveCamera(40,1,.1,180),controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.dampingFactor=.075;controls.minDistance=9;controls.maxDistance=65;controls.maxPolarAngle=Math.PI/2-.025;controls.target.set(0,3,0);controls.enablePan=true;
-const hemisphere=new THREE.HemisphereLight('#e4f2ff','#8a8d72',2.3);scene.add(hemisphere);const sun=new THREE.DirectionalLight('#fff4df',2.6);sun.position.set(-14,25,16);sun.castShadow=true;sun.shadow.mapSize.set(4096,4096);Object.assign(sun.shadow.camera,{left:-18,right:18,top:18,bottom:-18,near:1,far:90});sun.shadow.camera.updateProjectionMatrix();sun.shadow.bias=-.00015;sun.shadow.normalBias=.025;sun.shadow.radius=2;scene.add(sun);
+const exteriorFov=()=>THREE.MathUtils.radToDeg(2*Math.atan(Math.tan(THREE.MathUtils.degToRad(20))/Math.min(1,camera.aspect/.9)));
+const hemisphere=new THREE.HemisphereLight('#e4ecf2','#a0a38b',1.8);scene.add(hemisphere);const sun=new THREE.DirectionalLight('#fff0d5',3.1);sun.position.set(-14,25,16);sun.castShadow=true;sun.shadow.mapSize.set(4096,4096);Object.assign(sun.shadow.camera,{left:-18,right:18,top:18,bottom:-18,near:1,far:90});sun.shadow.camera.updateProjectionMatrix();sun.shadow.bias=-.00015;sun.shadow.normalBias=.025;sun.shadow.radius=2;scene.add(sun);
 loadSkyPhoto(renderer,scene,'sky.jpg',Math.atan2(sun.position.z,sun.position.x));scene.fog.color.set('#dfe8ef');
-const mat=(c,o={})=>new THREE.MeshStandardMaterial({color:c,roughness:.85,...o});const white=mat('#eeeee4'),siding=mat('#d9dbcf'),trim=mat('#f7f6ed'),red=mat('#78332e'),wood=mat('#815142'),stone=mat('#a49172'),dark=mat('#383e3c'),glass=mat('#52696b',{metalness:.25,roughness:.28}),roof=mat('#72685b'),grass=mat('#7c906a'),asphalt=mat('#53595b'),screen=mat('#343e3b',{transparent:true,opacity:.53,side:THREE.DoubleSide,depthWrite:false});
+const mat=(c,o={})=>new THREE.MeshStandardMaterial({color:c,roughness:.85,...o});const white=mat('#eeeee4'),siding=mat('#d9dbcf'),trim=mat('#f7f6ed'),red=mat('#78332e'),wood=mat('#815142'),stone=mat('#a49172'),dark=mat('#383e3c'),glass=mat('#52696b',{metalness:.25,roughness:.28}),roof=mat('#72685b'),grass=mat('#83926d'),asphalt=mat('#53595b'),screen=mat('#343e3b',{transparent:true,opacity:.53,side:THREE.DoubleSide,depthWrite:false});
+for(const [material,kind,repeat,bump] of [[roof,'roof',[5,4],.025],[grass,'lawn',[35,45],.012],[asphalt,'paving',[8,15],.008],[stone,'paving',[2,2],.016]]){material.map=surfaceTexture(renderer,kind,repeat);material.bumpMap=material.map;material.bumpScale=bump;}
 const sidingSeams=white.clone(),shutterFinish=mat('#15191c',{roughness:.7}),paint=mat('#f3efe6'),glassLower=mat('#7f9a9e',{metalness:.2,roughness:.2,transparent:true,opacity:.55,depthWrite:false});
 const home=new THREE.Group();scene.add(home);
 function box(w,h,d,x,y,z,m=white,parent=home){const a=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);a.position.set(x,y,z);a.castShadow=true;a.receiveShadow=true;parent.add(a);return a}
@@ -205,8 +210,8 @@ document.querySelectorAll('[data-porch]').forEach(b=>b.setAttribute('aria-presse
 const palette={white:'#eeefe9',light:'#b9bec0',medium:'#8a9195',dark:'#555d63',greige:'#b5ac9c'},c=palette[selectedPaint];
 document.querySelectorAll('[data-paint]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.paint===selectedPaint)));
 siding.color.set(futureMode?c:'#d9dbcf');doubleSiding.color.copy(siding.color);sidingSeams.color.set(futureMode?c:'#eeeee4');if(futureMode)sidingSeams.color.multiplyScalar(.91);
-shutterFinish.color.set('#15191c');futureYard.visible=futureMode;$('#future-options').hidden=false;$('#future').setAttribute('aria-pressed',String(futureMode));$('#future').textContent=futureMode?'Current model':'Future state';$('#mode-label').textContent=futureMode?'Future state · '+paintNames[selectedPaint]+' · black shutters':'Current model · photo-based exterior study';}
-$('#future').onclick=()=>{stop();futureMode=!futureMode;applyFuture()};document.querySelectorAll('[data-paint]').forEach(b=>b.onclick=()=>{futureMode=true;selectedPaint=b.dataset.paint;applyFuture()});
+shutterFinish.color.set('#15191c');futureYard.visible=futureMode;$('#future-options').hidden=false;$('#future').setAttribute('aria-pressed',String(futureMode));$('#future').textContent=futureMode?'Show the original':'Imagine the possibilities';$('#future-compare').textContent=futureMode?'View original exterior':'View planned exterior';$('#future-compare').setAttribute('aria-pressed',String(futureMode));$('#mode-label').textContent=futureMode?'Future state · '+paintNames[selectedPaint]+' · black shutters':'A home to explore. A future to imagine.';}
+$('#future').onclick=()=>{stop();futureMode=!futureMode;applyFuture()};$('#future-compare').onclick=()=>$('#future').click();document.querySelectorAll('[data-paint]').forEach(b=>b.onclick=()=>{futureMode=true;selectedPaint=b.dataset.paint;applyFuture()});
 document.querySelectorAll('[data-porch]').forEach(b=>b.onclick=()=>{futureMode=true;porchSelection[b.dataset.porch]=b.dataset.finish;applyFuture()});
 $('#steps-closeup').onclick=()=>{stop();target.set(2.3,1.2,6.7+PZ);theta=.38;distance=10;elevation=.32;setCamera();$('#viewname').textContent='Porch steps · color preview';$('#height').value=18};
 $('#porch-closeup').onclick=()=>{stop();target.set(0,2.1,5.2+PZ);theta=.18;distance=15;elevation=.24;setCamera();$('#viewname').textContent='Front porch · finish preview';$('#height').value=14};
@@ -232,20 +237,54 @@ for(let i=0;i<4;i++){
 }
 document.querySelectorAll('[data-curve]').forEach(b=>b.onclick=()=>{cornerCurves.fill(Number(b.dataset.curve));$('#patio-shape').value='custom';futureMode=true;applyFuture();rebuildPatio();$('#future-back').click()});
 rebuildPatio();
-let touring=false,theta=.65,last=performance.now(),elapsed=0;const target=new THREE.Vector3(0,3,0);let distance=25,elevation=.45;
-function setCamera(){camera.position.set(target.x+Math.sin(theta)*distance*Math.cos(elevation),target.y+distance*Math.sin(elevation),target.z+Math.cos(theta)*distance*Math.cos(elevation));controls.target.copy(target);controls.update()}
-function stop(){touring=false;$('#tour').textContent='▶ Start walk-around';$('#tour').setAttribute('aria-pressed','false');$('#tourstatus').textContent='360° exterior tour'}
-function reset(){stop();theta=.65;distance=25;elevation=.45;target.set(0,3,0);setCamera();$('#height').value=27}reset();
+let touring=false,theta=.56,last=performance.now(),elapsed=0,cameraMove=null;const target=new THREE.Vector3(0,3,0);let distance=28,elevation=.31;
+function setCamera(animate=true){
+  const position=new THREE.Vector3(target.x+Math.sin(theta)*distance*Math.cos(elevation),target.y+distance*Math.sin(elevation),target.z+Math.cos(theta)*distance*Math.cos(elevation));
+  if(!animate || $('#reduce-motion').checked){cameraMove=null;camera.position.copy(position);controls.target.copy(target);controls.update();return}
+  controls.enableDamping=false;controls.update();
+  const off=camera.position.clone().sub(controls.target),d=off.length();
+  cameraMove={start:performance.now(),fromTarget:controls.target.clone(),toTarget:target.clone(),theta0:Math.atan2(off.x,off.z),theta1:shortestAngle(Math.atan2(off.x,off.z),theta),elevation0:Math.asin(off.y/d),elevation1:elevation,distance0:d,distance1:distance};
+}
+function updateCamera(now){
+  if(!cameraMove)return;
+  const m=cameraMove,k=Math.min(1,(now-m.start)/1250),t=smooth(k),th=THREE.MathUtils.lerp(m.theta0,m.theta1,t),el=THREE.MathUtils.lerp(m.elevation0,m.elevation1,t),d=THREE.MathUtils.lerp(m.distance0,m.distance1,t);
+  controls.target.lerpVectors(m.fromTarget,m.toTarget,t);
+  camera.position.copy(controls.target).add(new THREE.Vector3(Math.sin(th)*d*Math.cos(el),d*Math.sin(el),Math.cos(th)*d*Math.cos(el)));
+  controls.update();
+  if(k===1){cameraMove=null;controls.enableDamping=true;}
+}
+function stop(){touring=false;cameraMove=null;controls.enableDamping=true;$('#tour').textContent='▷ Walk around';$('#tour').setAttribute('aria-pressed','false');$('#tourstatus').textContent='360° exterior tour'}
+function reset(animate=true){stop();theta=.56;distance=28;elevation=.31;target.set(0,3,0);setCamera(animate);$('#height').value=18;$('#viewname').textContent='Welcome to Budd Street';document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-pressed','false'))}reset(false);
 const names={front:'Front porch',right:'Driveway side',back:'Rear screened porch',left:'Left side',site:'Whole property · approximate layout'};
-document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{stop();let v=b.dataset.view;target.set(0,3,v==='site'?-7:(v==='back'&&futureMode?-8:0));theta=({front:0,right:Math.PI/2,back:Math.PI,left:-Math.PI/2,site:.6})[v];distance=v==='site'?47:(v==='back'&&futureMode?32:25);elevation=v==='site'?.7:(v==='back'&&futureMode?.55:.35);setCamera();$('#viewname').textContent=names[v];$('#height').value=elevation*180/Math.PI});
-$('#reset').onclick=reset;$('#height').oninput=e=>{stop();const offset=camera.position.clone().sub(controls.target);theta=Math.atan2(offset.x,offset.z);distance=offset.length();target.copy(controls.target);elevation=Number(e.target.value)*Math.PI/180;setCamera()};
-$('#tour').onclick=()=>{if(touring){stop();return}touring=true;elapsed=0;theta=0;target.set(0,2.4,0);distance=24;elevation=.22;$('#tour').textContent='Ⅱ Pause walk-around';$('#tour').setAttribute('aria-pressed','true');setCamera()};controls.addEventListener('start',stop);
+document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{stop();document.querySelectorAll('[data-view]').forEach(button=>button.setAttribute('aria-pressed',String(button===b)));let v=b.dataset.view;target.set(0,3,v==='site'?-7:(v==='back'&&futureMode?-8:0));theta=({front:0,right:Math.PI/2,back:Math.PI,left:-Math.PI/2,site:.6})[v];distance=v==='site'?47:(v==='back'&&futureMode?32:25);elevation=v==='site'?.7:(v==='back'&&futureMode?.55:.35);setCamera();$('#viewname').textContent=names[v];$('#height').value=elevation*180/Math.PI});
+$('#reset').onclick=()=>reset();$('#height').oninput=e=>{stop();const offset=camera.position.clone().sub(controls.target);theta=Math.atan2(offset.x,offset.z);distance=offset.length();target.copy(controls.target);elevation=Number(e.target.value)*Math.PI/180;setCamera()};
+$('#tour').onclick=()=>{if(touring){stop();return}stop();touring=true;elapsed=0;const off=camera.position.clone().sub(controls.target);theta=Math.atan2(off.x,off.z);target.copy(controls.target);distance=off.length();elevation=Math.asin(off.y/distance);$('#tour').textContent='Ⅱ Pause walk-around';$('#tour').setAttribute('aria-pressed','true')};controls.addEventListener('start',stop);
 const porchPose=()=>{const t=new THREE.Vector3(0,2.1,5.2+PZ),th=.18,d=15,el=.24;return {position:new THREE.Vector3(t.x+Math.sin(th)*d*Math.cos(el),t.y+d*Math.sin(el),t.z+Math.cos(th)*d*Math.cos(el)),target:t}};
-const interior=createInterior({scene,camera,renderer,host,controls,doors:{front:frontDoor,rear:rearDoor},glassLower,hemisphere,exteriorPose:porchPose,onEnter:stop,onExit:()=>{target.set(0,2.1,5.2+PZ);theta=.18;distance=15;elevation=.24;setCamera();$('#viewname').textContent='Front porch';$('#height').value=14}});
+const interior=createInterior({scene,camera,renderer,host,controls,doors:{front:frontDoor,rear:rearDoor},glassLower,hemisphere,exteriorPose:porchPose,exteriorFov,reducedMotion:()=>$('#reduce-motion').checked,onEnter:stop,onExit:()=>{target.set(0,2.1,5.2+PZ);theta=.18;distance=15;elevation=.24;setCamera(false);$('#viewname').textContent='Front porch';$('#height').value=14}});
 $('#enter').onclick=()=>{stop();interior.enter()};
+const experience=createExperience({renderer,post,sun,interior,resize:()=>resize(),stopExterior:stop});
 mergeStatic(home);mergeStatic(interior.group);
 host.addEventListener('keydown',e=>{if(interior.active)return;if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key))return;e.preventDefault();if(e.key===' '){$('#tour').click();return}stop();const off=camera.position.clone().sub(controls.target);theta=Math.atan2(off.x,off.z);distance=off.length();elevation=Math.asin(off.y/distance);target.copy(controls.target);if(e.key==='ArrowLeft')theta-=.12;if(e.key==='ArrowRight')theta+=.12;if(e.key==='ArrowUp')elevation=Math.min(1.3,elevation+.06);if(e.key==='ArrowDown')elevation=Math.max(.06,elevation-.06);setCamera()});
-function resize(){renderer.setSize(host.clientWidth,host.clientHeight);camera.aspect=host.clientWidth/host.clientHeight;camera.updateProjectionMatrix();post.resize()}new ResizeObserver(resize).observe(host);resize();
-if(location.search.includes('debug'))window.budd={scene,renderer,camera,interior};
-function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;if(interior.active){interior.update();post.render(scene,camera);return}if(touring){elapsed+=dt;theta=elapsed/48*Math.PI*2;setCamera();$('#tourstatus').textContent=`${Math.min(100,Math.round(elapsed/48*100))}% · full circuit`;if(elapsed>=48)stop()}controls.update();const off=camera.position.clone().sub(controls.target);const a=(Math.atan2(off.x,off.z)+Math.PI*2)%(Math.PI*2);const label=a<Math.PI/4||a>7*Math.PI/4?'FRONT':a<3*Math.PI/4?'DRIVEWAY SIDE':a<5*Math.PI/4?'REAR':'LEFT SIDE';$('#bearing').textContent=label;if(touring)$('#viewname').textContent=label.toLowerCase().replace(/^./,s=>s.toUpperCase());post.render(scene,camera)}requestAnimationFrame(loop);
+function resize(){renderer.setSize(host.clientWidth,host.clientHeight);camera.aspect=host.clientWidth/host.clientHeight;if(!interior.active)camera.fov=exteriorFov();camera.updateProjectionMatrix();post.resize()}new ResizeObserver(resize).observe(host);resize();
+if(location.search.includes('debug'))window.budd={scene,renderer,camera,interior,post};
+let frames=0;
+function loop(now){
+  requestAnimationFrame(loop);
+  if(document.hidden){last=now;return}
+  const dt=Math.min((now-last)/1000,.05);last=now;
+  if(interior.active){interior.update();post.render(scene,camera);experience.sample(now);return}
+  updateCamera(now);
+  if(touring){elapsed+=dt;theta+=dt/60*Math.PI*2;setCamera(false);$('#tourstatus').textContent=`${Math.min(100,Math.round(elapsed/60*100))}% · full circuit`;if(elapsed>=60)stop()}
+  controls.update();
+  const off=camera.position.clone().sub(controls.target),a=(Math.atan2(off.x,off.z)+Math.PI*2)%(Math.PI*2);
+  const label=a<Math.PI/4||a>7*Math.PI/4?'FRONT':a<3*Math.PI/4?'DRIVEWAY SIDE':a<5*Math.PI/4?'REAR':'LEFT SIDE';
+  $('#bearing').textContent=label;
+  if(touring)$('#viewname').textContent=label.toLowerCase().replace(/^./,s=>s.toUpperCase());
+  post.render(scene,camera);experience.sample(now);
+  if(++frames===2){$('#loading').classList.add('is-ready');setTimeout(()=>{$('#loading').hidden=true},650)}
+}
+renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();stop();$('#loading').hidden=true;$('#error').hidden=false;$('#error').textContent='The 3D view was interrupted. Reload to reopen the house. Reference photos are still available.'});
+renderer.domElement.addEventListener('webglcontextrestored',()=>location.reload());
+document.addEventListener('visibilitychange',()=>{last=performance.now();if(document.hidden)stop()});
+requestAnimationFrame(loop);
 }

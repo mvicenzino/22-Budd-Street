@@ -15,6 +15,7 @@ export function loadSkyPhoto(renderer, scene, url, sunAzimuth) {
     pmrem.dispose();
     const PHOTO_SUN = .565; // azimuth of the sun in this panorama
     const rotation = sunAzimuth - PHOTO_SUN;
+    scene.environment?.dispose();
     scene.environment = env;
     scene.environmentRotation.set(0, rotation, 0);
     scene.background = tex;
@@ -84,7 +85,7 @@ const aoFragment = /* glsl */`
     vec3 t = normalize(rnd - n * dot(rnd, n));
     vec3 b = cross(n, t);
     mat3 tbn = mat3(t, b, n);
-    const int SAMPLES = 16;
+    const int SAMPLES = AO_SAMPLES;
     float occlusion = 0.0;
     for (int i = 0; i < SAMPLES; i++) {
       float fi = float(i) + 0.5;
@@ -96,7 +97,7 @@ const aoFragment = /* glsl */`
       vec2 suv = clip.xy / clip.w * 0.5 + 0.5;
       if (suv.x < 0.0 || suv.x > 1.0 || suv.y < 0.0 || suv.y > 1.0) continue;
       float sceneZ = viewPos(suv).z;
-      float rangeCheck = smoothstep(0.0, 1.0, radius / abs(p.z - sceneZ));
+      float rangeCheck = smoothstep(0.0, 1.0, radius / max(abs(p.z - sceneZ), 0.0001));
       occlusion += (sceneZ >= sp.z + 0.035 ? 1.0 : 0.0) * rangeCheck;
     }
     float ao = 1.0 - intensity * occlusion / float(SAMPLES);
@@ -109,8 +110,13 @@ const blurFragment = /* glsl */`
   varying vec2 vUv;
   uniform sampler2D tAO, tDepth;
   uniform vec2 direction;
+  uniform float cameraNear, cameraFar;
+  float linearDepth(vec2 uv) {
+    float d = unpackRGBAToDepth(texture2D(tDepth, uv));
+    return perspectiveDepthToViewZ(d, cameraNear, cameraFar);
+  }
   void main() {
-    float d0 = unpackRGBAToDepth(texture2D(tDepth, vUv));
+    float d0 = linearDepth(vUv);
     float weights[5];
     weights[0] = 0.227; weights[1] = 0.194; weights[2] = 0.121; weights[3] = 0.054; weights[4] = 0.016;
     float sum = texture2D(tAO, vUv).r * weights[0], total = weights[0];
@@ -118,8 +124,8 @@ const blurFragment = /* glsl */`
       vec2 o = direction * float(i);
       for (int s = -1; s <= 1; s += 2) {
         vec2 uv = vUv + o * float(s);
-        float d = unpackRGBAToDepth(texture2D(tDepth, uv));
-        float w = weights[i] * (abs(d - d0) < 0.002 ? 1.0 : 0.15);
+        float d = linearDepth(uv);
+        float w = weights[i] * exp(-abs(d - d0) / max(0.025, abs(d0) * 0.007));
         sum += texture2D(tAO, uv).r * w;
         total += w;
       }
@@ -143,20 +149,22 @@ const compositeFragment = /* glsl */`
     gl_FragColor.rgb *= 1.0 - vignette * smoothstep(0.35, 0.85, dot(q, q) * 2.0);
   }`;
 
-export function createPostPipeline(renderer, {aoRadius = .5, aoIntensity = 1.0, vignette = .26} = {}) {
+export function createPostPipeline(renderer, {aoRadius = .5, aoIntensity = .8, vignette = .12} = {}) {
   const size = new THREE.Vector2();
-  const colorRT = new THREE.WebGLRenderTarget(1, 1, {type: THREE.HalfFloatType, samples: 4, colorSpace: THREE.LinearSRGBColorSpace});
+  const hdrType = renderer.extensions.has('EXT_color_buffer_float') ? THREE.HalfFloatType : THREE.UnsignedByteType;
+  const colorRT = new THREE.WebGLRenderTarget(1, 1, {type: hdrType, samples: Math.min(4, renderer.capabilities.maxSamples), colorSpace: THREE.LinearSRGBColorSpace});
   const depthRT = new THREE.WebGLRenderTarget(1, 1, {minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter});
   const aoRT = new THREE.WebGLRenderTarget(1, 1, {minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter});
   const blurRT = new THREE.WebGLRenderTarget(1, 1, {minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter});
   const depthMaterial = new THREE.MeshDepthMaterial({depthPacking: THREE.RGBADepthPacking});
   const aoMaterial = new THREE.ShaderMaterial({
+    defines: {AO_SAMPLES: 24},
     vertexShader: fullscreenVertex, fragmentShader: aoFragment, depthTest: false, depthWrite: false,
     uniforms: {tDepth: {value: depthRT.texture}, resolution: {value: new THREE.Vector2()}, near: {value: .1}, far: {value: 100}, radius: {value: aoRadius}, intensity: {value: aoIntensity}, projection: {value: new THREE.Matrix4()}, inverseProjection: {value: new THREE.Matrix4()}},
   });
   const blurMaterial = new THREE.ShaderMaterial({
     vertexShader: fullscreenVertex, fragmentShader: blurFragment, depthTest: false, depthWrite: false,
-    uniforms: {tAO: {value: aoRT.texture}, tDepth: {value: depthRT.texture}, direction: {value: new THREE.Vector2()}},
+    uniforms: {tAO: {value: aoRT.texture}, tDepth: {value: depthRT.texture}, direction: {value: new THREE.Vector2()}, cameraNear: {value: .1}, cameraFar: {value: 180}},
   });
   const compositeMaterial = new THREE.ShaderMaterial({
     vertexShader: fullscreenVertex, fragmentShader: compositeFragment, depthTest: false, depthWrite: false,
@@ -166,19 +174,41 @@ export function createPostPipeline(renderer, {aoRadius = .5, aoIntensity = 1.0, 
   const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), aoMaterial);
   quad.frustumCulled = false;
   quadScene.add(quad);
-  const AO_SCALE = .5, OVERLAY = 1; // layer 1 holds overlays that must not occlude (navigation arrows)
+  let aoScale = .75;
+  const OVERLAY = 1; // layer 1 holds overlays that must not occlude (navigation arrows)
 
   function resize() {
     renderer.getDrawingBufferSize(size);
     colorRT.setSize(size.x, size.y);
     depthRT.setSize(size.x, size.y);
-    aoRT.setSize(Math.max(1, Math.round(size.x * AO_SCALE)), Math.max(1, Math.round(size.y * AO_SCALE)));
+    aoRT.setSize(Math.max(1, Math.round(size.x * aoScale)), Math.max(1, Math.round(size.y * aoScale)));
     blurRT.setSize(aoRT.width, aoRT.height);
     aoMaterial.uniforms.resolution.value.set(size.x, size.y);
   }
+  function setQuality(profile) {
+    const samples = Math.min(profile.samples, renderer.capabilities.maxSamples);
+    if (colorRT.samples !== samples) { colorRT.samples = samples; colorRT.dispose(); }
+    aoScale = profile.aoScale;
+    aoMaterial.defines.AO_SAMPLES = profile.name === 'high' ? 32 : profile.name === 'light' ? 8 : 16;
+    aoMaterial.needsUpdate = true;
+    resize();
+  }
   function render(scene, camera) {
+    renderer.getDrawingBufferSize(size);
     if (colorRT.width !== size.x || colorRT.height !== size.y) resize();
-    const background = scene.background, fog = scene.fog;
+    const background = scene.background, fog = scene.fog, override = scene.overrideMaterial;
+    const layers = camera.layers.mask;
+    const autoShadow = renderer.shadowMap.autoUpdate, updateShadow = renderer.shadowMap.needsUpdate;
+    const clear = renderer.getClearColor(new THREE.Color()), alpha = renderer.getClearAlpha();
+    // Glass must not turn into an opaque occluder when we override its material for depth.
+    const transparent = [];
+    scene.traverse(o => {
+      if (o.isMesh && o.visible && !Array.isArray(o.material) && o.material.transparent && !o.material.depthWrite) {
+        transparent.push(o); o.visible = false;
+      }
+    });
+    renderer.shadowMap.autoUpdate = false;
+    renderer.shadowMap.needsUpdate = false;
     // 1. depth of everything except overlays
     camera.layers.set(0);
     scene.overrideMaterial = depthMaterial;
@@ -188,10 +218,15 @@ export function createPostPipeline(renderer, {aoRadius = .5, aoIntensity = 1.0, 
     renderer.setClearColor(0xffffff, 1);
     renderer.clear();
     renderer.render(scene, camera);
-    scene.overrideMaterial = null;
+    scene.overrideMaterial = override;
+    transparent.forEach(o => { o.visible = true; });
+    renderer.shadowMap.autoUpdate = autoShadow;
+    renderer.shadowMap.needsUpdate = updateShadow;
+    renderer.setClearColor(clear, alpha);
     scene.background = background;
     scene.fog = fog;
-    camera.layers.enableAll();
+    camera.layers.mask = layers;
+    camera.layers.enable(OVERLAY);
     // 2. HDR colour
     renderer.setRenderTarget(colorRT);
     renderer.render(scene, camera);
@@ -204,6 +239,8 @@ export function createPostPipeline(renderer, {aoRadius = .5, aoIntensity = 1.0, 
     renderer.setRenderTarget(aoRT);
     renderer.render(quadScene, quadCamera);
     // 4. blur the occlusion horizontally then vertically
+    blurMaterial.uniforms.cameraNear.value = camera.near;
+    blurMaterial.uniforms.cameraFar.value = camera.far;
     quad.material = blurMaterial;
     blurMaterial.uniforms.tAO.value = aoRT.texture;
     blurMaterial.uniforms.direction.value.set(1.5 / aoRT.width, 0);
@@ -217,6 +254,7 @@ export function createPostPipeline(renderer, {aoRadius = .5, aoIntensity = 1.0, 
     quad.material = compositeMaterial;
     renderer.setRenderTarget(null);
     renderer.render(quadScene, quadCamera);
+    camera.layers.mask = layers;
   }
-  return {render, resize, OVERLAY, aoMaterial, compositeMaterial};
+  return {render, resize, setQuality, OVERLAY, aoMaterial, compositeMaterial};
 }

@@ -1,3 +1,4 @@
+import {HOUSE_PALETTE, defaultWall} from './paint-plan.js';
 // Interior design catalog, saved choices, and the Design panel UI.
 // interior.js applies the choices to the 3D rooms; this module only knows about options and DOM.
 
@@ -18,8 +19,8 @@ export const STYLES = [
 ];
 
 export const WALL_COLORS = [
+  ...HOUSE_PALETTE,
   {id: 'dove', name: 'White Dove', color: '#f3efe6'},
-  {id: 'paleoak', name: 'Pale Oak', color: '#e3dccf'},
   {id: 'seasalt', name: 'Sea Salt', color: '#d7dfd4'},
   {id: 'mist', name: 'Silver Mist', color: '#d4d9da'},
   {id: 'sage', name: 'Sage', color: '#b8c1b0'},
@@ -70,26 +71,32 @@ export const BASEMENT_FLOORS = [
   ...FLOORING.map(f => ({...f, name: f.name + ' LVP'})),
 ];
 
-export const DEFAULT_DESIGN = {version: 4, flooring: 'natural', style: 'traditional', kitchen: {floor: 'match', counter: 'alabaster', island: 'none', peninsula: {show: true, length: 36, depth: 21, overhang: 10, stools: 2}}, basement: {floor: 'concrete'}, rooms: {}};
+export const DEFAULT_DESIGN = {version: 5, flooring: 'natural', style: 'traditional', kitchen: {floor: 'match', counter: 'alabaster', island: 'none', peninsula: {show: true, length: 36, depth: 21, overhang: 10, stools: 2}}, basement: {floor: 'concrete'}, rooms: {}};
 const STORAGE_KEY = 'budd-street-design';
 
+export function migrateDesign(saved) {
+  const design = structuredClone(DEFAULT_DESIGN);
+  if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return design;
+  const version = saved.version || 1;
+  Object.assign(design, saved, {version: DEFAULT_DESIGN.version});
+  design.kitchen = {...DEFAULT_DESIGN.kitchen, ...(saved.kitchen || {})};
+  design.kitchen.peninsula = {...DEFAULT_DESIGN.kitchen.peninsula, ...(saved.kitchen?.peninsula || {})};
+  design.basement = {...DEFAULT_DESIGN.basement, ...(saved.basement || {})};
+  design.rooms = Object.fromEntries(Object.entries(saved.rooms || {}).map(([id, values]) => [id, {...values}]));
+  if (version < 2 && design.kitchen.floor === 'checker') design.kitchen.floor = 'match';
+  const pen = design.kitchen.peninsula;
+  for (const key of ['length', 'depth', 'overhang']) if (!PENINSULA[key].includes(pen[key])) pen[key] = DEFAULT_DESIGN.kitchen.peninsula[key];
+  if (version < 4 && pen.length === 42) pen.length = 36;
+  // The agreed house palette replaces earlier wall experiments once; furniture and floors remain.
+  if (version < 5) for (const room of Object.values(design.rooms)) delete room.wall;
+  return design;
+}
 export function loadDesign() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (saved && typeof saved === 'object') {
-      // Version 2 made the kitchen floor follow the house wood by default.
-      if ((saved.version || 1) < 2 && saved.kitchen?.floor === 'checker') saved.kitchen.floor = 'match';
-      saved.version = DEFAULT_DESIGN.version;
-      if (saved.kitchen) {
-        const pen = saved.kitchen.peninsula = {...DEFAULT_DESIGN.kitchen.peninsula, ...(saved.kitchen.peninsula || {})};
-        // Version 3 slimmed the peninsula; snap older choices to the new option sets.
-        for (const key of ['length', 'depth', 'overhang']) if (!PENINSULA[key].includes(pen[key])) pen[key] = DEFAULT_DESIGN.kitchen.peninsula[key];
-        if ((saved.version || 1) < 4 && pen.length === 42) pen.length = 36; // version 4 default
-      }
-    }
-    if (saved && typeof saved === 'object') return {...DEFAULT_DESIGN, ...saved, kitchen: {...DEFAULT_DESIGN.kitchen, ...(saved.kitchen || {})}, basement: {...DEFAULT_DESIGN.basement, ...(saved.basement || {})}, rooms: {...(saved.rooms || {})}};
-  } catch {}
-  return {...DEFAULT_DESIGN, kitchen: {...DEFAULT_DESIGN.kitchen}, basement: {...DEFAULT_DESIGN.basement}, rooms: {}};
+  let saved;
+  try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch {}
+  const design = migrateDesign(saved);
+  if (saved && saved.version !== design.version) saveDesign(design);
+  return design;
 }
 export function saveDesign(design) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(design)); } catch {}
@@ -109,9 +116,9 @@ export function createDesignPanel({root, design, roomDefaults, hooks}) {
     return node;
   };
   const swatch = (item, pressed, onPick, label = item.name) => {
-    const b = el('button', {type: 'button', class: 'paint-swatch', 'aria-pressed': String(pressed), 'aria-label': label, 'data-id': item.id},
+    const b = el('button', {type: 'button', class: 'paint-swatch', 'aria-pressed': String(pressed), 'aria-label': item.code ? `${item.brand} ${item.name} ${item.code}` : label, 'data-id': item.id},
       el('span', {class: 'paint-chip', style: `--paint:${item.color}`, 'aria-hidden': 'true'}, el('span', {class: 'paint-check', text: '✓'})),
-      el('span', {text: item.name}));
+      el('span', {text: item.name}), ...(item.code ? [el('small', {class:'paint-code', text:item.code})] : []));
     b.onclick = () => onPick(item.id);
     return b;
   };
@@ -128,7 +135,9 @@ export function createDesignPanel({root, design, roomDefaults, hooks}) {
   }
 
   const roomTitle = el('div', {class: 'design-room-title', text: 'This room'});
-  const wallRow = el('div', {class: 'paint-swatches design-walls'});
+  const wallRow = el('div', {class: 'design-walls'});
+  const houseWalls = el('div', {class: 'paint-swatches house-wall-swatches'}), otherWalls = el('div', {class: 'paint-swatches'});
+  wallRow.append(houseWalls, el('details', {class:'other-wall-colors'}, el('summary', {text:'Explore other colors'}), otherWalls));
   const rugSelect = el('select', {id: 'rug-select'});
   for (const r of RUGS) rugSelect.append(el('option', {value: r.id, text: r.name}));
   const layoutSelect = el('select', {id: 'layout-select'});
@@ -178,7 +187,7 @@ export function createDesignPanel({root, design, roomDefaults, hooks}) {
 
   let currentRoom = null;
   const roomState = id => (design.rooms[id] ||= {});
-  for (const w of WALL_COLORS) wallRow.append(swatch(w, false, id => {
+  for (const w of WALL_COLORS) (w.code ? houseWalls : otherWalls).append(swatch(w, false, id => {
     if (!currentRoom) return;
     roomState(currentRoom).wall = id;
     pressOnly(wallRow, id);
@@ -205,10 +214,11 @@ export function createDesignPanel({root, design, roomDefaults, hooks}) {
   };
 
   root.append(
+    roomTitle,
+    el('div', {class: 'paint-label design-sub', text: 'Wall color · Benjamin Moore'}), wallRow,
+    el('p', {class:'design-note', text:'House palette: Pale Oak, Seapearl and Classic Gray. Screen colors are approximate.'}),
     el('div', {class: 'paint-label', text: 'Wood flooring'}), floorRow,
     el('div', {class: 'paint-label', text: 'Furniture style'}), styleRow,
-    roomTitle,
-    el('div', {class: 'paint-label design-sub', text: 'Wall color'}), wallRow,
     rugRow, layoutRow, kitchenSection, basementSection,
     el('p', {class: 'design-note', text: 'Choices are saved in this browser. Walk to a room to design it.'}),
     reset,
@@ -218,7 +228,7 @@ export function createDesignPanel({root, design, roomDefaults, hooks}) {
     currentRoom = id;
     const defaults = roomDefaults(id), state = design.rooms[id] || {};
     roomTitle.textContent = name ? `This room · ${name}` : 'This room';
-    pressOnly(wallRow, state.wall || defaults.wall);
+    pressOnly(wallRow, state.wall || defaults.wall || defaultWall(id));
     rugRow.hidden = !defaults.rug;
     if (defaults.rug) rugSelect.value = state.rug || defaults.rug;
     layoutSelect.replaceChildren();
