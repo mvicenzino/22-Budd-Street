@@ -57,10 +57,10 @@ export const ISLANDS = [{id: 'none', name: 'No island'}, {id: 'small', name: 'Sm
 // Peninsula off the end of the driveway-wall counter (inches, as specified).
 export const PENINSULA = {
   show: [{id: true, name: 'Show'}, {id: false, name: 'Hide'}],
-  length: [48, 51, 54],
-  depth: [24, 27],
+  length: [36, 42, 48],
+  depth: [18, 21, 24],
   stools: [0, 1, 2],
-  overhang: [10, 12],
+  overhang: [8, 10, 12],
 };
 
 export const BASEMENT_FLOORS = [
@@ -70,7 +70,7 @@ export const BASEMENT_FLOORS = [
   ...FLOORING.map(f => ({...f, name: f.name + ' LVP'})),
 ];
 
-export const DEFAULT_DESIGN = {version: 2, flooring: 'natural', style: 'traditional', kitchen: {floor: 'match', counter: 'alabaster', island: 'none', peninsula: {show: true, length: 51, depth: 24, overhang: 12, stools: 2}}, basement: {floor: 'concrete'}, rooms: {}};
+export const DEFAULT_DESIGN = {version: 3, flooring: 'natural', style: 'traditional', kitchen: {floor: 'match', counter: 'alabaster', island: 'none', peninsula: {show: true, length: 42, depth: 21, overhang: 10, stools: 2}}, basement: {floor: 'concrete'}, rooms: {}};
 const STORAGE_KEY = 'budd-street-design';
 
 export function loadDesign() {
@@ -80,7 +80,11 @@ export function loadDesign() {
       // Version 2 made the kitchen floor follow the house wood by default.
       if ((saved.version || 1) < 2 && saved.kitchen?.floor === 'checker') saved.kitchen.floor = 'match';
       saved.version = DEFAULT_DESIGN.version;
-      if (saved.kitchen) saved.kitchen.peninsula = {...DEFAULT_DESIGN.kitchen.peninsula, ...(saved.kitchen.peninsula || {})};
+      if (saved.kitchen) {
+        const pen = saved.kitchen.peninsula = {...DEFAULT_DESIGN.kitchen.peninsula, ...(saved.kitchen.peninsula || {})};
+        // Version 3 slimmed the peninsula; snap older choices to the new option sets.
+        for (const key of ['length', 'depth', 'overhang']) if (!PENINSULA[key].includes(pen[key])) pen[key] = DEFAULT_DESIGN.kitchen.peninsula[key];
+      }
     }
     if (saved && typeof saved === 'object') return {...DEFAULT_DESIGN, ...saved, kitchen: {...DEFAULT_DESIGN.kitchen, ...(saved.kitchen || {})}, basement: {...DEFAULT_DESIGN.basement, ...(saved.basement || {})}, rooms: {...(saved.rooms || {})}};
   } catch {}

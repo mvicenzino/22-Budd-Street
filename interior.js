@@ -881,8 +881,8 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       for (const [w, hh, d, x, y, z] of [[.65, upperBottom + .6, .02, 1.375, F.y, pantryFace - .011], [.02, upperBottom + .6, .58, pantryX1 + .011, F.y, -.61]]) box(w, hh, d, x, y, z, beadboard(w > .1 ? w : d)); // beadboard on the stub wall
       const pen = k.peninsula || {};
       if (pen.show) {
-        const inch = .0254, L = (pen.length || 51) * inch, D = (pen.depth || 24) * inch, OH = (pen.overhang || 12) * inch;
-        const x0 = 1.35, x1 = x0 + D, z1 = pantryFace, z0 = z1 - L; // cabinet footprint: 36" to the fridge face on the west
+        const inch = .0254, L = (pen.length || 42) * inch, D = (pen.depth || 21) * inch, OH = (pen.overhang || 10) * inch;
+        const x1 = pantryX1, x0 = x1 - D, z1 = pantryFace, z0 = z1 - L; // flush with the stub wall's east face, no wider than the stub
         const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
         box(D, h - .1, L, cx, F.y + .1, cz, cabinet);
         box(D - .08, .1, L - .08, cx, F.y, cz, grate);
