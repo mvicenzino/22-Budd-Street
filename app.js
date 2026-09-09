@@ -16,7 +16,7 @@ const camera=new THREE.PerspectiveCamera(40,1,.1,180),controls=new OrbitControls
 const hemisphere=new THREE.HemisphereLight('#e4f2ff','#8a8d72',2);scene.add(hemisphere);const sun=new THREE.DirectionalLight('#fff4df',3);sun.position.set(-14,25,16);sun.castShadow=true;sun.shadow.mapSize.set(4096,4096);Object.assign(sun.shadow.camera,{left:-18,right:18,top:18,bottom:-18,near:1,far:90});sun.shadow.camera.updateProjectionMatrix();sun.shadow.bias=-.00015;sun.shadow.normalBias=.025;sun.shadow.radius=2;scene.add(sun);
 loadSkyPhoto(renderer,scene,'sky.jpg',Math.atan2(sun.position.z,sun.position.x));scene.fog.color.set('#dfe8ef');
 const mat=(c,o={})=>new THREE.MeshStandardMaterial({color:c,roughness:.85,...o});const white=mat('#eeeee4'),siding=mat('#d9dbcf'),trim=mat('#f7f6ed'),red=mat('#78332e'),wood=mat('#815142'),stone=mat('#a49172'),dark=mat('#383e3c'),glass=mat('#52696b',{metalness:.25,roughness:.28}),roof=mat('#72685b'),grass=mat('#7c906a'),asphalt=mat('#53595b'),screen=mat('#343e3b',{transparent:true,opacity:.53,side:THREE.DoubleSide,depthWrite:false});
-const sidingSeams=white.clone(),shutterFinish=red.clone(),paint=mat('#f3efe6'),glassLower=mat('#7f9a9e',{metalness:.2,roughness:.2,transparent:true,opacity:.55,depthWrite:false});
+const sidingSeams=white.clone(),shutterFinish=mat('#15191c',{roughness:.7}),paint=mat('#f3efe6'),glassLower=mat('#7f9a9e',{metalness:.2,roughness:.2,transparent:true,opacity:.55,depthWrite:false});
 const home=new THREE.Group();scene.add(home);
 function box(w,h,d,x,y,z,m=white,parent=home){const a=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);a.position.set(x,y,z);a.castShadow=true;a.receiveShadow=true;parent.add(a);return a}
 function beam(a,b,width,m,parent=home){const av=new THREE.Vector3(...a),bv=new THREE.Vector3(...b),d=bv.clone().sub(av);const mesh=box(width,d.length(),width,0,0,0,m,parent);mesh.position.copy(av.add(bv).multiplyScalar(.5));mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());return mesh}
@@ -64,13 +64,14 @@ box(.05,.05,.05,cx-side*(pw/2-.12),-.05,.06,stone,hinge);return hinge})}
 const sideFeature=FEATURES.find(f=>f.kind==='sidedoor');const sideDoor=door(FX+.09,sideFeature.y,sideFeature.a,Math.PI/2,sideFeature.w,sideFeature.h);
 const rearFeature=FEATURES.find(f=>f.kind==='french'),rearDoor=frenchDoor(rearFeature.a,rearFeature.y,-FZ-.05,Math.PI,rearFeature.w,rearFeature.h);
 // Front porch and entry stairs. Dedicated finishes keep the rear porch unchanged.
-const porchFloorFinish=wood.clone(),porchStepFinish=red.clone(),porchRailFinish=trim.clone(),stairRailFinish=red.clone();
+function plankMap(repeatX,repeatY){const c=document.createElement('canvas');c.width=512;c.height=256;const g=c.getContext('2d');g.fillStyle='#d8d8d8';g.fillRect(0,0,512,256);for(let i=0;i<8;i++){const t=205+((i*53)%28);g.fillStyle=`rgb(${t},${t},${t})`;g.fillRect(i*64,0,61,256);g.fillStyle='rgba(60,60,60,.55)';g.fillRect(i*64+61,0,3,256);g.fillStyle='rgba(90,90,90,.25)';for(let k=0;k<5;k++)g.fillRect(i*64+6+k*11,0,1,256)}const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(repeatX,repeatY);t.anisotropy=renderer.capabilities.getMaxAnisotropy();return t}
+const porchFloorFinish=mat('#8a9195',{map:plankMap(7.4,1),roughness:.8}),porchStepFinish=mat('#8a9195',{map:plankMap(2,.15),roughness:.8}),porchRiserFinish=trim.clone(),porchRailFinish=trim.clone(),stairRailFinish=trim.clone();
 const PZ=FZ-4.25;box(8.3,.23,2.25,0,1,5.3+PZ,porchFloorFinish);box(8.35,.19,.18,0,.98,6.44+PZ,trim);
 for(const x of [-3.9,0,3.9]){box(.22,2.7,.22,x,2.4,6.25+PZ,porchRailFinish);box(.32,.14,.32,x,1.12,6.25+PZ,porchRailFinish)}
 box(8.85,.15,2.9,0,3.83,5.4+PZ,trim);const porchRoof=box(8.8,.08,2.95,0,3.95,5.4+PZ,roof);porchRoof.rotation.x=.06;
 function rail(x1,z1,x2,z2,y=1.13){beam([x1,y+.83,z1],[x2,y+.83,z2],.075,porchRailFinish);beam([x1,y+.07,z1],[x2,y+.07,z2],.065,porchRailFinish);const n=Math.ceil(Math.hypot(x2-x1,z2-z1)/.18);for(let i=0;i<=n;i++)box(.035,.72,.035,x1+(x2-x1)*i/n,y+.45,z1+(z2-z1)*i/n,porchRailFinish)}
 rail(-3.9,6.25+PZ,1.3,6.25+PZ);rail(-3.9,4.35+PZ,-3.9,6.25+PZ);
-for(let i=0;i<6;i++)box(2.25,(6-i)*.17,.31,frontFeature.a,(6-i)*.085,6.58+PZ+i*.3,porchStepFinish);
+for(let i=0;i<6;i++){box(2.25,(6-i)*.17-.03,.31,frontFeature.a,((6-i)*.17-.03)/2,6.58+PZ+i*.3,porchRiserFinish);box(2.29,.03,.33,frontFeature.a,(6-i)*.17-.015,6.58+PZ+i*.3,porchStepFinish)}
 for(const x of [frontFeature.a-1.18,frontFeature.a+1.15]){box(.11,.95,.11,x,.57,8.13+PZ,stairRailFinish);beam([x,1.92,6.37+PZ],[x,1.07,8.16+PZ],.09,stairRailFinish)}
 
 // Two porch lounge chairs and a table, clear of the entry walkway.
@@ -183,13 +184,13 @@ const porchSelection={floor:'existing',steps:'existing',rails:'existing'};
 const porchPalette={white:'#eeeee4',light:'#b9bec0',medium:'#8a9195',charcoal:'#393f43',greige:'#b5ac9c',cedar:'#aa7952'};
 const paintNames={white:'White',light:'Light gray',medium:'Medium gray',dark:'Dark gray',greige:'Gray/beige'};
 function applyFuture(){
-for(const [key,material,original]of [['floor',porchFloorFinish,'#815142'],['steps',porchStepFinish,'#78332e'],['rails',porchRailFinish,'#f7f6ed']])material.color.set(futureMode&&porchSelection[key]!=='existing'?porchPalette[porchSelection[key]]:original);
-stairRailFinish.color.set(futureMode&&porchSelection.rails!=='existing'?porchPalette[porchSelection.rails]:'#78332e');
+for(const [key,material,original]of [['floor',porchFloorFinish,'#8a9195'],['steps',porchStepFinish,'#8a9195'],['rails',porchRailFinish,'#f7f6ed']])material.color.set(futureMode&&porchSelection[key]!=='existing'?porchPalette[porchSelection[key]]:original);
+stairRailFinish.color.set(futureMode&&porchSelection.rails!=='existing'?porchPalette[porchSelection.rails]:'#f7f6ed');
 document.querySelectorAll('[data-porch]').forEach(b=>b.setAttribute('aria-pressed',String(porchSelection[b.dataset.porch]===b.dataset.finish)));
 const palette={white:'#eeefe9',light:'#b9bec0',medium:'#8a9195',dark:'#555d63',greige:'#b5ac9c'},c=palette[selectedPaint];
 document.querySelectorAll('[data-paint]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.paint===selectedPaint)));
 siding.color.set(futureMode?c:'#d9dbcf');doubleSiding.color.copy(siding.color);sidingSeams.color.set(futureMode?c:'#eeeee4');if(futureMode)sidingSeams.color.multiplyScalar(.91);
-shutterFinish.color.set(futureMode?'#15191c':'#78332e');futureYard.visible=futureMode;$('#future-options').hidden=false;$('#future').setAttribute('aria-pressed',String(futureMode));$('#future').textContent=futureMode?'Current model':'Future state';$('#mode-label').textContent=futureMode?'Future state · '+paintNames[selectedPaint]+' · black shutters':'Current model · photo-based exterior study';}
+shutterFinish.color.set('#15191c');futureYard.visible=futureMode;$('#future-options').hidden=false;$('#future').setAttribute('aria-pressed',String(futureMode));$('#future').textContent=futureMode?'Current model':'Future state';$('#mode-label').textContent=futureMode?'Future state · '+paintNames[selectedPaint]+' · black shutters':'Current model · photo-based exterior study';}
 $('#future').onclick=()=>{stop();futureMode=!futureMode;applyFuture()};document.querySelectorAll('[data-paint]').forEach(b=>b.onclick=()=>{futureMode=true;selectedPaint=b.dataset.paint;applyFuture()});
 document.querySelectorAll('[data-porch]').forEach(b=>b.onclick=()=>{futureMode=true;porchSelection[b.dataset.porch]=b.dataset.finish;applyFuture()});
 $('#steps-closeup').onclick=()=>{stop();target.set(2.3,1.2,6.7+PZ);theta=.38;distance=10;elevation=.32;setCamera();$('#viewname').textContent='Porch steps · color preview';$('#height').value=18};
