@@ -41,13 +41,13 @@ AgX tone mapping, HDR color where supported, antialiased scene rendering, depth-
 
 This remains a conceptual, real-time model based on photos and floor plans, not a measured survey or a photorealistic scan. Paint is a digital approximation affected by the simulated lighting and display. The sky photograph is Poly Haven's CC0 “Kloofendal 48d partly cloudy.”
 
-## Cinematic prototype
+## Full-house cinematic tour
 
-**Take a cinematic tour** plays a continuous 20-second route from the front porch through the living and dining rooms into the kitchen. Pause, scrub, restart, or return to exploring. Reduced-motion mode starts paused. Hiding the tab pauses playback. The camera follows the same timeline used for the downloadable film; tests verify its wall/door clearance and bounded speed.
+**Take a cinematic tour** plays a 90-second film with fourteen chapters across all four levels: foyer, living room, dining room, kitchen, sunroom, powder room, upstairs hall, three bedrooms, upstairs bathroom, loft, and basement. The opening follows a continuous path through the first floor; later room studies use gentle camera moves and brief fades between locations. Pause, scrub, jump to a chapter, restart, or return to exploring. Reduced-motion mode starts paused. Hiding the tab pauses playback. The camera and transitions follow the same deterministic timeline used for the downloadable film.
 
-The shared model now uses subtle furniture/cabinet bevels, finer wood grain, satin floor reflections and fabric sheen. No room geometry or chosen paint color is replaced. The cinematic route is composed for the default furniture arrangement; a custom layout can alter the framing.
+The shared model uses subtle furniture/cabinet bevels, finer wood grain, satin floor reflections and fabric sheen, with the agreed paint palette throughout. The cinematic route is composed for the default furniture arrangement; a custom layout can alter the framing.
 
-A silent **1920 × 1080, 24 fps MP4** is included in `media/budd-street-cinematic.mp4` and available through **Save film**. It is rendered frame by frame, with 4× MSAA, full-resolution 48-sample ambient occlusion and room titles. This avoids dropped frames during recording on slower devices.
+A silent **90-second, 1920 × 1080, 24 fps MP4** is included in `media/budd-street-cinematic.mp4` and available through **Save film**. It is rendered frame by frame, with 4× MSAA, full-resolution 48-sample ambient occlusion and room titles. This avoids dropped frames during recording on slower devices. The interactive **Play tour** remains a separate guided exploration mode with twelve stops across four levels.
 
 ### Reproduce the exports
 
@@ -59,10 +59,16 @@ npm run dev
 # In a second terminal; requires Google Chrome and ffmpeg:
 npm run render:film
 npm run test:browser
+# Review every chapter before a full export:
+npm run render:film -- --mode=stills --width=960 --height=540
+# Check a short section at a lower resolution:
+npm run render:film -- --start=18 --end=22 --width=960 --height=540 --output=rendered/check
 # Optional physical-lighting still (five light bounces):
 npm run render:film -- --mode=trace --time=8 --samples=128 --width=1280 --height=720
 ```
 
-Set `CHROME_PATH` if Chrome is installed somewhere other than the default macOS location. Exports go to the ignored `rendered/` directory. `--output=...`, `--width=...`, and `--height=...` control the destination and resolution. The path tracer loads only in the export tool, uses a dedicated render context, and does not add work to the interactive renderer. Its stills are lighting studies; the included moving film uses the faster raster pipeline.
+Set `CHROME_PATH` if Chrome is installed somewhere other than the default macOS location, and `FFMPEG_PATH` if ffmpeg is not on the executable path. Exports go to the ignored `rendered/` directory. `--output=...`, `--width=...`, `--height=...`, and `--fps=...` control the destination, resolution, and frame rate; MP4 dimensions must be even. The tool reads the duration and chapter positions from the scene rather than hard-coding a frame count. `--mode=stills` writes a frame for every chapter, a labeled `contact-sheet.png`, and a manifest. Film frames stream directly to ffmpeg; the final MP4 replaces an existing export only after rendering and encoding both succeed. A JSON manifest records the timeline, output settings, and render time.
+
+The default encoder is software H.264 at CRF 18. `--encoder=h264_videotoolbox` enables optional macOS hardware encoding at 20 Mbps. Chrome uses Metal on macOS. The path tracer loads only in the export tool, follows the room fixtures on every floor, uses a dedicated render context, and does not add work to the interactive renderer. Its stills are lighting studies; the included moving film uses the faster raster pipeline.
 
 `npm run build:renderer` rebuilds the checked-in export bundle from the pinned Three.js-compatible path tracer. Third-party license notices are kept beside the vendored files.

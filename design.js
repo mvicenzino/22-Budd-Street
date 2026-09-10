@@ -199,8 +199,9 @@ export function createDesignPanel({root, design, roomDefaults, hooks}) {
     design.flooring = DEFAULT_DESIGN.flooring;
     design.style = DEFAULT_DESIGN.style;
     design.rooms = {};
-    design.kitchen = {...DEFAULT_DESIGN.kitchen, peninsula: {...DEFAULT_DESIGN.kitchen.peninsula}};
-    Object.assign(pen, design.kitchen.peninsula);
+    // Choice buttons retain this object; keep it attached when resetting defaults.
+    Object.assign(pen, DEFAULT_DESIGN.kitchen.peninsula);
+    design.kitchen = {...DEFAULT_DESIGN.kitchen, peninsula: pen};
     for (const row of root.querySelectorAll('.design-choices')) for (const b of row.querySelectorAll('[data-id]')) b.setAttribute('aria-pressed', String(String(pen[['show', 'length', 'depth', 'overhang', 'stools'][[...root.querySelectorAll('.design-choices')].indexOf(row)]]) === b.dataset.id));
     design.basement = {...DEFAULT_DESIGN.basement};
     pressOnly(basementFloorRow, design.basement.floor);

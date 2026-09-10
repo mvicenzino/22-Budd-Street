@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {FILM_DURATION,filmChapter} from '../cinematic-path.js';
+import {FILM_CHAPTERS,FILM_DURATION,filmChapter,filmPose} from '../cinematic-path.js';
 
 // Loaded only with ?render=1 by scripts/render-film.mjs. No uploads or server-side writes.
 export async function createExport({scene,camera,renderer,post,cinema}) {
@@ -9,6 +9,7 @@ export async function createExport({scene,camera,renderer,post,cinema}) {
   const deadline=performance.now()+15000;
   while(!scene.background?.isTexture){if(performance.now()>deadline)throw new Error('Sky texture did not load');await new Promise(r=>setTimeout(r,50));}
   let tracer=null,traceScene=null,traceRenderer=null;
+  let traceResources=[];
   const filmCanvas=document.createElement('canvas'),ink=filmCanvas.getContext('2d');
   const data=()=>renderer.domElement.toDataURL('image/png').split(',')[1];
   function configure(width,height){
@@ -20,9 +21,13 @@ export async function createExport({scene,camera,renderer,post,cinema}) {
   }
   function raster(time,titles=false){
     cinema.seek(time);post.render(scene,camera);
+    if(renderer.getContext().isContextLost())throw new Error('The video renderer lost its graphics context');
     if(!titles)return data();
     const w=filmCanvas.width,h=filmCanvas.height,s=w/1920,chapter=filmChapter(time);
+    ink.globalAlpha=1;
     ink.drawImage(renderer.domElement,0,0,w,h);
+    // The post compositor already fades the scene; only the typography needs its own fade.
+    ink.globalAlpha=filmPose(time).opacity??1;
     const shade=ink.createLinearGradient(0,h*.57,0,h);shade.addColorStop(0,'#13251a00');shade.addColorStop(1,'#13251aa6');
     ink.fillStyle=shade;ink.fillRect(0,0,w,h);
     ink.fillStyle='#f9f6e9';ink.font=`${44*s}px Georgia`;ink.fillText('22',64*s,76*s);
@@ -31,9 +36,11 @@ export async function createExport({scene,camera,renderer,post,cinema}) {
     ink.letterSpacing='0px';ink.font=`${56*s}px Georgia`;ink.fillText(chapter.title,62*s,h-111*s);
     ink.font=`${18*s}px Arial`;ink.fillText(chapter.subtitle,64*s,h-66*s);
     ink.fillStyle='#f1efdb66';ink.fillRect(64*s,h-32*s,w-128*s,2*s);ink.fillStyle='#f1efdb';ink.fillRect(64*s,h-32*s,(w-128*s)*time/FILM_DURATION,2*s);
+    ink.globalAlpha=1;
     return filmCanvas.toDataURL('image/png').split(',')[1];
   }
   async function prepareTrace(time){
+    disposeTrace();
     cinema.seek(time);
     const {WebGLPathTracer}=await import('./pathtracer.js');
     traceScene=scene.clone(true);
@@ -42,17 +49,24 @@ export async function createExport({scene,camera,renderer,post,cinema}) {
     const pixels=skyInk.getImageData(0,0,1024,512).data,linear=new Float32Array(pixels.length);
     for(let i=0;i<pixels.length;i++){const v=pixels[i]/255;linear[i]=i%4===3?1:v<=.04045?v/12.92:Math.pow((v+.055)/1.055,2.4);}
     const sky=new THREE.DataTexture(linear,1024,512,THREE.RGBAFormat,THREE.FloatType);sky.mapping=THREE.EquirectangularReflectionMapping;sky.needsUpdate=true;
+    traceResources.push(sky);
     traceScene.environment=sky;traceScene.background=sky;
     traceScene.environmentIntensity=1.8;
     traceScene.fog=null;
-    const materials=new Map();
+    const materials=new Map(),practicalLights=[];
+    traceScene.updateMatrixWorld(true);
     traceScene.traverse(o=>{
+      if(o.isPointLight&&o.userData.max){
+        const position=o.getWorldPosition(new THREE.Vector3());
+        practicalLights.push({position,color:o.color.clone(),power:o.userData.max});
+      }
       if(o.isPointLight||o.isAmbientLight||o.isHemisphereLight)o.visible=false;
       if(!o.isMesh)return;
       if(!o.layers.test(camera.layers)||o.material?.isMeshBasicMaterial){o.visible=false;return;}
       const physical=m=>{
         if(materials.has(m))return materials.get(m);
         const clone=m.clone();
+        traceResources.push(clone);
         // Use the geometric floor normal; the raster normal map can self-shadow in the tracer.
         if(m.clearcoat>0){clone.normalMap=null;clone.clearcoat=0;clone.side=THREE.DoubleSide;}
         // Architectural glazing should transmit light in the export, not occlude it.
@@ -61,10 +75,10 @@ export async function createExport({scene,camera,renderer,post,cinema}) {
       };
       o.material=Array.isArray(o.material)?o.material.map(physical):physical(o.material);
     });
-    // Broad practical sources at the existing first-floor fixture positions.
-    for(const [x,z]of[[2.45,2],[-1,1.7],[-2.1,-2.1],[1.8,-2]]){
-      const light=new THREE.RectAreaLight('#fff1db',65,.55,.55);
-      light.position.set(x,3.4,z);light.lookAt(x,1,z);traceScene.add(light);
+    // Broad sources follow the existing fixtures on every floor, including the basement.
+    for(const {position,color,power}of practicalLights){
+      const light=new THREE.RectAreaLight(color,power*65/12,.55,.55);
+      light.position.copy(position);light.lookAt(position.x,position.y-1,position.z);traceScene.add(light);
     }
     traceRenderer=new THREE.WebGLRenderer({preserveDrawingBuffer:true});
     traceRenderer.setSize(renderer.domElement.width,renderer.domElement.height,false);
@@ -80,10 +94,17 @@ export async function createExport({scene,camera,renderer,post,cinema}) {
     };
     tracer.setScene(traceScene,camera);
   }
+  function disposeTrace(){
+    // v0.0.23's dispose() references an undefined _renderQuad. Releasing this dedicated
+    // context frees every tracer GPU allocation without touching the interactive renderer.
+    traceRenderer?.dispose();traceRenderer?.forceContextLoss();
+    traceResources.forEach(resource=>resource.dispose());traceResources=[];
+    tracer=null;traceScene=null;traceRenderer=null;
+  }
   return {
     duration:FILM_DURATION,
     configure,
-    info(){const gl=renderer.getContext();const ext=gl.getExtension('WEBGL_debug_renderer_info');return {gpu:ext?gl.getParameter(ext.UNMASKED_RENDERER_WEBGL):'WebGL2',triangles:renderer.info.render.triangles};},
+    info(){const gl=renderer.getContext();const ext=gl.getExtension('WEBGL_debug_renderer_info');return {duration:FILM_DURATION,chapters:FILM_CHAPTERS,gpu:ext?gl.getParameter(ext.UNMASKED_RENDERER_WEBGL):'WebGL2'};},
     raster,
     async traceStart(time){await prepareTrace(time);},
     traceSamples(count){
@@ -94,6 +115,6 @@ export async function createExport({scene,camera,renderer,post,cinema}) {
       return {samples:tracer.samples,compiling:tracer.isCompiling};
     },
     traceImage(){tracer.renderSample();traceRenderer.getContext().finish();return traceRenderer.domElement.toDataURL('image/png').split(',')[1];},
-    traceDispose(){tracer?.dispose();traceRenderer?.dispose();tracer=null;traceScene=null;traceRenderer=null;},
+    traceDispose:disposeTrace,
   };
 }

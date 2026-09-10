@@ -512,9 +512,21 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     const g = new THREE.Group();
     g.position.set(x, y, z);
     parentGroup.add(g);
-    box(.38, .4, .5, 0, 0, 0, porcelain, g);
-    box(.34, .5, .18, 0, .4, -.18, porcelain, g);
-    box(.42, .04, .5, 0, .4, .02, porcelain, g);
+    const add=(geometry,material,position,scale=[1,1,1])=>{
+      const mesh=new THREE.Mesh(geometry,material);
+      mesh.position.set(...position);mesh.scale.set(...scale);
+      mesh.castShadow=true;mesh.receiveShadow=true;g.add(mesh);return mesh;
+    };
+    // One continuous porcelain section forms the pedestal, oval bowl and recessed interior.
+    const profile=[[0,.015],[.105,.015],[.12,.035],[.11,.12],[.095,.22],[.155,.30],[.193,.38],[.195,.415],[.175,.425],[.16,.385],[.125,.305],[.065,.265],[0,.265]];
+    add(new THREE.LatheGeometry(profile.map(([r,h])=>new THREE.Vector2(r,h)),32),porcelain,[0,0,.01],[1,1,1.2]);
+    const seat=add(new THREE.TorusGeometry(.183,.015,8,40),porcelain,[0,.438,.01],[1,1.2,.75]);
+    seat.rotation.x=Math.PI/2;
+    add(new RoundedBoxGeometry(.34,.43,.16,2,.026),porcelain,[0,.635,-.18]);
+    add(new RoundedBoxGeometry(.36,.032,.18,2,.012),porcelain,[0,.866,-.18]);
+    add(new THREE.CylinderGeometry(.016,.016,.006,12),steel,[.09,.885,-.18]);
+    box(.09,.018,.035,-.09,.421,-.145,porcelain,g);
+    box(.09,.018,.035,.09,.421,-.145,porcelain,g);
   }
   function drum(x, y, z, r = .24) {
     const d = new THREE.Mesh(new THREE.CylinderGeometry(r, r, .16, 24, 1, true), mat('#efe6d3', {side: THREE.DoubleSide}));
@@ -637,13 +649,65 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   {
     // Hall bathroom: tub, toilet, vanity.
     box(2.2, .02, 1.72, 2.75, S.y, -2.99, tile);
-    box(.7, .55, 1.5, 2.0, S.y, -3.05, porcelain);
-    box(.56, .02, 1.36, 2.0, S.y + .55, -3.05, mat('#d5e4e8', {roughness: .2}));
-    box(.03, .5, .03, 2.0, S.y + .55, -3.75, steel);
+    const fixture=(geometry,material,x,y,z)=>{
+      const mesh=new THREE.Mesh(geometry,material);mesh.position.set(x,y,z);
+      mesh.castShadow=true;mesh.receiveShadow=true;parentGroup.add(mesh);return mesh;
+    };
+    // A rounded rectangular shell curls over the rim and down into the bathing well.
+    // Six rings keep the 70 x 150 cm footprint, with a real recess rather than a flat top.
+    const rings=[[.29,.69,.09,.025],[.35,.75,.075,.49],[.35,.75,.075,.535],[.282,.682,.16,.55],[.26,.65,.16,.48],[.21,.55,.14,.16]];
+    const vertices=[],indices=[],around=32;
+    for(const [w,d,r,h]of rings){
+      for(let corner=0;corner<4;corner++){
+        const cx=(corner===0||corner===3?1:-1)*(w-r),cz=(corner<2?1:-1)*(d-r);
+        for(let step=0;step<8;step++){
+          const angle=(corner+step/8)*Math.PI/2;
+          vertices.push(cx+Math.cos(angle)*r,h,cz+Math.sin(angle)*r);
+        }
+      }
+    }
+    for(let ring=0;ring<rings.length-1;ring++)for(let i=0;i<around;i++){
+      const a=ring*around+i,b=ring*around+(i+1)%around,c=a+around,d=b+around;
+      indices.push(a,c,b,b,c,d);
+    }
+    const bottom=vertices.length/3;vertices.push(0,rings[0][3],0);
+    const basinFloor=vertices.length/3;vertices.push(0,rings.at(-1)[3],0);
+    for(let i=0;i<around;i++){
+      indices.push(bottom,i,(i+1)%around);
+      const offset=(rings.length-1)*around;
+      indices.push(basinFloor,offset+(i+1)%around,offset+i);
+    }
+    const tubGeometry=new THREE.BufferGeometry();
+    tubGeometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));
+    tubGeometry.setIndex(indices);tubGeometry.computeVertexNormals();
+    fixture(tubGeometry,porcelain,2,S.y,-3.05);
+    fixture(new THREE.CylinderGeometry(.027,.027,.004,16),steel,2,S.y+.163,-3.43);
+    const tap=new THREE.CatmullRomCurve3([new THREE.Vector3(2,S.y+.55,-3.73),new THREE.Vector3(2,S.y+.85,-3.73),new THREE.Vector3(2,S.y+.9,-3.65),new THREE.Vector3(2,S.y+.86,-3.59)]);
+    fixture(new THREE.TubeGeometry(tap,16,.014,8,false),steel,0,0,0);
+    for(const x of [1.94,2.06])fixture(new THREE.CylinderGeometry(.021,.021,.035,12),steel,x,S.y+.566,-3.73);
     toilet(3.5, -3.5, S.y);
-    box(.5, .82, .5, 3.55, S.y, -2.55, cabinet);
-    box(.52, .04, .52, 3.55, S.y + .82, -2.55, mat('#d6d2c8', {roughness: .35}));
+    box(.44,.07,.44,3.55,S.y,-2.55,cabinet);
+    box(.5,.6,.5,3.55,S.y+.07,-2.55,cabinet);
+    for(const x of [3.31,3.79])box(.02,.15,.5,x,S.y+.67,-2.55,cabinet);
+    for(const z of [-2.79,-2.31])box(.46,.15,.02,3.55,S.y+.67,z,cabinet);
+    box(.012,.54,.42,3.302,S.y+.13,-2.55,cabinet);
+    box(.018,.018,.14,3.307,S.y+.69,-2.55,steel);
+    const counter=new THREE.Shape();
+    counter.moveTo(-.257,-.257);counter.lineTo(.257,-.257);counter.lineTo(.257,.257);counter.lineTo(-.257,.257);counter.closePath();
+    const opening=new THREE.Path();opening.absellipse(-.035,0,.153,.18,0,Math.PI*2,true);counter.holes.push(opening);
+    const counterGeometry=new THREE.ExtrudeGeometry(counter,{depth:.034,steps:1,bevelEnabled:true,bevelSegments:1,bevelSize:.003,bevelThickness:.003,curveSegments:20});
+    counterGeometry.rotateX(-Math.PI/2);
+    fixture(counterGeometry,mat('#d6d2c8',{roughness:.35}),3.55,S.y+.823,-2.55);
+    const sinkProfile=[[0,.724],[.06,.73],[.11,.775],[.16,.848],[.164,.861],[.147,.861],[.128,.825],[.095,.777],[.05,.752],[0,.752]];
+    const basin=fixture(new THREE.LatheGeometry(sinkProfile.map(([r,h])=>new THREE.Vector2(r,h)),28),porcelain,3.515,S.y,-2.55);
+    basin.scale.set(.94,1,1.11);
+    fixture(new THREE.CylinderGeometry(.016,.016,.004,12),steel,3.515,S.y+.755,-2.55);
+    const mixer=new THREE.CatmullRomCurve3([new THREE.Vector3(3.735,S.y+.86,-2.55),new THREE.Vector3(3.735,S.y+1.0,-2.55),new THREE.Vector3(3.69,S.y+1.03,-2.55),new THREE.Vector3(3.62,S.y+1.01,-2.55)]);
+    fixture(new THREE.TubeGeometry(mixer,12,.012,8,false),steel,0,0,0);
+    box(.014,.018,.07,3.738,S.y+1.0,-2.55,steel);
     box(.03, .55, .5, 3.8, S.y + 1.2, -2.55, steel);
+    const mirror=new THREE.MeshPhysicalMaterial({color:'#b9c0c4',metalness:.6,roughness:.12,clearcoat:1,clearcoatRoughness:.05,emissive:'#839292',emissiveIntensity:.12});
+    box(.004,.49,.44,3.782,S.y+1.23,-2.55,mirror);
   }
   {
     // Front-left bedroom closets, from the photos: a double-door closet with two hanging rods and
@@ -1762,6 +1826,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     camera.position.fromArray(pose.position);camera.lookAt(...pose.target);
     camera.fov=camera.aspect<1?Math.min(86,pose.fov+18):pose.fov;camera.updateProjectionMatrix();
     setDoor('front',ease(pose.door));
+    for(const [name,value] of Object.entries(pose.doors||{}))setDoor(name,ease(value));
   }
   function endCinema() {
     if(!cinemaSnapshot)return;

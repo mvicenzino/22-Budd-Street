@@ -269,7 +269,7 @@ const exportMode=new URLSearchParams(location.search).has('render');
 if(exportMode)import('./render/export.js').then(({createExport})=>createExport({scene,camera,renderer,post,cinema,sun})).then(api=>{window.buddRender=api;}).catch(error=>{console.error(error);$('#error').hidden=false;$('#error').textContent='The video renderer could not start.';});
 mergeStatic(home);mergeStatic(interior.group);
 host.addEventListener('keydown',e=>{if(interior.active)return;if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key))return;e.preventDefault();if(e.key===' '){$('#tour').click();return}stop();const off=camera.position.clone().sub(controls.target);theta=Math.atan2(off.x,off.z);distance=off.length();elevation=Math.asin(off.y/distance);target.copy(controls.target);if(e.key==='ArrowLeft')theta-=.12;if(e.key==='ArrowRight')theta+=.12;if(e.key==='ArrowUp')elevation=Math.min(1.3,elevation+.06);if(e.key==='ArrowDown')elevation=Math.max(.06,elevation-.06);setCamera()});
-function resize(){renderer.setSize(host.clientWidth,host.clientHeight);camera.aspect=host.clientWidth/host.clientHeight;if(!interior.active)camera.fov=exteriorFov();camera.updateProjectionMatrix();post.resize()}new ResizeObserver(resize).observe(host);resize();
+function resize(){renderer.setSize(host.clientWidth,host.clientHeight);camera.aspect=host.clientWidth/host.clientHeight;if(!interior.active)camera.fov=exteriorFov();camera.updateProjectionMatrix();post.resize();post.render(scene,camera)}new ResizeObserver(resize).observe(host);resize();
 if(location.search.includes('debug'))window.budd={scene,renderer,camera,interior,post};
 let frames=0;
 function loop(now){

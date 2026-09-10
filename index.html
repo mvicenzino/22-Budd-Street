@@ -339,7 +339,7 @@
 <p class="note">Proportions estimated from your four photos. The yard, barn location, and dimensions are approximate. A visual study, not a measured survey.</p>
 </aside>
 <div class="exterior-views">
-<button id="cinema-open" class="cinema-invite">▷ <span>Take a cinematic tour</span> <small>20 SEC</small></button>
+<button id="cinema-open" class="cinema-invite" aria-haspopup="dialog" aria-controls="cinema-controls"><span aria-hidden="true">▷</span> <span>Take a cinematic tour</span> <small id="cinema-duration">ALL FLOORS</small></button>
 <span class="eyebrow">FIND YOUR PERSPECTIVE</span>
 <div class="views" role="group" aria-label="Exterior viewpoints">
 <button data-view="front">Front</button>
@@ -399,10 +399,34 @@
 <span id="bearing">FRONT</span>
 </div>
 <div class="scene-footnote">YOUR HOME, FROM EVERY ANGLE</div>
-<section id="cinema-controls" aria-label="Cinematic house tour" hidden>
-<div class="cinema-top"><a href="./" aria-label="Budd Street home">22 <span>BUDD STREET</span></a><button id="cinema-exit">Back to exploring ↗</button></div>
-<div class="cinema-caption"><span id="cinema-number" class="eyebrow">01 / A WALK THROUGH HOME</span><h2 id="cinema-title">An invitation inside</h2><p id="cinema-subtitle">22 Budd Street</p></div>
-<div class="cinema-bottom"><div class="cinema-buttons"><button id="cinema-play" aria-pressed="false">Play</button><button id="cinema-restart" aria-label="Restart cinematic tour">↺</button><a class="film-download" href="media/budd-street-cinematic.mp4" download="Budd-Street-Cinematic.mp4">Save film ↗</a><span id="cinema-time">00 / 20s</span></div><label class="sr-only" for="cinema-seek">Cinematic tour position</label><input id="cinema-seek" type="range" min="0" max="20" value="0" step="0.05"></div>
+<section id="cinema-controls" role="dialog" aria-modal="true" aria-label="Cinematic house tour" aria-describedby="cinema-keyboard" hidden>
+<div class="cinema-top">
+<span class="cinema-brand" aria-label="22 Budd Street">22 <span>BUDD STREET</span></span>
+<button id="cinema-exit">Back to exploring <span aria-hidden="true">↗</span></button>
+</div>
+<div class="cinema-caption">
+<span id="cinema-number" class="eyebrow">01 / FIRST FLOOR</span>
+<h2 id="cinema-title">An invitation inside</h2>
+<p id="cinema-subtitle">22 Budd Street</p>
+</div>
+<div class="cinema-bottom">
+<label class="sr-only" for="cinema-seek">Cinematic tour position</label>
+<input id="cinema-seek" type="range" min="0" value="0" step="0.05" aria-describedby="cinema-keyboard">
+<div class="cinema-buttons">
+<button id="cinema-play" aria-pressed="false">Play</button>
+<button id="cinema-restart" class="cinema-icon" aria-label="Restart cinematic tour" title="Restart tour">↺</button>
+<button id="cinema-previous" class="cinema-icon" aria-label="Previous chapter" title="Previous chapter">←</button>
+<button id="cinema-next" class="cinema-icon" aria-label="Next chapter" title="Next chapter">→</button>
+<div class="cinema-chapter-picker">
+<label for="cinema-chapter">JUMP TO A ROOM</label>
+<select id="cinema-chapter"></select>
+</div>
+<span id="cinema-time" aria-hidden="true">00:00</span>
+<a class="film-download" href="media/budd-street-cinematic.mp4" download="Budd-Street-Cinematic.mp4">Save film <span aria-hidden="true">↗</span></a>
+</div>
+</div>
+<p id="cinema-keyboard" class="sr-only">Use the left and right arrow keys to seek five seconds. Use Space to play or pause and Escape to return to exploring. Choose a room to jump to its chapter.</p>
+<p id="cinema-announcement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
 </section>
 </main>
 <dialog id="gallery">

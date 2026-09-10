@@ -137,7 +137,7 @@ const blurFragment = /* glsl */`
 const compositeFragment = /* glsl */`
   varying vec2 vUv;
   uniform sampler2D tColor, tAO;
-  uniform float vignette;
+  uniform float vignette, opacity;
   void main() {
     float ao = texture2D(tAO, vUv).r;
     vec4 color = texture2D(tColor, vUv);
@@ -147,6 +147,7 @@ const compositeFragment = /* glsl */`
     #include <colorspace_fragment>
     vec2 q = vUv - 0.5;
     gl_FragColor.rgb *= 1.0 - vignette * smoothstep(0.35, 0.85, dot(q, q) * 2.0);
+    gl_FragColor.rgb = mix(vec3(19.0, 37.0, 26.0) / 255.0, gl_FragColor.rgb, opacity);
   }`;
 
 export function createPostPipeline(renderer, {aoRadius = .5, aoIntensity = .8, vignette = .12} = {}) {
@@ -168,7 +169,7 @@ export function createPostPipeline(renderer, {aoRadius = .5, aoIntensity = .8, v
   });
   const compositeMaterial = new THREE.ShaderMaterial({
     vertexShader: fullscreenVertex, fragmentShader: compositeFragment, depthTest: false, depthWrite: false,
-    uniforms: {tColor: {value: colorRT.texture}, tAO: {value: aoRT.texture}, vignette: {value: vignette}},
+    uniforms: {tColor: {value: colorRT.texture}, tAO: {value: aoRT.texture}, vignette: {value: vignette}, opacity: {value: 1}},
   });
   const quadScene = new THREE.Scene(), quadCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), aoMaterial);
@@ -256,5 +257,6 @@ export function createPostPipeline(renderer, {aoRadius = .5, aoIntensity = .8, v
     renderer.render(quadScene, quadCamera);
     camera.layers.mask = layers;
   }
-  return {render, resize, setQuality, OVERLAY, aoMaterial, compositeMaterial};
+  const setOpacity = value => { compositeMaterial.uniforms.opacity.value = Math.max(0, Math.min(1, value)); };
+  return {render, resize, setQuality, setOpacity, OVERLAY, aoMaterial, compositeMaterial};
 }
