@@ -84,31 +84,31 @@ export const PARTITIONS = [
   // First floor
   {level: 'first', axis: 'x', coord: -.32, c0: -INNER.x, c1: 1.95, openings: [{a0: -2.7, a1: -.85, y1: 2.2}]},            // living | dining
   {level: 'first', axis: 'z', coord: 1.95, c0: -.32, c1: INNER.z, openings: [{a0: 0, a1: 3, y1: 2.2}]},                     // living | hallway
-  {level: 'first', axis: 'z', coord: -.32, c0: -INNER.z, c1: -.32, openings: [{a0: -3.6, a1: -2.9, y1: 2.05, door: true}, {a0: -1.75, a1: -.9, y1: 2.2}]}, // dining | kitchen, powder room door
+  {level: 'first', axis: 'z', coord: -.32, c0: -INNER.z, c1: -.32, openings: [{a0: -3.6, a1: -2.9, y1: 2.05, door: true, swing: 1}, {a0: -1.75, a1: -.9, y1: 2.2}]}, // dining | kitchen, powder room door
   {level: 'first', axis: 'x', coord: -.32, c0: 1.95, c1: INNER.x, openings: [{a0: 1.95, a1: 2.8, y1: 2.2}, {a0: STAIR.x0, a1: INNER.x}]}, // hallway | kitchen corridor; the stairwell column is open
   {level: 'first', axis: 'z', coord: .5, c0: -INNER.z, c1: -2.6, openings: []},                                             // powder room (2'9" x 4'2")
   {level: 'first', axis: 'x', coord: -2.6, c0: -.32, c1: .5, openings: []},                                                 // powder room front, fridge alcove side
   {level: 'first', axis: 'x', coord: -1.75, c0: -.32, c1: .5, openings: []},                                                // fridge alcove return, beside the dining entrance
   {level: 'first', axis: 'x', coord: 3.15, c0: 3.1, c1: INNER.x, openings: []},                                             // hall closet (2'9")
-  {level: 'first', axis: 'z', coord: 3.1, c0: 3.15, c1: INNER.z, openings: [{a0: 3.25, a1: 3.75, y1: 2.05, door: true}]},
+  {level: 'first', axis: 'z', coord: 3.1, c0: 3.15, c1: INNER.z, openings: [{a0: 3.25, a1: 3.75, y1: 2.05, door: true, swing: -1}]},
   // Second floor
   {level: 'second', axis: 'x', coord: -.37, c0: -INNER.x, c1: -.32, openings: []},                                         // back bedroom | closets
   {level: 'second', axis: 'x', coord: .35, c0: -INNER.x, c1: -.32, openings: [{a0: -3.6, a1: -2.7, y1: 2.05}, {a0: -2.55, a1: -1.75, y1: 2.05}, {a0: -1.6, a1: -.6, y1: 2.05}]}, // closet fronts: doors, built-in, doors
   {level: 'second', axis: 'z', coord: -2.62, c0: -.37, c1: .35, openings: []},                                              // closet dividers
   {level: 'second', axis: 'z', coord: -1.68, c0: -.37, c1: .35, openings: []},
   {level: 'second', axis: 'z', coord: -.32, c0: -.37, c1: .35, openings: []},                                               // closets | vestibule
-  {level: 'second', axis: 'x', coord: -.37, c0: -.32, c1: INNER.x, openings: [{a0: -.25, a1: .45, y1: 2.05, door: true}, {a0: LOFT_STAIR.door[0], a1: LOFT_STAIR.door[1], y1: 2.05, door: true}, {a0: 2.1, a1: 2.7, y1: 2.05, door: true}, {a0: STAIR.x0, a1: INNER.x}]}, // hall | front bedrooms: loft stair door, bedroom door, stairwell open
-  {level: 'second', axis: 'z', coord: -.32, c0: -INNER.z, c1: -.37, openings: [{a0: -3.65, a1: -2.95, y1: 2.05, door: true}, {a0: -1.95, a1: -1.2, y1: 2.05, door: true}]}, // back bedroom | walk-in closet door, hall door
+  {level: 'second', axis: 'x', coord: -.37, c0: -.32, c1: INNER.x, openings: [{a0: -.25, a1: .45, y1: 2.05, door: true, swing: 1}, {a0: LOFT_STAIR.door[0], a1: LOFT_STAIR.door[1], y1: 2.05, door: true, hinged: 'loft'}, {a0: 2.1, a1: 2.7, y1: 2.05, door: true, swing: 1}, {a0: STAIR.x0, a1: INNER.x}]}, // hall | front bedrooms: loft stair door, bedroom door, stairwell open
+  {level: 'second', axis: 'z', coord: -.32, c0: -INNER.z, c1: -.37, openings: [{a0: -3.65, a1: -2.95, y1: 2.05, door: true, swing: 1}, {a0: -1.95, a1: -1.2, y1: 2.05, door: true, swing: -1}]}, // back bedroom | walk-in closet door, hall door
   {level: 'second', axis: 'z', coord: .62, c0: -.37, c1: INNER.z, openings: []},                                            // front left | front right
   {level: 'second', axis: 'z', coord: LOFT_STAIR.x1 + .07, c0: -.37, c1: LOFT_STAIR.z1 + .07, openings: []},                // loft stair box inside the front-right bedroom
   {level: 'second', axis: 'x', coord: LOFT_STAIR.z1 + .07, c0: .62, c1: LOFT_STAIR.x1 + .07, openings: []},
-  {level: 'second', axis: 'x', coord: -2.12, c0: -.32, c1: INNER.x, openings: [{a0: .95, a1: 1.45, y1: 2.05, door: true}, {a0: 2.4, a1: 3, y1: 2.05, door: true}]}, // hall | linen closet, bath
+  {level: 'second', axis: 'x', coord: -2.12, c0: -.32, c1: INNER.x, openings: [{a0: .95, a1: 1.45, y1: 2.05, door: true, swing: 1}, {a0: 2.4, a1: 3, y1: 2.05, door: true, swing: -1}]}, // hall | linen closet, bath
   {level: 'second', axis: 'x', coord: -2.76, c0: .62, c1: 1.58, openings: []},                                              // linen closet (3'2") carved from the walk-in
   {level: 'second', axis: 'z', coord: .62, c0: -2.76, c1: -2.12, openings: []},
   {level: 'second', axis: 'z', coord: 1.58, c0: -INNER.z, c1: -2.12, openings: []},                                         // walk-in closet | bath
   {level: 'second', axis: 'z', coord: STAIR.x0, c0: -.37, c1: 2.1, openings: []},                                           // stair column | front-right bedroom (7'5")
   {level: 'second', axis: 'x', coord: 1.25, c0: STAIR.x0, c1: INNER.x, openings: []},                                        // stairwell | bedroom closet
-  {level: 'second', axis: 'x', coord: 2.1, c0: STAIR.x0, c1: INNER.x, openings: [{a0: 3.2, a1: 3.7, y1: 2.05, door: true}]}, // bedroom closet door (3'2")
+  {level: 'second', axis: 'x', coord: 2.1, c0: STAIR.x0, c1: INNER.x, openings: [{a0: 3.2, a1: 3.7, y1: 2.05, door: true, swing: 1}]}, // bedroom closet door (3'2")
 ];
 
 // Rooms as measured. Rectangles are [x0, z0, x1, z1]. `minor` rooms are drawn on the map without a

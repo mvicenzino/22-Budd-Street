@@ -20,7 +20,7 @@ export function findPath(nodes, from, to) {
   return path;
 }
 
-export const TOUR_STOPS = ['hall', 'living', 'dining', 'kitchenWork', 'rear', 'hall2', 'bedBack', 'bedFrontL', 'bedFrontR', 'bath', 'loft', 'basement'];
+export const TOUR_STOPS = ['hall', 'living', 'dining', 'kitchenEntry', 'kitchen', 'kitchenSink', 'kitchenWork', 'rear', 'landing', 'basement', 'basementRear', 'hall2', 'bedFrontR', 'bedFrontL', 'bedBack', 'walkin', 'bath', 'loft'];
 
 export function renderQuality(mode, dpr = 1, compact = false) {
   const quality = mode === 'auto' ? (compact ? 'balanced' : 'high') : mode;

@@ -17,7 +17,7 @@ Deploy the repository root as a static site on Vercel. Open it through a web ser
 ## Explore
 
 - **Outside:** choose a viewpoint, start a walk-around, or open **Finishes & garden**. Camera presets ease into place; dragging interrupts the movement.
-- **Inside:** step through nearby arrows, use **Next room / Previous room**, or **Play tour** for twelve stops across four levels. Looking around, choosing a room, opening photos, or hiding the tab pauses autoplay.
+- **Inside:** step through nearby arrows, use **Next room / Previous room**, or **Play tour** for eighteen stops across four levels. Looking around, choosing a room, opening photos, or hiding the tab pauses autoplay.
 - **Rooms & finishes:** choose a floor and destination, change wall colors, furniture and floors, and show dimensions. **Floor plan** frames the complete current floor; **Eye level** returns to where you stood.
 - **Quality:** Auto begins with High on desktop and Balanced on compact/touch screens, then lowers quality if sustained frame times exceed 34 ms after warm-up. High, Balanced and Light can also be selected explicitly. Reduced camera motion follows the system preference initially and can be changed here.
 
@@ -47,7 +47,7 @@ This remains a conceptual, real-time model based on photos and floor plans, not 
 
 The shared model uses subtle furniture/cabinet bevels, finer wood grain, satin floor reflections and fabric sheen, with the agreed paint palette throughout. The cinematic route is composed for the default furniture arrangement; a custom layout can alter the framing.
 
-A silent **90-second, 1920 × 1080, 24 fps MP4** is included in `media/budd-street-cinematic.mp4` and available through **Save film**. It is rendered frame by frame, with 4× MSAA, full-resolution 48-sample ambient occlusion and room titles. This avoids dropped frames during recording on slower devices. The interactive **Play tour** remains a separate guided exploration mode with twelve stops across four levels.
+A silent **90-second, 1920 × 1080, 24 fps MP4** is included in `media/budd-street-cinematic.mp4` and available through **Save film**. It is rendered frame by frame, with 4× MSAA, full-resolution 48-sample ambient occlusion and room titles. This avoids dropped frames during recording on slower devices. The interactive **Play tour** remains a separate guided exploration mode with eighteen stops across four levels.
 
 ### Reproduce the exports
 
