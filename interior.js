@@ -946,8 +946,17 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       box(depth - .08, .1, sideEnd - rear - depth, right - depth / 2 - .04, F.y, (rear + depth + sideEnd) / 2, grate);
       box(depth + .03, .04, sideEnd - rear - depth + .02, right - depth / 2 - .015, F.y + h, (rear + depth + sideEnd) / 2, navyLike);
       for (const z of [-2.9, -2.0]) box(.02, .02, .02, right - depth - .01, F.y + .62, z, knob);
-      box(.5, .3, .38, right - .3, F.y + h + .04, -2.75, appliance); // microwave
-      box(.36, .2, .01, right - .55, F.y + h + .09, -2.75, ovenGlass);
+      // Build the microwave facing local +Z, then turn the whole appliance toward the kitchen.
+      // The closed door stays flush with the case on the side counter, facing -X.
+      const microwave = new THREE.Group();
+      microwave.name = 'Microwave';
+      microwave.position.set(right - .3, F.y + h + .04, -2.75);
+      microwave.rotation.y = -Math.PI / 2;
+      parentGroup.add(microwave);
+      box(.5, .3, .38, 0, 0, 0, appliance, microwave);
+      box(.36, .2, .01, -.045, .05, .194, ovenGlass, microwave);
+      box(.055, .065, .008, .197, .17, .194, ovenGlass, microwave); // control display
+      box(.012, .15, .018, .155, .075, .204, knob, microwave); // slim door handle
       {
         const pz = (pantryZ[0] + pantryZ[1]) / 2, pw = pantryZ[1] - pantryZ[0], ph = 2.2;
         box(depth, ph, pw, right - depth / 2, F.y, pz, cabinet);
