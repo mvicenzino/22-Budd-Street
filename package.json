@@ -1,0 +1,19 @@
+{
+  "name": "budd-street-walkthrough",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/serve.js",
+    "test": "node --test tests/*.test.js",
+    "build:renderer": "node scripts/build-renderer.mjs",
+    "render:film": "node scripts/render-film.mjs",
+    "test:browser": "node scripts/verify-cinema.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.9",
+    "playwright": "1.63.0",
+    "three": "0.170.0",
+    "three-gpu-pathtracer": "0.0.23",
+    "three-mesh-bvh": "0.8.3"
+  }
+}

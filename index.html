@@ -1,1 +1,464 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Budd Street · Home in 3D</title><meta name="description" content="Explore a photo-based 3D exterior model of our Budd Street home."><link rel="stylesheet" href="style.css"><script type="importmap">{"imports":{"three":"./three.module.js"}}</script></head><body><header><div><span class="eyebrow">OUR NEXT CHAPTER</span><h1>Budd Street<span> / Home in 3D</span></h1></div><div class="header-actions"><button id="future" aria-pressed="false" aria-controls="future-options">Future state</button><button id="photos">Reference photos</button></div></header><main><div id="scene" tabindex="0" aria-label="Interactive 3D house. Drag to rotate, scroll to zoom, arrow keys to rotate."><div id="error" hidden>3D graphics could not start. Please try a browser with WebGL enabled. Your reference photos are still available.</div></div><div class="viewtag"><span id="viewname">Front · driveway side</span><small id="mode-label" aria-live="polite">Current model · photo-based exterior study</small></div><button id="config-open" type="button" aria-controls="configuration-panel" aria-expanded="true" hidden>Configure</button><aside id="configuration-panel" aria-labelledby="config-title"><div class="config-header"><h2 id="config-title">Configuration</h2><button id="config-close" type="button" aria-label="Close configuration panel">Close <span aria-hidden="true">×</span></button></div><section id="future-options"><details class="config-section" open><summary>Exterior siding</summary><div id="paint-label" class="paint-label">Paint color · black shutters</div><div class="paint-swatches" role="group" aria-labelledby="paint-label"><button type="button" class="paint-swatch" data-paint="white" aria-pressed="true" aria-label="White exterior with black shutters"><span class="paint-chip" style="--paint:#eeefe9" aria-hidden="true"><span class="paint-check">✓</span></span><span>White</span></button><button type="button" class="paint-swatch" data-paint="light" aria-pressed="false" aria-label="Light gray exterior with black shutters"><span class="paint-chip" style="--paint:#b9bec0" aria-hidden="true"><span class="paint-check">✓</span></span><span>Light gray</span></button><button type="button" class="paint-swatch" data-paint="medium" aria-pressed="false" aria-label="Medium gray exterior with black shutters"><span class="paint-chip" style="--paint:#8a9195" aria-hidden="true"><span class="paint-check">✓</span></span><span>Medium gray</span></button><button type="button" class="paint-swatch" data-paint="dark" aria-pressed="false" aria-label="Dark gray exterior with black shutters"><span class="paint-chip" style="--paint:#555d63" aria-hidden="true"><span class="paint-check">✓</span></span><span>Dark gray</span></button><button type="button" class="paint-swatch" data-paint="greige" aria-pressed="false" aria-label="Gray/beige exterior with black shutters"><span class="paint-chip" style="--paint:#b5ac9c" aria-hidden="true"><span class="paint-check">✓</span></span><span>Gray/beige</span></button></div></details><details id="porch-options" class="config-section" open><summary>Front porch &amp; steps</summary><div class="porch-finish"><div class="paint-label" id="steps-label">Porch steps</div><button id="steps-closeup" type="button">View steps close up</button><div class="paint-swatches" role="group" aria-labelledby="steps-label"><button type="button" class="paint-swatch" data-porch="steps" data-finish="existing" aria-pressed="true" aria-label="Porch steps: Existing"><span class="paint-chip" style="--paint:#5d6468" aria-hidden="true"><span class="paint-check">✓</span></span><span>Existing</span></button><button type="button" class="paint-swatch" data-porch="steps" data-finish="white" aria-pressed="false" aria-label="Porch steps: White"><span class="paint-chip" style="--paint:#eeeee4" aria-hidden="true"><span class="paint-check">✓</span></span><span>White</span></button><button type="button" class="paint-swatch" data-porch="steps" data-finish="light" aria-pressed="false" aria-label="Porch steps: Light gray"><span class="paint-chip" style="--paint:#b9bec0" aria-hidden="true"><span class="paint-check">✓</span></span><span>Light gray</span></button><button type="button" class="paint-swatch" data-porch="steps" data-finish="medium" aria-pressed="false" aria-label="Porch steps: Medium gray"><span class="paint-chip" style="--paint:#8a9195" aria-hidden="true"><span class="paint-check">✓</span></span><span>Medium gray</span></button><button type="button" class="paint-swatch" data-porch="steps" data-finish="charcoal" aria-pressed="false" aria-label="Porch steps: Charcoal"><span class="paint-chip" style="--paint:#393f43" aria-hidden="true"><span class="paint-check">✓</span></span><span>Charcoal</span></button><button type="button" class="paint-swatch" data-porch="steps" data-finish="greige" aria-pressed="false" aria-label="Porch steps: Gray/beige"><span class="paint-chip" style="--paint:#b5ac9c" aria-hidden="true"><span class="paint-check">✓</span></span><span>Gray/beige</span></button><button type="button" class="paint-swatch" data-porch="steps" data-finish="cedar" aria-pressed="false" aria-label="Porch steps: Cedar tone"><span class="paint-chip" style="--paint:#aa7952" aria-hidden="true"><span class="paint-check">✓</span></span><span>Cedar tone</span></button></div></div><div class="porch-finish"><div class="paint-label" id="floor-label">Porch floor</div><div class="paint-swatches" role="group" aria-labelledby="floor-label"><button type="button" class="paint-swatch" data-porch="floor" data-finish="existing" aria-pressed="true" aria-label="Porch floor: Existing"><span class="paint-chip" style="--paint:#5d6468" aria-hidden="true"><span class="paint-check">✓</span></span><span>Existing</span></button><button type="button" class="paint-swatch" data-porch="floor" data-finish="white" aria-pressed="false" aria-label="Porch floor: White"><span class="paint-chip" style="--paint:#eeeee4" aria-hidden="true"><span class="paint-check">✓</span></span><span>White</span></button><button type="button" class="paint-swatch" data-porch="floor" data-finish="light" aria-pressed="false" aria-label="Porch floor: Light gray"><span class="paint-chip" style="--paint:#b9bec0" aria-hidden="true"><span class="paint-check">✓</span></span><span>Light gray</span></button><button type="button" class="paint-swatch" data-porch="floor" data-finish="medium" aria-pressed="false" aria-label="Porch floor: Medium gray"><span class="paint-chip" style="--paint:#8a9195" aria-hidden="true"><span class="paint-check">✓</span></span><span>Medium gray</span></button><button type="button" class="paint-swatch" data-porch="floor" data-finish="charcoal" aria-pressed="false" aria-label="Porch floor: Charcoal"><span class="paint-chip" style="--paint:#393f43" aria-hidden="true"><span class="paint-check">✓</span></span><span>Charcoal</span></button><button type="button" class="paint-swatch" data-porch="floor" data-finish="greige" aria-pressed="false" aria-label="Porch floor: Gray/beige"><span class="paint-chip" style="--paint:#b5ac9c" aria-hidden="true"><span class="paint-check">✓</span></span><span>Gray/beige</span></button><button type="button" class="paint-swatch" data-porch="floor" data-finish="cedar" aria-pressed="false" aria-label="Porch floor: Cedar tone"><span class="paint-chip" style="--paint:#aa7952" aria-hidden="true"><span class="paint-check">✓</span></span><span>Cedar tone</span></button></div></div><div class="porch-finish"><div class="paint-label" id="rails-label">Posts & railings</div><div class="paint-swatches" role="group" aria-labelledby="rails-label"><button type="button" class="paint-swatch" data-porch="rails" data-finish="existing" aria-pressed="true" aria-label="Posts & railings: Existing"><span class="paint-chip" style="--paint:#f7f6ed" aria-hidden="true"><span class="paint-check">✓</span></span><span>Existing</span></button><button type="button" class="paint-swatch" data-porch="rails" data-finish="white" aria-pressed="false" aria-label="Posts & railings: White"><span class="paint-chip" style="--paint:#eeeee4" aria-hidden="true"><span class="paint-check">✓</span></span><span>White</span></button><button type="button" class="paint-swatch" data-porch="rails" data-finish="light" aria-pressed="false" aria-label="Posts & railings: Light gray"><span class="paint-chip" style="--paint:#b9bec0" aria-hidden="true"><span class="paint-check">✓</span></span><span>Light gray</span></button><button type="button" class="paint-swatch" data-porch="rails" data-finish="medium" aria-pressed="false" aria-label="Posts & railings: Medium gray"><span class="paint-chip" style="--paint:#8a9195" aria-hidden="true"><span class="paint-check">✓</span></span><span>Medium gray</span></button><button type="button" class="paint-swatch" data-porch="rails" data-finish="charcoal" aria-pressed="false" aria-label="Posts & railings: Charcoal"><span class="paint-chip" style="--paint:#393f43" aria-hidden="true"><span class="paint-check">✓</span></span><span>Charcoal</span></button><button type="button" class="paint-swatch" data-porch="rails" data-finish="greige" aria-pressed="false" aria-label="Posts & railings: Gray/beige"><span class="paint-chip" style="--paint:#b5ac9c" aria-hidden="true"><span class="paint-check">✓</span></span><span>Gray/beige</span></button><button type="button" class="paint-swatch" data-porch="rails" data-finish="cedar" aria-pressed="false" aria-label="Posts & railings: Cedar tone"><span class="paint-chip" style="--paint:#aa7952" aria-hidden="true"><span class="paint-check">✓</span></span><span>Cedar tone</span></button></div></div><button id="porch-closeup">View front porch</button></details><details id="patio-options" class="config-section" open><summary>Patio &amp; landscaping</summary><div class="landscape-controls"><label for="patio-shape">Patio shape</label><select id="patio-shape"><option value="rectangle">Rectangle / square</option><option value="rounded">Rounded corners</option><option value="oval">Oval / circle</option><option value="custom">Custom curves</option></select><div id="curve-editor"><h3>Patio curves</h3><p>Drag each blue handle inward to round its corner. Arrow keys also adjust a focused handle.</p><svg id="curve-map" viewBox="0 0 240 240" aria-label="Top-down patio curve editor"><text x="120" y="16" text-anchor="middle">HOUSE SIDE</text><path id="curve-outline"/><g id="curve-handles"></g></svg><div class="curve-presets"><button type="button" data-curve="0">Square</button><button type="button" data-curve="0.18">Soft curves</button><button type="button" data-curve="0.49">Full curves</button></div></div><label for="patio-width">Width <output id="width-value">20 ft</output></label><input id="patio-width" type="range" min="16" max="24" step="1" value="20"><label for="patio-depth">Depth <output id="depth-value">20 ft</output></label><input id="patio-depth" type="range" min="16" max="24" step="1" value="20"><p id="patio-area" aria-live="polite">400 sq ft patio</p><label for="stone-size">Stone size</label><select id="stone-size"><option value="small">12 × 12 in</option><option value="medium" selected>24 × 24 in</option><option value="large">24 × 36 in</option></select><button id="future-back">View patio &amp; path to shed</button><div class="planting-controls"><h3>Plants, shrubs &amp; flowers</h3><label for="plant-type">Plant style</label><select id="plant-type"><option value="shrub">Evergreen shrub</option><option value="hydrangea">White flowering shrub</option><option value="grass">Ornamental grass</option><option value="purple">Purple flowers</option><option value="yellow">Yellow flowers</option></select><label for="plant-side">Planting bed</label><select id="plant-side"><option value="left">Left edge of patio</option><option value="right">Right edge of patio</option><option value="far">Far edge of patio</option></select><button id="add-plant">+ Add plant</button><p id="plant-count" aria-live="polite">No added plants</p><div id="plant-list"></div><button id="clear-plants">Clear added plants</button></div><p>Conceptual sizes and planting styles. Area excludes paths; curved edges use cut stones. Furniture placement is illustrative.</p></div></details></section><strong>Your home, from every angle.</strong><p>Drag to look around. Scroll or pinch to move closer.</p><div class="views"><button data-view="front">Front</button><button data-view="right">Driveway side</button><button data-view="back">Rear porch</button><button data-view="left">Left side</button><button data-view="site">Whole property</button></div><div class="rule"></div><label for="height">View height</label><input id="height" type="range" min="5" max="75" value="27"><div class="range-labels"><span>Street level</span><span>Above the roof</span></div><p class="note">Proportions estimated from your four photos. The yard, barn location, and dimensions are approximate. Exterior only; not a measured survey.</p></aside><div class="transport" id="exterior-transport"><button id="tour" class="primary">▶ Start walk-around</button><button id="enter" class="enter">Step inside</button><button id="reset">Reset view</button><span id="tourstatus">360° exterior tour</span></div><div class="transport interior-transport" id="interior-transport" hidden><button id="exit-interior">← Back outside</button><button id="tour-toggle" type="button" aria-pressed="false">▶ Take the tour</button><button id="overview-toggle" type="button">Floor overview</button><button id="dims-toggle" type="button" aria-pressed="false">Show dimensions</button><div class="panel-tabs" role="group" aria-label="Panel"><button type="button" data-tab="rooms" aria-pressed="true">Rooms</button><button type="button" data-tab="design" aria-pressed="false">Design</button></div><div id="room-chips" role="group" aria-label="Jump to a room"></div><div id="design-panel" hidden></div><span id="interior-status">Click an arrow to step forward · drag to look around</span></div><div id="hotspots" aria-hidden="true"></div><div id="dims" aria-hidden="true"></div><svg id="minimap" aria-label="First-floor map showing where you are standing" hidden></svg><div class="compass" id="compass" aria-hidden="true"><span id="bearing">FRONT</span><div>↻</div></div></main><dialog id="gallery"><div class="dialog-head"><div><span class="eyebrow">THE ORIGINAL REFERENCES</span><h2>Four sides of home</h2></div><button id="close">Close</button></div><div class="photo-grid"><figure><img src="front.jpeg" alt="Original front of the house with red shutters and front steps"><figcaption>Front</figcaption></figure><figure><img src="right.jpeg" alt="Driveway side with basement door"><figcaption>Driveway side</figcaption></figure><figure><img src="back.jpeg" alt="Rear facade and screened porch"><figcaption>Rear</figcaption></figure><figure><img src="left.jpeg" alt="Left facade with four windows"><figcaption>Left side</figcaption></figure></div></dialog><script src="panel.js"></script><script type="module" src="app.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>22 Budd Street — A place to call home</title>
+<meta name="description" content="Walk through our Budd Street home, explore every floor, and imagine what comes next.">
+<meta name="theme-color" content="#f4f2ec">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="experience.css">
+<script type="importmap">{"imports":{"three":"./three.module.js"}}</script>
+</head>
+<body>
+<header class="site-header">
+<a class="brand" href="./" aria-label="Budd Street home">
+<span class="brand-number">22</span>
+<div>
+<h1>Budd Street</h1>
+<span class="eyebrow">A PLACE TO CALL HOME</span>
+</div>
+</a>
+<div class="header-actions">
+<span class="live-badge">
+<i>
+</i> An interactive home tour</span>
+<button id="future" aria-pressed="false" aria-controls="future-options">Imagine the possibilities</button>
+<button id="photos" aria-label="Reference photos">Reference photos <span aria-hidden="true">↗</span>
+</button>
+<button id="exit-interior" class="outside-link">Back outside <span aria-hidden="true">↗</span>
+</button>
+</div>
+</header>
+<main>
+<div id="loading" class="loading-screen" role="status">
+<span class="loading-monogram">22</span>
+<p>Opening the door…</p>
+<span class="loading-line">
+</span>
+</div>
+<div class="scene-shade" aria-hidden="true">
+</div>
+<div id="scene" tabindex="0" aria-label="Interactive house. Drag to look around. Scroll to zoom. Use arrow keys to navigate.">
+<div id="error" hidden>3D graphics could not start. Please try a browser with WebGL enabled. Your reference photos are still available.</div>
+</div>
+<div class="viewtag">
+<span class="eyebrow" id="chapter-label">01 / THE EXTERIOR</span>
+<span id="viewname" role="status">Welcome to Budd Street</span>
+<small id="mode-label">A home to explore. A future to imagine.</small>
+</div>
+<div class="scene-tools">
+<details id="render-settings">
+<summary>
+<span class="quality-dot">
+</span> <span id="quality-label">Quality · Auto</span>
+</summary>
+<div class="quality-menu">
+<label for="render-quality">Rendering quality</label>
+<select id="render-quality">
+<option value="auto">Auto · adapt to this device</option>
+<option value="high">High · finest detail</option>
+<option value="balanced">Balanced · smoother motion</option>
+<option value="light">Light · lower GPU use</option>
+</select>
+<label class="motion-option">
+<input type="checkbox" id="reduce-motion"> Reduce camera motion</label>
+</div>
+</details>
+<button id="interior-panel-open" aria-controls="interior-transport" aria-expanded="false">Rooms &amp; finishes <span aria-hidden="true">☰</span>
+</button>
+</div>
+<button id="config-open" type="button" aria-controls="configuration-panel" aria-expanded="false">Finishes &amp; garden <span aria-hidden="true">+</span>
+</button>
+<aside id="configuration-panel" aria-labelledby="config-title" hidden>
+<div class="config-header">
+<h2 id="config-title">Make it yours</h2>
+<button id="config-close" type="button" aria-label="Close configuration panel">Close <span aria-hidden="true">×</span>
+</button>
+</div>
+<button id="future-compare" class="mobile-compare" aria-pressed="false">View planned exterior</button>
+<section id="future-options">
+<details class="config-section" open>
+<summary>Exterior siding</summary>
+<div id="paint-label" class="paint-label">Paint color · black shutters</div>
+<div class="paint-swatches" role="group" aria-labelledby="paint-label">
+<button type="button" class="paint-swatch" data-paint="white" aria-pressed="true" aria-label="White exterior with black shutters">
+<span class="paint-chip" style="--paint:#eeefe9" aria-hidden="true">
+<span class="paint-check">✓</span>
+</span>
+<span>White</span>
+</button>
+<button type="button" class="paint-swatch" data-paint="light" aria-pressed="false" aria-label="Light gray exterior with black shutters">
+<span class="paint-chip" style="--paint:#b9bec0" aria-hidden="true">
+<span class="paint-check">✓</span>
+</span>
+<span>Light gray</span>
+</button>
+<button type="button" class="paint-swatch" data-paint="medium" aria-pressed="false" aria-label="Medium gray exterior with black shutters">
+<span class="paint-chip" style="--paint:#8a9195" aria-hidden="true">
+<span class="paint-check">✓</span>
+</span>
+<span>Medium gray</span>
+</button>
+<button type="button" class="paint-swatch" data-paint="dark" aria-pressed="false" aria-label="Dark gray exterior with black shutters">
+<span class="paint-chip" style="--paint:#555d63" aria-hidden="true">
+<span class="paint-check">✓</span>
+</span>
+<span>Dark gray</span>
+</button>
+<button type="button" class="paint-swatch" data-paint="greige" aria-pressed="false" aria-label="Gray/beige exterior with black shutters">
+<span class="paint-chip" style="--paint:#b5ac9c" aria-hidden="true">
+<span class="paint-check">✓</span>
+</span>
+<span>Gray/beige</span>
+</button>
+</div>
+</details>
+<details id="porch-options" class="config-section">
+<summary>Front porch &amp; steps</summary>
+<div class="porch-finish">
+<div class="paint-label" id="steps-label">Porch steps</div>
+<button id="steps-closeup" type="button">View steps close up</button>
+<div class="paint-swatches" role="group" aria-labelledby="steps-label">
+<button type="button" class="paint-swatch" data-porch="steps" data-finish="existing" aria-pressed="true" aria-label="Porch steps: Existing">
+<span class="paint-chip" style="--paint:#5d6468" aria-hidden="true">
+<span class="paint-check">✓</span>
+</span>
+<span>Existing</span>
+</button>
+<button type="button" class="paint-swatch" data-porch="steps" data-finish="white" aria-pressed="false" aria-label="Porch steps: White">
+<span class="paint-chip" style="--paint:#eeeee4" aria-hidden="true">
+<span class="paint-check">✓</span>
+</span>
+<span>White</span>
+</button>
+<button type="button" class="paint-swatch" data-porch="steps" data-finish="light" aria-pressed="false" aria-label="Porch steps: Light gray">
+<span class="paint-chip" style="--paint:#b9bec0" aria-hidden="true">
+<span class="paint-check">✓</span>
+</span>
+<span>Light gray</span>
+</button>
+<button type="button" class="paint-swatch" data-porch="steps" data-finish="medium" aria-pressed="false" aria-label="Porch steps: Medium gray">
+<span class="paint-chip" style="--paint:#8a9195" aria-hidden="true">
+<span class="paint-check">✓</span>
+</span>
+<span>Medium gray</span>
+</button>
+<button type="button" class="paint-swatch" data-porch="steps" data-finish="charcoal" aria-pressed="false" aria-label="Porch steps: Charcoal">
+<span class="paint-chip" style="--paint:#393f43" aria-hidden="true">
+<span class="paint-check">✓</span>
+</span>
+<span>Charcoal</span>
+</button>
+<button type="button" class="paint-swatch" data-porch="steps" data-finish="greige" aria-pressed="false" aria-label="Porch steps: Gray/beige">
+<span class="paint-chip" style="--paint:#b5ac9c" aria-hidden="true">
+<span class="paint-check">✓</span>
+</span>
+<span>Gray/beige</span>
+</button>
+<button type="button" class="paint-swatch" data-porch="steps" data-finish="cedar" aria-pressed="false" aria-label="Porch steps: Cedar tone">
+<span class="paint-chip" style="--paint:#aa7952" aria-hidden="true">
+<span class="paint-check">✓</span>
+</span>
+<span>Cedar tone</span>
+</button>
+</div>
+</div>
+<div class="porch-finish">
+<div class="paint-label" id="floor-label">Porch floor</div>
+<div class="paint-swatches" role="group" aria-labelledby="floor-label">
+<button type="button" class="paint-swatch" data-porch="floor" data-finish="existing" aria-pressed="true" aria-label="Porch floor: Existing">
+<span class="paint-chip" style="--paint:#5d6468" aria-hidden="true">
+<span class="paint-check">✓</span>
+</span>
+<span>Existing</span>
+</button>
+<button type="button" class="paint-swatch" data-porch="floor" data-finish="white" aria-pressed="false" aria-label="Porch floor: White">
+<span class="paint-chip" style="--paint:#eeeee4" aria-hidden="true">
+<span class="paint-check">✓</span>
+</span>
+<span>White</span>
+</button>
+<button type="button" class="paint-swatch" data-porch="floor" data-finish="light" aria-pressed="false" aria-label="Porch floor: Light gray">
+<span class="paint-chip" style="--paint:#b9bec0" aria-hidden="true">
+<span class="paint-check">✓</span>
+</span>
+<span>Light gray</span>
+</button>
+<button type="button" class="paint-swatch" data-porch="floor" data-finish="medium" aria-pressed="false" aria-label="Porch floor: Medium gray">
+<span class="paint-chip" style="--paint:#8a9195" aria-hidden="true">
+<span class="paint-check">✓</span>
+</span>
+<span>Medium gray</span>
+</button>
+<button type="button" class="paint-swatch" data-porch="floor" data-finish="charcoal" aria-pressed="false" aria-label="Porch floor: Charcoal">
+<span class="paint-chip" style="--paint:#393f43" aria-hidden="true">
+<span class="paint-check">✓</span>
+</span>
+<span>Charcoal</span>
+</button>
+<button type="button" class="paint-swatch" data-porch="floor" data-finish="greige" aria-pressed="false" aria-label="Porch floor: Gray/beige">
+<span class="paint-chip" style="--paint:#b5ac9c" aria-hidden="true">
+<span class="paint-check">✓</span>
+</span>
+<span>Gray/beige</span>
+</button>
+<button type="button" class="paint-swatch" data-porch="floor" data-finish="cedar" aria-pressed="false" aria-label="Porch floor: Cedar tone">
+<span class="paint-chip" style="--paint:#aa7952" aria-hidden="true">
+<span class="paint-check">✓</span>
+</span>
+<span>Cedar tone</span>
+</button>
+</div>
+</div>
+<div class="porch-finish">
+<div class="paint-label" id="rails-label">Posts & railings</div>
+<div class="paint-swatches" role="group" aria-labelledby="rails-label">
+<button type="button" class="paint-swatch" data-porch="rails" data-finish="existing" aria-pressed="true" aria-label="Posts & railings: Existing">
+<span class="paint-chip" style="--paint:#f7f6ed" aria-hidden="true">
+<span class="paint-check">✓</span>
+</span>
+<span>Existing</span>
+</button>
+<button type="button" class="paint-swatch" data-porch="rails" data-finish="white" aria-pressed="false" aria-label="Posts & railings: White">
+<span class="paint-chip" style="--paint:#eeeee4" aria-hidden="true">
+<span class="paint-check">✓</span>
+</span>
+<span>White</span>
+</button>
+<button type="button" class="paint-swatch" data-porch="rails" data-finish="light" aria-pressed="false" aria-label="Posts & railings: Light gray">
+<span class="paint-chip" style="--paint:#b9bec0" aria-hidden="true">
+<span class="paint-check">✓</span>
+</span>
+<span>Light gray</span>
+</button>
+<button type="button" class="paint-swatch" data-porch="rails" data-finish="medium" aria-pressed="false" aria-label="Posts & railings: Medium gray">
+<span class="paint-chip" style="--paint:#8a9195" aria-hidden="true">
+<span class="paint-check">✓</span>
+</span>
+<span>Medium gray</span>
+</button>
+<button type="button" class="paint-swatch" data-porch="rails" data-finish="charcoal" aria-pressed="false" aria-label="Posts & railings: Charcoal">
+<span class="paint-chip" style="--paint:#393f43" aria-hidden="true">
+<span class="paint-check">✓</span>
+</span>
+<span>Charcoal</span>
+</button>
+<button type="button" class="paint-swatch" data-porch="rails" data-finish="greige" aria-pressed="false" aria-label="Posts & railings: Gray/beige">
+<span class="paint-chip" style="--paint:#b5ac9c" aria-hidden="true">
+<span class="paint-check">✓</span>
+</span>
+<span>Gray/beige</span>
+</button>
+<button type="button" class="paint-swatch" data-porch="rails" data-finish="cedar" aria-pressed="false" aria-label="Posts & railings: Cedar tone">
+<span class="paint-chip" style="--paint:#aa7952" aria-hidden="true">
+<span class="paint-check">✓</span>
+</span>
+<span>Cedar tone</span>
+</button>
+</div>
+</div>
+<button id="porch-closeup">View front porch</button>
+</details>
+<details id="patio-options" class="config-section">
+<summary>Patio &amp; landscaping</summary>
+<div class="landscape-controls">
+<label for="patio-shape">Patio shape</label>
+<select id="patio-shape">
+<option value="rectangle">Rectangle / square</option>
+<option value="rounded">Rounded corners</option>
+<option value="oval">Oval / circle</option>
+<option value="custom">Custom curves</option>
+</select>
+<div id="curve-editor">
+<h3>Patio curves</h3>
+<p>Drag each blue handle inward to round its corner. Arrow keys also adjust a focused handle.</p>
+<svg id="curve-map" viewBox="0 0 240 240" aria-label="Top-down patio curve editor">
+<text x="120" y="16" text-anchor="middle">HOUSE SIDE</text>
+<path id="curve-outline"/>
+<g id="curve-handles">
+</g>
+</svg>
+<div class="curve-presets">
+<button type="button" data-curve="0">Square</button>
+<button type="button" data-curve="0.18">Soft curves</button>
+<button type="button" data-curve="0.49">Full curves</button>
+</div>
+</div>
+<label for="patio-width">Width <output id="width-value">20 ft</output>
+</label>
+<input id="patio-width" type="range" min="16" max="24" step="1" value="20">
+<label for="patio-depth">Depth <output id="depth-value">20 ft</output>
+</label>
+<input id="patio-depth" type="range" min="16" max="24" step="1" value="20">
+<p id="patio-area" aria-live="polite">400 sq ft patio</p>
+<label for="stone-size">Stone size</label>
+<select id="stone-size">
+<option value="small">12 × 12 in</option>
+<option value="medium" selected>24 × 24 in</option>
+<option value="large">24 × 36 in</option>
+</select>
+<button id="future-back">View patio &amp; path to shed</button>
+<div class="planting-controls">
+<h3>Plants, shrubs &amp; flowers</h3>
+<label for="plant-type">Plant style</label>
+<select id="plant-type">
+<option value="shrub">Evergreen shrub</option>
+<option value="hydrangea">White flowering shrub</option>
+<option value="grass">Ornamental grass</option>
+<option value="purple">Purple flowers</option>
+<option value="yellow">Yellow flowers</option>
+</select>
+<label for="plant-side">Planting bed</label>
+<select id="plant-side">
+<option value="left">Left edge of patio</option>
+<option value="right">Right edge of patio</option>
+<option value="far">Far edge of patio</option>
+</select>
+<button id="add-plant">+ Add plant</button>
+<p id="plant-count" aria-live="polite">No added plants</p>
+<div id="plant-list">
+</div>
+<button id="clear-plants">Clear added plants</button>
+</div>
+<p>Conceptual sizes and planting styles. Area excludes paths; curved edges use cut stones. Furniture placement is illustrative.</p>
+</div>
+</details>
+</section>
+<strong>Your home, from every angle.</strong>
+<p>Drag to look around. Scroll or pinch to move closer.</p>
+<div class="rule">
+</div>
+<label for="height">View height</label>
+<input id="height" type="range" min="5" max="75" value="27">
+<div class="range-labels">
+<span>Street level</span>
+<span>Above the roof</span>
+</div>
+<p class="note">Proportions estimated from your four photos. The yard, barn location, and dimensions are approximate. A visual study, not a measured survey.</p>
+</aside>
+<div class="exterior-views">
+<button id="cinema-open" class="cinema-invite" aria-haspopup="dialog" aria-controls="cinema-controls"><span aria-hidden="true">▷</span> <span>Take a cinematic tour</span> <small id="cinema-duration">ALL FLOORS</small></button>
+<span class="eyebrow">FIND YOUR PERSPECTIVE</span>
+<div class="views" role="group" aria-label="Exterior viewpoints">
+<button data-view="front">Front</button>
+<button data-view="right">Driveway side</button>
+<button data-view="back">Rear porch</button>
+<button data-view="left">Left side</button>
+<button data-view="site">Whole property</button>
+</div>
+</div>
+<div class="transport" id="exterior-transport">
+<button id="tour" aria-pressed="false">
+<span aria-hidden="true">▷</span> Walk around</button>
+<button id="enter" class="primary">Step inside <span aria-hidden="true">→</span>
+</button>
+<button id="reset" class="icon-button" aria-label="Reset exterior view" title="Reset view">↺</button>
+<span id="tourstatus" class="sr-only">360° exterior tour</span>
+</div>
+<aside class="interior-transport" id="interior-transport" hidden aria-labelledby="interior-panel-title">
+<div class="config-header">
+<h2 id="interior-panel-title">Explore your home</h2>
+<button id="interior-panel-close" class="icon-button" aria-label="Close rooms and finishes">×</button>
+</div>
+<div class="panel-tabs" role="group" aria-label="Panel">
+<button type="button" data-tab="rooms" aria-pressed="true">Rooms</button>
+<button type="button" data-tab="design" aria-pressed="false">Design</button>
+</div>
+<div id="room-chips" role="group" aria-label="Go to a room">
+</div>
+<div id="design-panel" hidden>
+</div>
+<button id="dims-toggle" type="button" aria-pressed="false">Show dimensions</button>
+<p class="panel-footnote">Interiors traced from the floor plans. Furnishings and finishes are illustrative.</p>
+</aside>
+<div id="walk-controls" class="walk-controls" hidden>
+<div class="tour-caption">
+<span class="eyebrow" id="tour-progress">EXPLORE AT YOUR PACE</span>
+<span id="interior-status" role="status">Drag to look around · choose a room to continue</span>
+</div>
+<div class="walk-dock">
+<button id="previous-room" class="icon-button" aria-label="Previous room in tour">←</button>
+<button id="guided-tour" aria-pressed="false">▷ Play tour</button>
+<button id="next-room" class="primary">Next room <span aria-hidden="true">→</span>
+</button>
+<span class="dock-divider">
+</span>
+<button id="overview-toggle" type="button" aria-pressed="false">Floor plan</button>
+</div>
+</div>
+<div id="hotspots" aria-label="Nearby rooms">
+</div>
+<div id="dims" aria-hidden="true">
+</div>
+<svg id="minimap" aria-label="Floor map showing where you are standing" hidden>
+</svg>
+<div class="compass" id="compass" aria-hidden="true">
+<div class="compass-ring">↑</div>
+<span id="bearing">FRONT</span>
+</div>
+<div class="scene-footnote">YOUR HOME, FROM EVERY ANGLE</div>
+<section id="cinema-controls" role="dialog" aria-modal="true" aria-label="Cinematic house tour" aria-describedby="cinema-keyboard" hidden>
+<div class="cinema-top">
+<span class="cinema-brand" aria-label="22 Budd Street">22 <span>BUDD STREET</span></span>
+<button id="cinema-exit">Back to exploring <span aria-hidden="true">↗</span></button>
+</div>
+<div class="cinema-caption">
+<span id="cinema-number" class="eyebrow">01 / FIRST FLOOR</span>
+<h2 id="cinema-title">An invitation inside</h2>
+<p id="cinema-subtitle">22 Budd Street</p>
+</div>
+<div class="cinema-bottom">
+<label class="sr-only" for="cinema-seek">Cinematic tour position</label>
+<input id="cinema-seek" type="range" min="0" value="0" step="0.05" aria-describedby="cinema-keyboard">
+<div class="cinema-buttons">
+<button id="cinema-play" aria-pressed="false">Play</button>
+<button id="cinema-restart" class="cinema-icon" aria-label="Restart cinematic tour" title="Restart tour">↺</button>
+<button id="cinema-previous" class="cinema-icon" aria-label="Previous chapter" title="Previous chapter">←</button>
+<button id="cinema-next" class="cinema-icon" aria-label="Next chapter" title="Next chapter">→</button>
+<div class="cinema-chapter-picker">
+<label for="cinema-chapter">JUMP TO A ROOM</label>
+<select id="cinema-chapter"></select>
+</div>
+<span id="cinema-time" aria-hidden="true">00:00</span>
+<a class="film-download" href="media/budd-street-cinematic.mp4" download="Budd-Street-Cinematic.mp4">Save film <span aria-hidden="true">↗</span></a>
+</div>
+</div>
+<p id="cinema-keyboard" class="sr-only">Use the left and right arrow keys to seek five seconds. Use Space to play or pause and Escape to return to exploring. Choose a room to jump to its chapter.</p>
+<p id="cinema-announcement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
+</section>
+</main>
+<dialog id="gallery">
+<div class="dialog-head">
+<div>
+<span class="eyebrow">THE ORIGINAL REFERENCES</span>
+<h2>Four sides of home</h2>
+</div>
+<button id="close">Close</button>
+</div>
+<div class="photo-grid">
+<figure>
+<img loading="lazy" decoding="async" src="front.jpeg" alt="Original front of the house with red shutters and front steps">
+<figcaption>Front</figcaption>
+</figure>
+<figure>
+<img loading="lazy" decoding="async" src="right.jpeg" alt="Driveway side with basement door">
+<figcaption>Driveway side</figcaption>
+</figure>
+<figure>
+<img loading="lazy" decoding="async" src="back.jpeg" alt="Rear facade and screened porch">
+<figcaption>Rear</figcaption>
+</figure>
+<figure>
+<img loading="lazy" decoding="async" src="left.jpeg" alt="Left facade with four windows">
+<figcaption>Left side</figcaption>
+</figure>
+</div>
+</dialog>
+<script src="panel.js">
+</script>
+<script type="module" src="app.js">
+</script>
+</body>
+</html>

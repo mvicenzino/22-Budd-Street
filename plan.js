@@ -122,7 +122,7 @@ export const ROOMS = [
   {id: 'powder', level: 'first', name: 'Powder room', rect: [-.32, -INNER.z, .5, -2.6], minor: true},
   {id: 'dining', level: 'first', name: 'Dining room', rect: [-INNER.x, -INNER.z, -.32, -.32]},
   {id: 'kitchen', level: 'first', name: 'Kitchen', rect: [-.32, -INNER.z, INNER.x, -.32]},
-  {id: 'rear', level: 'first', name: 'Screened porch', rect: [-4.1, -SHELL.z - 3.15, 2.8, -SHELL.z], outside: true},
+  {id: 'rear', level: 'first', name: 'Sunroom', rect: [-4.1, -SHELL.z - 3.15, 2.8, -SHELL.z], outside: true},
   {id: 'linen', level: 'second', name: 'Linen', rect: [.62, -2.76, 1.58, -2.12], minor: true},
   {id: 'walkin', level: 'second', name: 'Walk-in closet', rect: [-.32, -INNER.z, 1.58, -2.12]},
   {id: 'bath', level: 'second', name: 'Hall bathroom', rect: [1.58, -INNER.z, INNER.x, -2.12]},

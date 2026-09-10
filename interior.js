@@ -2,12 +2,17 @@
 // street-view style camera (stand at a node, drag to look, click an arrow to step), and applies
 // the interior design choices (flooring, furniture style and placement, rugs, wall colors, kitchen).
 import * as THREE from 'three';
+import {defaultWall} from './paint-plan.js';
+import {findPath, smooth} from './navigation.js';
+import {openDoorPlacement} from './door-placement.js';
 import {INNER, EYE, LEVELS, GRADE, OPENINGS, PARTITIONS, STAIR, LOFT_STAIR, ROOMS, NODES} from './plan.js';
 import {mergeStatic} from './merge.js';
+import {RoundedBoxGeometry} from './vendor/RoundedBoxGeometry.js';
+import {surfaceTexture} from './materials.js';
 import {FLOORING, WALL_COLORS, RUGS, KITCHEN_FLOORS, COUNTERS, BASEMENT_FLOORS, loadDesign, saveDesign, createDesignPanel} from './design.js';
 
 const $ = s => document.querySelector(s);
-const ease = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+const ease = smooth;
 const lerp = (a, b, t) => a + (b - a) * t;
 const shortest = (from, to) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from));
 const yawBetween = (a, b) => Math.atan2(-(b.x - a.x), -(b.z - a.z));
@@ -22,7 +27,7 @@ function seeded(seed) {
   return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
 }
 
-export function createInterior({scene, camera, renderer, host, controls, doors, glassLower, hemisphere, exteriorPose, onEnter, onExit}) {
+export function createInterior({scene, camera, renderer, host, controls, doors, glassLower, hemisphere, exteriorPose, exteriorFov = () => 40, onEnter, onExit, reducedMotion = () => false}) {
   const mat = (c, o = {}) => new THREE.MeshStandardMaterial({color: c, roughness: .88, ...o});
   const ceilingPaint = mat('#faf8f3'), trim = mat('#f7f6ed', {roughness: .6}), slope = mat('#faf8f3', {side: THREE.DoubleSide});
   const cabinet = mat('#ebe8df', {roughness: .5}), steel = mat('#b9c0c4', {metalness: .65, roughness: .3}), black = mat('#2b2f31', {roughness: .5});
@@ -56,7 +61,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     return t;
   }
-  const blockTex = noiseCanvas('#b9b5ad', ['#a09c94', '#cbc7bf', '#8f8b84'], true);
+  const blockTex = noiseCanvas('#efefef', ['#dadada', '#ffffff', '#c9c9c9'], true);
   blockTex.repeat.set(4, 2);
   const concreteTex = noiseCanvas('#a9a7a2', ['#93918c', '#bcbab5', '#807e79'], false);
   concreteTex.repeat.set(6, 6);
@@ -70,6 +75,22 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     fabric: mat('#8f9ca4'), cushion: mat('#d8d3c6'), sectional: mat('#cbc2b1', {roughness: .95}), pillow: mat('#a9b2a8', {roughness: .95}),
     linen: mat('#e9e4d8'), quilt: mat('#7c8b9a'), quiltWarm: mat('#b98c6b'), frame: mat('#2b2f31', {roughness: .5}),
   };
+  for (const role of ['fabric','cushion','sectional','pillow','linen','quilt','quiltWarm']) {
+    const previous=palette[role];
+    palette[role]=new THREE.MeshPhysicalMaterial({color:previous.color,roughness:.86,sheen:.55,sheenRoughness:.8,sheenColor:new THREE.Color('#ded8c9')});
+    palette[role].userData.edgeRadius=role==='pillow'?.065:.035;
+    previous.dispose();
+  }
+  const furnitureGrain=surfaceTexture(renderer,'oak',[1,1]);
+  for (const role of ['wood','woodLight','rustic']) {
+    palette[role].map=furnitureGrain;
+    palette[role].bumpMap=furnitureGrain;
+    palette[role].bumpScale=.003;
+    palette[role].userData.edgeRadius=.006;
+  }
+  cabinet.userData.edgeRadius=.004;
+  steel.userData.edgeRadius=.005;
+  porcelain.userData.edgeRadius=.009;
   const STYLE_COLORS = {
     traditional: {wood: '#7d5b3f', woodLight: '#c9b18f', rustic: '#4a3b31', fabric: '#82827a', cushion: '#8f8f86', sectional: '#82827a', pillow: '#8a5a3f', linen: '#e9e4d8', quilt: '#7c8b9a', quiltWarm: '#b98c6b', frame: '#2b2f31'},
     modern: {wood: '#2e3033', woodLight: '#cbb392', rustic: '#3a3c3f', fabric: '#4d5359', cushion: '#e7e4dd', sectional: '#585d63', pillow: '#c9b79a', linen: '#f2f1ee', quilt: '#3f464c', quiltWarm: '#8a7b6a', frame: '#1e2022'},
@@ -87,7 +108,9 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   let parentGroup = group; // where box() puts new meshes; room builders retarget this
 
   function box(w, h, d, x, yBottom, z, m, parent = parentGroup) {
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+    const radius=!Array.isArray(m)&&m.userData.edgeRadius;
+    const geometry=radius&&Math.min(w,h,d)>.024 ? new RoundedBoxGeometry(w,h,d,2,Math.min(radius,Math.min(w,h,d)*.24)) : new THREE.BoxGeometry(w,h,d);
+    const mesh = new THREE.Mesh(geometry, m);
     mesh.position.set(x, yBottom + h / 2, z);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -126,16 +149,17 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     for (let r = 0; r < rows; r++) {
       const tone = 216 + Math.floor(rnd() * 30);
       g.fillStyle = `rgb(${tone},${tone - 2},${tone - 5})`;
-      g.fillRect(0, r * h, 1024, h - 4);
-      g.fillStyle = 'rgba(60,40,25,.5)';
-      g.fillRect(0, r * h + h - 4, 1024, 4);
-      g.fillRect(Math.floor(rnd() * 1024), r * h, 4, h);
-      g.strokeStyle = 'rgba(90,60,35,.16)';
-      g.lineWidth = 2;
-      for (let i = 0; i < 6; i++) {
+      g.fillRect(0, r * h, 1024, h - 2);
+      g.fillStyle = 'rgba(60,40,25,.32)';
+      g.fillRect(0, r * h + h - 2, 1024, 2);
+      g.fillRect(Math.floor(rnd() * 1024), r * h, 2, h);
+      g.strokeStyle = 'rgba(90,60,35,.095)';
+      g.lineWidth = .65;
+      for (let i = 0; i < 38; i++) {
         g.beginPath();
-        g.moveTo(0, r * h + 12 + i * 18);
-        g.lineTo(1024, r * h + 8 + i * 18 + Math.floor(rnd() * 5));
+        const gy=r*h+3+i*3.2, phase=rnd()*9;
+        g.moveTo(0,gy);
+        for(let x=0;x<=1024;x+=16)g.lineTo(x,gy+Math.sin(x*.014+phase)*1.4+Math.sin(x*.035+phase)*.5);
         g.stroke();
       }
     }
@@ -173,8 +197,8 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     return seam * (.7 + .3 * grain);
   }, 2.2, new THREE.Vector2(3, 7.5));
   const fabricNormal = normalTexture(128, (x, y) => ((x % 4 < 2) !== (y % 4 < 2) ? 1 : 0) * .6 + (Math.sin(x * 1.7) * Math.sin(y * 1.3)) * .2 + .2, 1.6, new THREE.Vector2(14, 14));
-  const floorMat = new THREE.MeshStandardMaterial({map: plankTexture(), normalMap: plankNormal, normalScale: new THREE.Vector2(.6, .6), roughness: .48, color: FLOORING[0].color});
-  for (const m of ['fabric', 'cushion', 'sectional', 'pillow']) { palette[m].normalMap = fabricNormal; palette[m].normalScale = new THREE.Vector2(.35, .35); palette[m].roughness = .92; }
+  const floorMat = new THREE.MeshPhysicalMaterial({map: plankTexture(), normalMap: plankNormal, normalScale: new THREE.Vector2(.12, .12), roughness: .46, clearcoat:.12,clearcoatRoughness:.45,color: FLOORING[0].color});
+  for (const m of ['fabric', 'cushion', 'sectional', 'pillow', 'linen', 'quilt', 'quiltWarm']) { palette[m].normalMap = fabricNormal; palette[m].normalScale = new THREE.Vector2(.18, .18); palette[m].roughness = .92; }
   const slabMats = [trim, trim, floorMat, ceilingPaint, trim, trim];
   const W = INNER.x * 2 + .2, D = INNER.z * 2 + .2;
   function slab(y0, y1, hole, mats = slabMats) {
@@ -219,12 +243,13 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   }
   // A partition: each piece is painted per side with the color of the room it faces.
   const brassKnob = mat('#c9a955', {metalness: .8, roughness: .3});
-  // A paneled interior door standing ajar, hinged at `a0`, swinging toward the wall's `side`.
+  // Paneled doors stay open beside the passage, clear of the walkthrough cameras.
   function doorPanel(axis, coord, a0, a1, floorY, head, side) {
     const g = new THREE.Group();
-    const w = a1 - a0 - .03, h = head - floorY - .02, angle = 1.2 * side; // mostly open, the way a house shows
-    g.position.set(axis === 'x' ? a0 + .015 : coord, floorY, axis === 'x' ? coord : a0 + .015);
-    g.rotation.y = axis === 'x' ? -angle : angle - Math.PI / 2; // rotation about y carries local +x toward -z, so lean toward `side`
+    const placement = openDoorPlacement({axis, coord, a0, a1, floorY, head, side, wallThickness:T});
+    const w = placement.width, h = placement.height;
+    g.position.fromArray(placement.position);
+    g.rotation.y = placement.rotation;
     group.add(g);
     box(w, h, .04, w / 2, 0, 0, trim, g);
     for (const [yb, hh] of [[.16, h * .38], [h * .56, h * .36]]) for (const sz of [-1, 1]) box(w - .16, hh, .012, w / 2, yb, sz * .026, cabinet, g);
@@ -304,6 +329,23 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
         from = o.a1;
       }
       baseboard(f.axis, f.face, from, limit, f.side, lv.y);
+    }
+  }
+
+  // Sunroom finish on the house-facing wall of the existing screened porch.
+  // Preserve the modeled enclosure and windows; only the wall finish changes.
+  {
+    const x0 = -INNER.x, x1 = 2.8, material = paintFor('rear');
+    const openings = OPENINGS.rear.filter(o => o.y1 > F.y && o.y0 < F.ceil);
+    const edges = [...new Set([x0, x1, ...openings.flatMap(o => [o.a0, o.a1])])].filter(x => x >= x0 && x <= x1).sort((a,b) => a-b);
+    for (let i = 1; i < edges.length; i++) {
+      const a = edges[i-1], b = edges[i];
+      let bottom = F.y;
+      for (const opening of openings.filter(o => o.a0 <= a + .001 && o.a1 >= b - .001).sort((a,b) => a.y0-b.y0)) {
+        segment('x', -INNER.z - .20, a, b, bottom, Math.max(bottom, Math.min(opening.y0, F.ceil)), material, .012);
+        bottom = Math.max(bottom, opening.y1);
+      }
+      segment('x', -INNER.z - .20, a, b, bottom, F.ceil, material, .012);
     }
   }
 
@@ -493,9 +535,21 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     const g = new THREE.Group();
     g.position.set(x, y, z);
     parentGroup.add(g);
-    box(.38, .4, .5, 0, 0, 0, porcelain, g);
-    box(.34, .5, .18, 0, .4, -.18, porcelain, g);
-    box(.42, .04, .5, 0, .4, .02, porcelain, g);
+    const add=(geometry,material,position,scale=[1,1,1])=>{
+      const mesh=new THREE.Mesh(geometry,material);
+      mesh.position.set(...position);mesh.scale.set(...scale);
+      mesh.castShadow=true;mesh.receiveShadow=true;g.add(mesh);return mesh;
+    };
+    // One continuous porcelain section forms the pedestal, oval bowl and recessed interior.
+    const profile=[[0,.015],[.105,.015],[.12,.035],[.11,.12],[.095,.22],[.155,.30],[.193,.38],[.195,.415],[.175,.425],[.16,.385],[.125,.305],[.065,.265],[0,.265]];
+    add(new THREE.LatheGeometry(profile.map(([r,h])=>new THREE.Vector2(r,h)),32),porcelain,[0,0,.01],[1,1,1.2]);
+    const seat=add(new THREE.TorusGeometry(.183,.015,8,40),porcelain,[0,.438,.01],[1,1.2,.75]);
+    seat.rotation.x=Math.PI/2;
+    add(new RoundedBoxGeometry(.34,.43,.16,2,.026),porcelain,[0,.635,-.18]);
+    add(new RoundedBoxGeometry(.36,.032,.18,2,.012),porcelain,[0,.866,-.18]);
+    add(new THREE.CylinderGeometry(.016,.016,.006,12),steel,[.09,.885,-.18]);
+    box(.09,.018,.035,-.09,.421,-.145,porcelain,g);
+    box(.09,.018,.035,.09,.421,-.145,porcelain,g);
   }
   function drum(x, y, z, r = .24) {
     const d = new THREE.Mesh(new THREE.CylinderGeometry(r, r, .16, 24, 1, true), mat('#efe6d3', {side: THREE.DoubleSide}));
@@ -618,13 +672,65 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   {
     // Hall bathroom: tub, toilet, vanity.
     box(2.2, .02, 1.72, 2.75, S.y, -2.99, tile);
-    box(.7, .55, 1.5, 2.0, S.y, -3.05, porcelain);
-    box(.56, .02, 1.36, 2.0, S.y + .55, -3.05, mat('#d5e4e8', {roughness: .2}));
-    box(.03, .5, .03, 2.0, S.y + .55, -3.75, steel);
+    const fixture=(geometry,material,x,y,z)=>{
+      const mesh=new THREE.Mesh(geometry,material);mesh.position.set(x,y,z);
+      mesh.castShadow=true;mesh.receiveShadow=true;parentGroup.add(mesh);return mesh;
+    };
+    // A rounded rectangular shell curls over the rim and down into the bathing well.
+    // Six rings keep the 70 x 150 cm footprint, with a real recess rather than a flat top.
+    const rings=[[.29,.69,.09,.025],[.35,.75,.075,.49],[.35,.75,.075,.535],[.282,.682,.16,.55],[.26,.65,.16,.48],[.21,.55,.14,.16]];
+    const vertices=[],indices=[],around=32;
+    for(const [w,d,r,h]of rings){
+      for(let corner=0;corner<4;corner++){
+        const cx=(corner===0||corner===3?1:-1)*(w-r),cz=(corner<2?1:-1)*(d-r);
+        for(let step=0;step<8;step++){
+          const angle=(corner+step/8)*Math.PI/2;
+          vertices.push(cx+Math.cos(angle)*r,h,cz+Math.sin(angle)*r);
+        }
+      }
+    }
+    for(let ring=0;ring<rings.length-1;ring++)for(let i=0;i<around;i++){
+      const a=ring*around+i,b=ring*around+(i+1)%around,c=a+around,d=b+around;
+      indices.push(a,c,b,b,c,d);
+    }
+    const bottom=vertices.length/3;vertices.push(0,rings[0][3],0);
+    const basinFloor=vertices.length/3;vertices.push(0,rings.at(-1)[3],0);
+    for(let i=0;i<around;i++){
+      indices.push(bottom,i,(i+1)%around);
+      const offset=(rings.length-1)*around;
+      indices.push(basinFloor,offset+(i+1)%around,offset+i);
+    }
+    const tubGeometry=new THREE.BufferGeometry();
+    tubGeometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));
+    tubGeometry.setIndex(indices);tubGeometry.computeVertexNormals();
+    fixture(tubGeometry,porcelain,2,S.y,-3.05);
+    fixture(new THREE.CylinderGeometry(.027,.027,.004,16),steel,2,S.y+.163,-3.43);
+    const tap=new THREE.CatmullRomCurve3([new THREE.Vector3(2,S.y+.55,-3.73),new THREE.Vector3(2,S.y+.85,-3.73),new THREE.Vector3(2,S.y+.9,-3.65),new THREE.Vector3(2,S.y+.86,-3.59)]);
+    fixture(new THREE.TubeGeometry(tap,16,.014,8,false),steel,0,0,0);
+    for(const x of [1.94,2.06])fixture(new THREE.CylinderGeometry(.021,.021,.035,12),steel,x,S.y+.566,-3.73);
     toilet(3.5, -3.5, S.y);
-    box(.5, .82, .5, 3.55, S.y, -2.55, cabinet);
-    box(.52, .04, .52, 3.55, S.y + .82, -2.55, mat('#d6d2c8', {roughness: .35}));
+    box(.44,.07,.44,3.55,S.y,-2.55,cabinet);
+    box(.5,.6,.5,3.55,S.y+.07,-2.55,cabinet);
+    for(const x of [3.31,3.79])box(.02,.15,.5,x,S.y+.67,-2.55,cabinet);
+    for(const z of [-2.79,-2.31])box(.46,.15,.02,3.55,S.y+.67,z,cabinet);
+    box(.012,.54,.42,3.302,S.y+.13,-2.55,cabinet);
+    box(.018,.018,.14,3.307,S.y+.69,-2.55,steel);
+    const counter=new THREE.Shape();
+    counter.moveTo(-.257,-.257);counter.lineTo(.257,-.257);counter.lineTo(.257,.257);counter.lineTo(-.257,.257);counter.closePath();
+    const opening=new THREE.Path();opening.absellipse(-.035,0,.153,.18,0,Math.PI*2,true);counter.holes.push(opening);
+    const counterGeometry=new THREE.ExtrudeGeometry(counter,{depth:.034,steps:1,bevelEnabled:true,bevelSegments:1,bevelSize:.003,bevelThickness:.003,curveSegments:20});
+    counterGeometry.rotateX(-Math.PI/2);
+    fixture(counterGeometry,mat('#d6d2c8',{roughness:.35}),3.55,S.y+.823,-2.55);
+    const sinkProfile=[[0,.724],[.06,.73],[.11,.775],[.16,.848],[.164,.861],[.147,.861],[.128,.825],[.095,.777],[.05,.752],[0,.752]];
+    const basin=fixture(new THREE.LatheGeometry(sinkProfile.map(([r,h])=>new THREE.Vector2(r,h)),28),porcelain,3.515,S.y,-2.55);
+    basin.scale.set(.94,1,1.11);
+    fixture(new THREE.CylinderGeometry(.016,.016,.004,12),steel,3.515,S.y+.755,-2.55);
+    const mixer=new THREE.CatmullRomCurve3([new THREE.Vector3(3.735,S.y+.86,-2.55),new THREE.Vector3(3.735,S.y+1.0,-2.55),new THREE.Vector3(3.69,S.y+1.03,-2.55),new THREE.Vector3(3.62,S.y+1.01,-2.55)]);
+    fixture(new THREE.TubeGeometry(mixer,12,.012,8,false),steel,0,0,0);
+    box(.014,.018,.07,3.738,S.y+1.0,-2.55,steel);
     box(.03, .55, .5, 3.8, S.y + 1.2, -2.55, steel);
+    const mirror=new THREE.MeshPhysicalMaterial({color:'#b9c0c4',metalness:.6,roughness:.12,clearcoat:1,clearcoatRoughness:.05,emissive:'#839292',emissiveIntensity:.12});
+    box(.004,.49,.44,3.782,S.y+1.23,-2.55,mirror);
   }
   {
     // Front-left bedroom closets, from the photos: a double-door closet with two hanging rods and
@@ -684,21 +790,21 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   // ---- Room builders: furniture, rugs and layouts, rebuilt when a design choice changes ----------
   const roomGroups = {};
   const roomDefaults = {
-    living: {wall: 'dove', rug: 'vintage', layout: 'windows', layouts: {windows: 'Sectional under the front windows', side: 'Sectional on the side wall', classic: 'Sofa and two armchairs'}},
-    hall: {wall: 'dove', rug: 'sand'},
-    dining: {wall: 'dove', rug: 'sand', layout: 'centered', layouts: {centered: 'Table centered', window: 'Table along the window wall'}},
-    kitchen: {wall: 'dove'},
-    rear: {wall: 'dove'},
-    porch: {wall: 'dove'},
-    hall2: {wall: 'dove', rug: 'sand'},
-    bedBack: {wall: 'dove', rug: 'sand', layout: 'left', layouts: {left: 'Bed on the left wall', back: 'Bed on the back wall'}},
-    bedFrontL: {wall: 'dove', rug: 'blue', layout: 'left', layouts: {left: 'Bed on the left wall', front: 'Bed under the front windows'}},
-    bedFrontR: {wall: 'dove', rug: 'sand', layout: 'right', layouts: {right: 'Bed on the driveway wall', front: 'Bed under the front windows'}},
-    bath: {wall: 'mist'},
-    walkin: {wall: 'dove'},
-    landing: {wall: 'dove'},
-    basement: {wall: 'dove', layout: 'unfinished', layouts: {unfinished: 'Unfinished, as it is', family: 'Family room with utility closet', office: 'Office and home gym'}},
-    loft: {wall: 'dove', rug: 'blue', layout: 'back', layouts: {back: 'Bed at the back gable', front: 'Bed at the front gable'}},
+    living: {rug: 'vintage', layout: 'windows', layouts: {windows: 'Sectional under the front windows', side: 'Sectional on the side wall', classic: 'Sofa and two armchairs'}},
+    hall: {rug: 'sand'},
+    dining: {rug: 'sand', layout: 'centered', layouts: {centered: 'Table centered', window: 'Table along the window wall'}},
+    kitchen: {},
+    rear: {},
+    porch: {},
+    hall2: {rug: 'sand'},
+    bedBack: {rug: 'sand', layout: 'left', layouts: {left: 'Bed on the left wall', back: 'Bed on the back wall'}},
+    bedFrontL: {rug: 'blue', layout: 'left', layouts: {left: 'Bed on the left wall', front: 'Bed under the front windows'}},
+    bedFrontR: {rug: 'sand', layout: 'right', layouts: {right: 'Bed on the driveway wall', front: 'Bed under the front windows'}},
+    bath: {},
+    walkin: {},
+    landing: {},
+    basement: {layout: 'unfinished', layouts: {unfinished: 'Unfinished, as it is', family: 'Family room with utility closet', office: 'Office and home gym'}},
+    loft: {rug: 'blue', layout: 'back', layouts: {back: 'Bed at the back gable', front: 'Bed at the front gable'}},
   };
   const builders = {
     living(layout, rugMat) {
@@ -863,8 +969,17 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       box(depth - .08, .1, sideEnd - rear - depth, right - depth / 2 - .04, F.y, (rear + depth + sideEnd) / 2, grate);
       box(depth + .03, .04, sideEnd - rear - depth + .02, right - depth / 2 - .015, F.y + h, (rear + depth + sideEnd) / 2, navyLike);
       for (const z of [-2.9, -2.0]) box(.02, .02, .02, right - depth - .01, F.y + .62, z, knob);
-      box(.5, .3, .38, right - .3, F.y + h + .04, -2.75, appliance); // microwave
-      box(.36, .2, .01, right - .55, F.y + h + .09, -2.75, ovenGlass);
+      // Build the microwave facing local +Z, then turn the whole appliance toward the kitchen.
+      // The closed door stays flush with the case on the side counter, facing -X.
+      const microwave = new THREE.Group();
+      microwave.name = 'Microwave';
+      microwave.position.set(right - .3, F.y + h + .04, -2.75);
+      microwave.rotation.y = -Math.PI / 2;
+      parentGroup.add(microwave);
+      box(.5, .3, .38, 0, 0, 0, appliance, microwave);
+      box(.36, .2, .01, -.045, .05, .194, ovenGlass, microwave);
+      box(.055, .065, .008, .197, .17, .194, ovenGlass, microwave); // control display
+      box(.012, .15, .018, .155, .075, .204, knob, microwave); // slim door handle
       {
         const pz = (pantryZ[0] + pantryZ[1]) / 2, pw = pantryZ[1] - pantryZ[0], ph = 2.2;
         box(depth, ph, pw, right - depth / 2, F.y, pz, cabinet);
@@ -1118,7 +1233,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   };
 
   const design = loadDesign();
-  const roomChoice = (id, key) => (design.rooms[id] || {})[key] || roomDefaults[id]?.[key];
+  const roomChoice = (id, key) => (design.rooms[id] || {})[key] || (key === 'wall' ? defaultWall(id) : roomDefaults[id]?.[key]);
   function rebuildRoom(id) {
     let g = roomGroups[id];
     if (!g) {
@@ -1141,7 +1256,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     // The basement keeps its block walls until a finished layout is chosen.
     const finished = roomChoice('basement', 'layout') !== 'unfinished';
     basementWall.map = finished ? null : blockTex;
-    if (!finished) basementWall.color.set('#ffffff');
+    // Keep the selected paint on the block walls even in the unfinished furniture layout.
     basementWall.needsUpdate = true;
   }
   function applyAll() {
@@ -1198,18 +1313,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   const floorOf = n => n.floor ?? LEVELS[roomById[n.room].level].y;
   const levelOf = n => roomById[n.room].level;
   const roomName = n => roomById[n.room].name;
-  function pathTo(fromId, toId) {
-    const prev = {[fromId]: null}, queue = [fromId];
-    while (queue.length) {
-      const id = queue.shift();
-      if (id === toId) break;
-      for (const l of nodeById[id].links) if (!(l.to in prev)) { prev[l.to] = id; queue.push(l.to); }
-    }
-    if (!(toId in prev)) return [];
-    const path = [];
-    for (let id = toId; prev[id] !== null; id = prev[id]) path.unshift(nodeById[prev[id]].links.find(l => l.to === id));
-    return path;
-  }
+  const pathTo = (fromId, toId) => findPath(NODES, fromId, toId);
 
   // ---- Arrows and labels -------------------------------------------------------------
   const arrowShape = new THREE.Shape([[0, .3], [.3, -.03], [.14, -.03], [.14, -.3], [-.14, -.3], [-.14, -.03], [-.3, -.03]].map(p => new THREE.Vector2(...p)));
@@ -1311,7 +1415,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   let overview = null; // {yaw, pitch, dist, target}: cutaway view of the current floor from above
   let fovMaxAt = 0; // when the first-person view last hit its widest, for the overview gesture
   const queue = [];
-  const tween = (duration, step, done) => queue.push({duration, step, done, t: 0});
+  const tween = (duration, step, done) => queue.push({duration: reducedMotion() ? .001 : duration, step, done, t: 0});
   const applyLook = () => { camera.rotation.set(pitch, yaw, 0, 'YXZ'); };
   const busy = () => queue.length > 0;
 
@@ -1374,12 +1478,20 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       applyLook();
     }, () => settle(node));
   }
+  function describeWall(node) {
+    if (!node) return;
+    const wall = WALL_BY_ID[roomChoice(node.room, 'wall')];
+    $('#mode-label').textContent = wall?.code ? `${wall.name} · ${wall.code} / Benjamin Moore` : (wall?.name || 'Take a look around.');
+  }
   function settle(node) {
     placeArrows(node);
     arrows.visible = true;
-    $('#viewname').textContent = roomName(node) + ' · ' + LEVELS[levelOf(node)].name.toLowerCase();
-    $('#interior-status').textContent = 'Click an arrow to step forward · drag to look around · scroll out for a floor overview';
+    $('#viewname').textContent = node.name || roomName(node);
+    $('#chapter-label').textContent = '02 / ' + LEVELS[levelOf(node)].name.toUpperCase();
+    describeWall(node);
+    $('#interior-status').textContent = 'Drag to look around · follow an arrow or explore the next room';
     for (const chip of document.querySelectorAll('#room-chips button')) chip.setAttribute('aria-pressed', String(chip.dataset.node === node.id));
+    showRoomFloor(levelOf(node));
     designPanel.setRoom(node.room, roomName(node));
     placeDims();
   }
@@ -1397,7 +1509,8 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       travel(link, from, path.length > 1 ? .8 : 1);
       from = nodeById[link.to];
     }
-    $('#viewname').textContent = 'Walking to the ' + roomName(nodeById[id]).toLowerCase();
+    $('#viewname').textContent = 'On the way to ' + roomName(nodeById[id]).toLowerCase();
+    $('#interior-status').textContent = 'Moving through the house…';
   }
 
   // ---- Dimension pills: plan sizes for the room you are in, or every room on the level in overview ----
@@ -1453,7 +1566,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   };
 
   // ---- Floor overview: slice the model above the current level and orbit the room from above ----
-  const OVERVIEW_MIN = 3.2, OVERVIEW_MAX = 15;
+  const OVERVIEW_MIN = 3.2, OVERVIEW_MAX = 26;
   function overviewPose(o) {
     const cp = Math.cos(o.pitch);
     return o.target.clone().add(new THREE.Vector3(Math.sin(o.yaw) * o.dist * cp, o.dist * Math.sin(o.pitch), Math.cos(o.yaw) * o.dist * cp));
@@ -1469,7 +1582,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   function enterOverview() {
     if (state !== 'inside' || busy() || !current || overview) return;
     const level = levelOf(current);
-    overview = {yaw, pitch: .95, dist: 6.5, target: new THREE.Vector3(current.x, floorOf(current) + .9, current.z)};
+    overview = {yaw: .2, pitch: 1.13, dist: Math.min(24, 11.5 / Math.min(camera.aspect, 1)), target: new THREE.Vector3(0, floorOf(current) + .8, 0)};
     clipAbove(level);
     const p0 = camera.position.clone(), q0 = camera.quaternion.clone(), f0 = camera.fov;
     const probe = camera.clone();
@@ -1484,9 +1597,11 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     }, () => { fov = 55; applyOverview(); placeDims(); });
     dims.replaceChildren();
     dimItems = [];
-    $('#overview-toggle').textContent = 'Back to eye level';
+    $('#overview-toggle').textContent = 'Eye level';
+    $('#overview-toggle').setAttribute('aria-pressed', 'true');
     $('#interior-status').textContent = 'Drag to orbit · scroll in to return to eye level';
     $('#viewname').textContent = LEVELS[level].name + ' · overview';
+    $('#mode-label').textContent = 'Explore the layout of this level';
   }
   function exitOverview(immediate = false) {
     if (!overview) return;
@@ -1495,7 +1610,8 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     dims.replaceChildren();
     dimItems = [];
     const dest = new THREE.Vector3(current.x, floorOf(current) + EYE, current.z), q1 = quaternionFor(yaw, pitch);
-    $('#overview-toggle').textContent = 'Floor overview';
+    $('#overview-toggle').textContent = 'Floor plan';
+    $('#overview-toggle').setAttribute('aria-pressed', 'false');
     if (immediate) {
       camera.position.copy(dest);
       fov = 62;
@@ -1515,6 +1631,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   $('#overview-toggle').onclick = () => overview ? exitOverview() : enterOverview();
 
   const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2();
+  raycaster.layers.set(1); // Navigation meshes use the overlay layer.
   let down = null, dragging = false, hovered = null;
   function pick(e) {
     const r = host.getBoundingClientRect();
@@ -1612,73 +1729,52 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
 
   // ---- Room list, design panel, entering and leaving ---------------------------------------------
   const chips = $('#room-chips');
+  const floorSelector = document.createElement('div');
+  floorSelector.className = 'floor-selector';
+  floorSelector.setAttribute('role', 'group');
+  floorSelector.setAttribute('aria-label', 'Choose a floor');
+  chips.append(floorSelector);
+  const roomFloors = {};
+  function showRoomFloor(key) {
+    for (const [id, entry] of Object.entries(roomFloors)) {
+      entry.group.hidden = id !== key;
+      entry.button.setAttribute('aria-pressed', String(id === key));
+    }
+  }
   for (const [key, lv] of Object.entries(LEVELS)) {
-    const h = document.createElement('h3');
-    h.textContent = lv.name;
-    chips.append(h);
+    const button = document.createElement('button');
+    button.textContent = lv.name;
+    button.type = 'button';
+    button.onclick = () => showRoomFloor(key);
+    floorSelector.append(button);
+    const roomGroup = document.createElement('div');
+    roomGroup.className = 'room-group';
+    roomGroup.setAttribute('aria-label', lv.name + ' rooms');
+    roomFloors[key] = {button, group: roomGroup};
+    chips.append(roomGroup);
     for (const n of NODES.filter(n => levelOf(n) === key)) {
       const b = document.createElement('button');
       b.type = 'button';
       b.dataset.node = n.id;
       b.textContent = n.name || roomName(n);
-      b.onclick = () => walkTo(n.id);
-      chips.append(b);
+      b.onclick = () => { walkTo(n.id); $('#interior-panel-close').click(); };
+      roomGroup.append(b);
     }
   }
+  showRoomFloor('first');
   $('#exit-interior').onclick = () => exit();
 
-  // ---- Guided tour: walk every stop in order, pause with a slow pan at each, stop on any input ----
-  const TOUR = ['hall', 'living', 'dining', 'kitchenEntry', 'kitchen', 'kitchenSink', 'kitchenWork', 'landing', 'basement', 'basementRear', 'hall2', 'bedFrontR', 'bedFrontL', 'bedBack', 'walkin', 'bath', 'loft'];
-  let tour = null;
-  const tourButton = $('#tour-toggle');
-  function tourStep() {
-    if (!tour) return;
-    if (tour.index >= TOUR.length) return stopTour();
-    const id = TOUR[tour.index++];
-    if (current && current.id !== id) walkTo(id);
-    const wait = () => {
-      if (!tour) return;
-      if (busy() || state !== 'inside') { tour.timer = setTimeout(wait, 120); return; }
-      // Look around slowly: a gentle sweep to the right and back, then move on.
-      const startYaw = yaw, sweep = .42;
-      tween(4.2, t => { yaw = startYaw + Math.sin(t * Math.PI * 2) * sweep; applyLook(); }, () => { if (tour) tour.timer = setTimeout(tourStep, 350); });
-      queue[queue.length - 1].pan = true;
-    };
-    tour.timer = setTimeout(wait, 150);
-  }
-  function startTour() {
-    if (state !== 'inside' || busy()) return;
-    exitOverview(true);
-    tour = {index: 0, timer: 0};
-    tourButton.textContent = '■ Stop tour';
-    tourButton.setAttribute('aria-pressed', 'true');
-    document.body.dataset.tour = 'on';
-    tourStep();
-  }
-  function stopTour() {
-    if (!tour) return;
-    clearTimeout(tour.timer);
-    tour = null;
-    tourButton.textContent = '▶ Take the tour';
-    tourButton.setAttribute('aria-pressed', 'false');
-    delete document.body.dataset.tour;
-    // Cancel a pan in progress so the view stays where the visitor grabbed it.
-    if (queue.length && queue[0].pan) queue.shift();
-  }
-  tourButton.onclick = () => tour ? stopTour() : startTour();
-  for (const type of ['pointerdown', 'wheel', 'keydown']) host.addEventListener(type, () => { if (tour) stopTour(); }, {capture: true});
-  for (const chip of chips.querySelectorAll('button')) chip.addEventListener('click', () => { if (tour) stopTour(); }, {capture: true});
   const designPanel = createDesignPanel({
-    root: $('#design-panel'), design, roomDefaults: id => roomDefaults[id] || {wall: 'dove'},
+    root: $('#design-panel'), design, roomDefaults: id => ({...roomDefaults[id], wall: defaultWall(id)}),
     hooks: {
       flooring: id => { floorMat.color.set(FLOOR_BY_ID[id].color); if (design.kitchen.floor !== 'checker' && design.kitchen.floor !== 'match') rebuildRoom('kitchen'); saveDesign(design); },
       style: id => { applyStyle(id); saveDesign(design); },
-      wall: () => { applyWalls(); saveDesign(design); },
+      wall: () => { applyWalls(); describeWall(current); saveDesign(design); },
       rug: id => { rebuildRoom(id); saveDesign(design); },
       layout: id => { rebuildRoom(id); applyWalls(); saveDesign(design); },
       kitchen: () => { rebuildRoom('kitchen'); saveDesign(design); },
       basement: () => { rebuildRoom('basement'); saveDesign(design); },
-      reset: () => { applyAll(); saveDesign(design); },
+      reset: () => { applyAll(); describeWall(current); saveDesign(design); },
     },
   });
   for (const tab of document.querySelectorAll('.panel-tabs button')) tab.onclick = () => {
@@ -1687,7 +1783,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     $('#design-panel').hidden = tab.dataset.tab !== 'design';
   };
 
-  const groundOutside = hemisphere.groundColor.clone(), groundInside = new THREE.Color('#cfcfca'), skyOutside = hemisphere.intensity, skyInside = 1.2;
+  const groundOutside = hemisphere.groundColor.clone(), groundInside = new THREE.Color('#cfcfca'), skyOutside = hemisphere.intensity, skyInside = .95;
   function slerpTo(duration, position, quaternion, fovTo, glassTo, lightTo, done) {
     const p0 = camera.position.clone(), q0 = camera.quaternion.clone(), f0 = camera.fov, g0 = glassLower.opacity, l0 = lights[0].intensity / lights[0].userData.max, c0 = hemisphere.groundColor.clone(), h0 = hemisphere.intensity;
     tween(duration, t => {
@@ -1707,10 +1803,12 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     state = 'entering';
     controls.enabled = false;
     document.body.dataset.mode = 'interior';
-    $('#interior-transport').hidden = false;
+    $('#interior-transport').hidden = true;
+    $('#walk-controls').hidden = false;
+    $('#chapter-label').textContent = '02 / WELCOME INSIDE';
     minimap.removeAttribute('hidden');
     $('#viewname').textContent = 'Stepping inside';
-    $('#mode-label').textContent = 'Walkthrough · conceptual interiors traced from the floor plans';
+    $('#mode-label').textContent = 'Through the front door, into the next chapter.';
     host.style.cursor = 'grab';
     host.focus({preventScroll: true});
     onEnter?.();
@@ -1733,7 +1831,6 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
 
   function exit() {
     if (state !== 'inside' || busy()) return;
-    stopTour();
     exitOverview(true);
     state = 'exiting';
     arrows.visible = false;
@@ -1752,10 +1849,14 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       for (const name of Object.keys(doorState)) doorState[name] = 0;
       const pose = exteriorPose();
       const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().lookAt(pose.position, pose.target, camera.up));
-      slerpTo(1.5, pose.position, q, 40, .55, 0, () => {
+      slerpTo(1.5, pose.position, q, exteriorFov(), .55, 0, () => {
         state = 'outside';
         document.body.dataset.mode = '';
         $('#interior-transport').hidden = true;
+        $('#walk-controls').hidden = true;
+        $('#interior-panel-open').setAttribute('aria-expanded', 'false');
+        $('#chapter-label').textContent = '01 / THE EXTERIOR';
+        $('#mode-label').textContent = 'A home to explore. A future to imagine.';
         minimap.setAttribute('hidden', '');
         host.style.cursor = '';
         controls.enabled = true;
@@ -1766,9 +1867,39 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     else closeDoors();
   }
 
-  let clock = performance.now();
+  let cinemaSnapshot=null;
+  function beginCinema() {
+    if(busy()||!['outside','inside'].includes(state))return false;
+    exitOverview(true);
+    cinemaSnapshot={state,mode:document.body.dataset.mode,position:camera.position.clone(),quaternion:camera.quaternion.clone(),fov:camera.fov,glass:glassLower.opacity,hemisphere:hemisphere.intensity,ground:hemisphere.groundColor.clone(),lights:lights.map(l=>l.intensity),doors:{...doorState},arrows:arrows.visible};
+    state='cinematic';document.body.dataset.mode='cinematic';
+    controls.enabled=false;arrows.visible=false;renderer.clippingPlanes=[];
+    glassLower.opacity=.18;hemisphere.intensity=skyInside;hemisphere.groundColor.copy(groundInside);
+    lights.forEach(l=>{l.intensity=l.userData.max;});
+    return true;
+  }
+  function cinemaFrame(pose) {
+    camera.position.fromArray(pose.position);camera.lookAt(...pose.target);
+    camera.fov=camera.aspect<1?Math.min(86,pose.fov+18):pose.fov;camera.updateProjectionMatrix();
+    setDoor('front',ease(pose.door));
+    for(const [name,value] of Object.entries(pose.doors||{}))setDoor(name,ease(value));
+  }
+  function endCinema() {
+    if(!cinemaSnapshot)return;
+    const saved=cinemaSnapshot;cinemaSnapshot=null;
+    state=saved.state;document.body.dataset.mode=saved.mode||'';
+    camera.position.copy(saved.position);camera.quaternion.copy(saved.quaternion);camera.fov=saved.fov;camera.updateProjectionMatrix();
+    glassLower.opacity=saved.glass;hemisphere.intensity=saved.hemisphere;hemisphere.groundColor.copy(saved.ground);
+    lights.forEach((l,i)=>{l.intensity=saved.lights[i];});
+    Object.assign(doorState,saved.doors);Object.entries(doorState).forEach(([name,k])=>setDoor(name,k));
+    arrows.visible=saved.arrows;controls.enabled=state==='outside';
+    if(state==='inside')settle(current);
+    clock=performance.now();lastState='';
+  }
+  let clock = performance.now(), lastState = '';
+  const navigationState = () => ({state, current: current?.id, busy: busy(), overview: !!overview});
   function update() {
-    const now = performance.now(), dt = Math.min(1, (now - clock) / 1000);
+    const now = performance.now(), dt = Math.min(.05, (now - clock) / 1000);
     clock = now;
     const q = queue[0];
     if (q) {
@@ -1782,7 +1913,12 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       projectDims();
       updateMinimap();
     }
+    const status = navigationState(), signature = JSON.stringify(status);
+    if (signature !== lastState) {
+      lastState = signature;
+      window.dispatchEvent(new CustomEvent('walkthroughchange', {detail: status}));
+    }
   }
 
-  return {get active() { return state !== 'outside'; }, group, enter, exit, update};
+  return {get active() { return state !== 'outside'; }, get navigation() { return navigationState(); }, group, enter, exit, walkTo, update,beginCinema,cinemaFrame,endCinema};
 }
