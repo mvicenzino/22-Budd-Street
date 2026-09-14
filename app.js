@@ -80,8 +80,10 @@ const PZ=FZ-4.25;box(8.3,.23,2.25,0,1,5.3+PZ,porchFloorFinish);box(8.35,.19,.18,
 for(const x of [-3.9,0,3.9]){box(.22,2.7,.22,x,2.4,6.25+PZ,porchRailFinish);box(.32,.14,.32,x,1.12,6.25+PZ,porchRailFinish)}
 const porchSoffit=box(8.85,.15,2.9,0,3.83,5.4+PZ,trim),porchRoof=box(8.8,.08,2.95,0,3.95,5.4+PZ,roof);porchRoof.rotation.x=.06;
 for(const mesh of [porchSoffit,porchRoof])mesh.userData.dynamic=true;
-function rail(x1,z1,x2,z2,y=1.13){beam([x1,y+.83,z1],[x2,y+.83,z2],.075,porchRailFinish);beam([x1,y+.07,z1],[x2,y+.07,z2],.065,porchRailFinish);const n=Math.ceil(Math.hypot(x2-x1,z2-z1)/.18);for(let i=0;i<=n;i++)box(.035,.72,.035,x1+(x2-x1)*i/n,y+.45,z1+(z2-z1)*i/n,porchRailFinish)}
-rail(-3.9,6.25+PZ,1.3,6.25+PZ);rail(-3.9,4.35+PZ,-3.9,6.25+PZ);
+function rail(x1,z1,x2,z2,y=1.13,parent=home){beam([x1,y+.83,z1],[x2,y+.83,z2],.075,porchRailFinish,parent);beam([x1,y+.07,z1],[x2,y+.07,z2],.065,porchRailFinish,parent);const n=Math.ceil(Math.hypot(x2-x1,z2-z1)/.18);for(let i=0;i<=n;i++)box(.035,.72,.035,x1+(x2-x1)*i/n,y+.45,z1+(z2-z1)*i/n,porchRailFinish,parent)}
+rail(-3.9,6.25+PZ,1.3,6.25+PZ);
+const leftPorchRail=new THREE.Group();leftPorchRail.name='Original left porch rail';leftPorchRail.userData.dynamic=true;home.add(leftPorchRail);
+rail(-3.9,4.35+PZ,-3.9,6.25+PZ,1.13,leftPorchRail);mergeStatic(leftPorchRail);
 for(let i=0;i<6;i++){box(2.25,(6-i)*.17-.03,.31,frontFeature.a,((6-i)*.17-.03)/2,6.58+PZ+i*.3,porchRiserFinish);box(2.29,.03,.33,frontFeature.a,(6-i)*.17-.015,6.58+PZ+i*.3,porchStepFinish)}
 for(const x of [frontFeature.a-1.18,frontFeature.a+1.15]){box(.11,.95,.11,x,.57,8.13+PZ,stairRailFinish);beam([x,1.92,6.37+PZ],[x,1.07,8.16+PZ],.09,stairRailFinish)}
 
@@ -112,8 +114,7 @@ for(const z of [(-5.35-PZ),(-6.35-PZ)])for(const x of [-4.05,2.8])box(.065,2.95,
 for(const x of [1.83,2.68])box(.075,2.25,.09,x,2.2,(-7.44-PZ),trim);box(.91,.075,.09,2.25,3.29,(-7.44-PZ),trim);
 for(let i=0;i<6;i++)box(1.1,(6-i)*.17,.29,2.25,(6-i)*.085,(-7.56-PZ)-i*.28,red);for(const x of [1.66,2.85])beam([x,1.96,(-7.4-PZ)],[x,1.02,(-9-PZ)],.075,red);
 // Downspouts and foundation mortar joints.
-let rightDownspout;
-for(const [x,z]of [[4.12,FZ-.15],[-4.12,-FZ+.15]]){const mesh=box(.075,6.5,.075,x,3.4,z,trim);if(x>0){rightDownspout=mesh;mesh.userData.dynamic=true;}}
+for(const [x,z]of [[4.12,FZ-.15],[-4.12,-FZ+.15]]){const mesh=box(.075,6.5,.075,x,3.4,z,trim);if(x>0){mesh.name='Driveway downspout';mesh.userData.dynamic=true;}}
 for(let y=.15;y<.9;y+=.22){for(const z of [FZ+.005,-FZ-.005])box(8,.02,.03,0,y,z,stone);for(const x of [FX+.005,-FX-.005])box(.03,.02,FZ*2,x,y,0,stone)} // mortar courses on the foundation above grade
 // Contextual property, kept schematic because no survey was supplied.
 // Lawn in four strips around the foundation so the basement below grade stays open.
@@ -122,10 +123,10 @@ for(let x=-21;x<21;x+=3.4)box(1.7,.01,.09,x,.06,12.5,mat('#d7cda2'),scene);
 // Detached barn from earlier exterior references.
 const barn=new THREE.Group();barn.position.set(5,0,-19);scene.add(barn);box(5.6,2.8,4.3,0,1.4,0,siding.clone(),barn);for(const z of [-2.15,2.15])face([[-2.8,2.8,z],[2.8,2.8,z],[0,4.2,z]],doubleSiding.clone(),barn);face([[-3,2.8,2.4],[-3,2.8,-2.4],[0,4.3,-2.4],[0,4.3,2.4]],doubleRoof,barn);face([[0,4.3,2.4],[0,4.3,-2.4],[3,2.8,-2.4],[3,2.8,2.4]],doubleRoof,barn);for(const x of [-1.23,1.23]){box(2.35,2.4,.08,x,1.2,2.2,red,barn);box(.6,.6,.11,x,1.85,2.27,glass,barn);for(const dx of [-.32,.32])box(.055,.68,.055,x+dx,1.85,2.34,trim,barn)}for(const x of [-2.6,0,2.6])box(.09,2.5,.12,x,1.25,2.25,trim,barn);
 function shrub(x,z,s=1){const mesh=new THREE.Mesh(new THREE.IcosahedronGeometry(s,2),mat('#486446'));mesh.scale.set(1,.8,.85);mesh.position.set(x,s*.6,z);mesh.castShadow=true;scene.add(mesh);return mesh}
-let rightPorchShrub;
-for(const [x,z,s]of [[-2.5,7.1+PZ,.8],[-3.9,7+PZ,.9],[4.3,5.6+PZ,1.05],[-5.2,-1,.75],[-5.2,-3,.75],[-5.2,1,.75]]){const mesh=shrub(x,z,s);if(x>0){rightPorchShrub=mesh;mesh.name='Right porch shrub';}}
+const porchShrubs=[];
+for(const [x,z,s]of [[-2.5,7.1+PZ,.8],[-3.9,7+PZ,.9],[4.3,5.6+PZ,1.05],[-5.2,-1,.75],[-5.2,-3,.75],[-5.2,1,.75]]){const mesh=shrub(x,z,s);mesh.name=x>0?'Right porch shrub':'Porch shrub '+porchShrubs.length;mesh.userData.porchPlant=true;porchShrubs.push(mesh);}
 porchFloorFinish.name='Porch decking';porchRailFinish.name='Porch posts and rails';
-const porchExtension=createPorchExtension({home,floor:porchFloorFinish,rail:porchRailFinish,trim,roof,originalRoof:[porchSoffit,porchRoof],rightShrub:rightPorchShrub,downspout:rightDownspout});
+const porchExtension=createPorchExtension({home,floor:porchFloorFinish,rail:porchRailFinish,trim,roof,originalRoof:[porchSoffit,porchRoof],shrubs:porchShrubs,leftRail:leftPorchRail});
 const fence=mat('#465854');for(let z=-24;z<=7;z+=2.6)box(.055,1.3,.055,9,.65,z,fence,scene);for(const y of [.18,1.22])box(.045,.035,31,9,y,-8.5,fence,scene);
 // Dark blue Model 3 in the driveway, nose to the street, backed up to the rear corner of the house
 // and charging from the outlet beside the air-conditioning condenser.
@@ -228,8 +229,8 @@ $('#porch-extension-width').value=porchExtensionSelection.width;$('#porch-extens
 $('#porch-extension-length').value=porchExtensionSelection.length;$('#porch-extension-length-value').value=porchExtensionSelection.length+' ft';
 $('#porch-extension-roof').checked=porchExtensionSelection.roof;
 $('#porch-extension-summary').textContent=porchExtensionSelection.enabled
-  ? `${futureMode?'Previewing':'Saved option'} · ${porchExtensionSelection.width} ft wide · ${porchExtensionSelection.length} ft along the right wall · ${porchExtensionSelection.roof?'covered':'open deck'}`
-  : 'Connect the front porch around the driveway-side corner.';
+  ? `${futureMode?'Previewing':'Saved option'} · ${porchExtensionSelection.width} ft wide · ${porchExtensionSelection.length} ft along the left wall · ${porchExtensionSelection.roof?'covered':'open deck'}`
+  : 'Connect the front porch around the left, lawn-side corner.';
 for(const [key,material,original]of [['floor',porchFloorFinish,'#5d6468'],['steps',porchStepFinish,'#5d6468'],['rails',porchRailFinish,'#f7f6ed']])material.color.set(futureMode&&porchSelection[key]!=='existing'?porchPalette[porchSelection[key]]:original);
 stairRailFinish.color.set(futureMode&&porchSelection.rails!=='existing'?porchPalette[porchSelection.rails]:'#f7f6ed');
 document.querySelectorAll('[data-porch]').forEach(b=>b.setAttribute('aria-pressed',String(porchSelection[b.dataset.porch]===b.dataset.finish)));
@@ -248,8 +249,8 @@ $('#porch-extension-enabled').onchange=e=>{changePorchExtension('enabled',e.targ
 for(const key of ['width','length'])$('#porch-extension-'+key).oninput=e=>changePorchExtension(key,Number(e.target.value));
 $('#porch-extension-roof').onchange=e=>changePorchExtension('roof',e.target.checked);
 function viewPorchExtension(closePanel=true){
-  stop();futureMode=true;applyFuture();target.set(1.8,2.3,3.15);theta=.78;distance=20;elevation=.36;setCamera();
-  $('#viewname').textContent='A porch around the corner';$('#height').value=21;
+  stop();futureMode=true;applyFuture();target.set(-1.8,2.3,3.15);theta=-.78;distance=20;elevation=.36;setCamera();
+  $('#viewname').textContent='A porch along the lawn';$('#height').value=21;
   document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-pressed','false'));
   if(closePanel)$('#config-close').click();
 }
@@ -309,6 +310,7 @@ const cinema=createCinema({interior,post,scene,camera,renderer,stopExterior:stop
 const exportMode=new URLSearchParams(location.search).has('render');
 if(exportMode)import('./render/export.js').then(({createExport})=>createExport({scene,camera,renderer,post,cinema,sun})).then(api=>{window.buddRender=api;}).catch(error=>{console.error(error);$('#error').hidden=false;$('#error').textContent='The video renderer could not start.';});
 mergeStatic(home);mergeStatic(interior.group);
+if(porchExtensionSelection.enabled)viewPorchExtension(false);
 host.addEventListener('keydown',e=>{if(interior.active)return;if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key))return;e.preventDefault();if(e.key===' '){$('#tour').click();return}stop();const off=camera.position.clone().sub(controls.target);theta=Math.atan2(off.x,off.z);distance=off.length();elevation=Math.asin(off.y/distance);target.copy(controls.target);if(e.key==='ArrowLeft')theta-=.12;if(e.key==='ArrowRight')theta+=.12;if(e.key==='ArrowUp')elevation=Math.min(1.3,elevation+.06);if(e.key==='ArrowDown')elevation=Math.max(.06,elevation-.06);setCamera()});
 function resize(){renderer.setSize(host.clientWidth,host.clientHeight);camera.aspect=host.clientWidth/host.clientHeight;if(!interior.active)camera.fov=exteriorFov();camera.updateProjectionMatrix();post.resize();post.render(scene,camera)}new ResizeObserver(resize).observe(host);resize();
 if(location.search.includes('debug'))window.budd={scene,renderer,camera,interior,post};

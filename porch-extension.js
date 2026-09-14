@@ -15,14 +15,18 @@ export function porchExtensionOptions(value = {}) {
   };
 }
 
-// A raised return beside the front room. It ends ahead of the lower side entry.
+// A raised return along the left lawn side, connected to the existing front porch.
 // Independent merged groups preserve the original house when comparing options.
-export function createPorchExtension({home, floor, rail, trim, roof, originalRoof, rightShrub, downspout}) {
+export function createPorchExtension({home, floor, rail, trim, roof, originalRoof, shrubs, leftRail}) {
   const group = new THREE.Group();
   group.name = 'Wraparound porch';
   group.userData.dynamic = true;
+  // Build in local positive-X coordinates, then reflect the complete return,
+  // including its canopy hip, onto the house's negative-X (left) side.
+  group.scale.x = -1;
   group.visible = false;
   home.add(group);
+  const planting = shrubs.map(mesh => ({mesh, bounds:new THREE.Box3().setFromObject(mesh), visible:mesh.visible}));
   let roofGroup, dimensions;
   const roofFinish = roof.clone();
   roofFinish.side = THREE.DoubleSide;
@@ -79,7 +83,7 @@ export function createPorchExtension({home, floor, rail, trim, roof, originalRoo
     const back = SHELL.z - options.length * foot;
     const front = SHELL.z + 2.175;
     const frontJoint = SHELL.z - .075;
-    dimensions = {outer, back, front};
+    dimensions = {left:-outer, back, front};
     // The two slabs meet the existing deck edge exactly, leaving its stairs open.
     box(outer - 4.15, .23, front - frontJoint, (outer + 4.15) / 2, 1, (front + frontJoint) / 2, floor);
     box(outer - SHELL.x - .04, .23, frontJoint - back, (outer + SHELL.x + .04) / 2, 1, (frontJoint + back) / 2, floor);
@@ -142,8 +146,12 @@ export function createPorchExtension({home, floor, rail, trim, roof, originalRoo
     group.visible = active;
     roofGroup.visible = options.roof;
     for (const mesh of originalRoof) mesh.visible = !(active && options.roof);
-    rightShrub.visible = !active;
-    downspout.visible = !(active && options.roof);
+    leftRail.visible = !active;
+    const footprint = new THREE.Box3(
+      new THREE.Vector3(dimensions.left - .12, -.1, dimensions.back - .12),
+      new THREE.Vector3(-SHELL.x + .08, 2.25, dimensions.front + .12),
+    );
+    for (const plant of planting) plant.mesh.visible = plant.visible && !(active && footprint.intersectsBox(plant.bounds));
     return dimensions;
   }
   return {group, update};

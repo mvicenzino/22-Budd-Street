@@ -41,14 +41,15 @@ async function sceneState() {
     const scene=window.budd.scene;
     const visible=object => { if(!object)return false;for(let current=object;current;current=current.parent)if(!current.visible)return false;return true; };
     const extension=scene.getObjectByName('Wraparound porch'), roof=scene.getObjectByName('Wraparound porch roof'), bush=scene.getObjectByName('Right porch shrub');
+    const leftRail=scene.getObjectByName('Original left porch rail'),plants={};
+    scene.traverse(object=>{if(object.userData.porchPlant)plants[object.name]=visible(object);});
     const bounds={min:[Infinity,Infinity,Infinity],max:[-Infinity,-Infinity,-Infinity]};
     let meshes=0;
     extension?.traverse(object => {
       if(!object.isMesh || !object.geometry)return;
       meshes++;
       if(!visible(object))return;
-      // Roof overhang can pass above a doorway without occupying its approach.
-      // Measure the deck/posts/guard footprint separately from that canopy.
+      // Measure the deck/posts/guard footprint separately from the roof overhang.
       for(let ancestor=object;ancestor;ancestor=ancestor.parent)if(ancestor===roof)return;
       object.geometry.computeBoundingBox();
       const box=object.geometry.boundingBox;
@@ -57,16 +58,25 @@ async function sceneState() {
         point.forEach((value,index)=>{bounds.min[index]=Math.min(bounds.min[index],value);bounds.max[index]=Math.max(bounds.max[index],value);});
       }
     });
-    return {exists:!!extension,shown:visible(extension),roof:visible(roof),bush:visible(bush),meshes,bounds,futureYard:visible(scene.getObjectByName('Future backyard'))};
+    return {exists:!!extension,shown:visible(extension),roof:visible(roof),bush:visible(bush),downspout:visible(scene.getObjectByName('Driveway downspout')),leftRail:visible(leftRail),plants,meshes,bounds,futureYard:visible(scene.getObjectByName('Future backyard'))};
   });
 }
 async function assertVisibility(shown,roof) {
   const state=await sceneState();
   assert.ok(state.exists,'The optional porch retains its named group after static merging');
   assert.equal(state.shown,shown,'Extension visibility matches the selected view');
-  assert.equal(state.bush,!shown,'Only the original view retains the right-front shrub');
+  assert.equal(state.bush,true,'The driveway-side shrub stays in place');
+  assert.equal(state.downspout,true,'The driveway-side downspout remains visible');
+  assert.equal(state.leftRail,!shown,'The original left-side rail opens the connection and returns in the original view');
+  assert.equal(Object.keys(state.plants).length,6,'All six original shrubs remain independently identifiable');
+  assert.equal(state.plants['Porch shrub 1'],!shown,'The left-front shrub is removed only with the extension');
+  for(const name of ['Porch shrub 0','Porch shrub 3','Porch shrub 4']) assert.equal(state.plants[name],true,`${name} stays outside the porch footprint`);
+  if(!shown) assert.ok(Object.values(state.plants).every(Boolean),'The original view restores every shrub');
   assert.equal(state.roof,shown&&roof,'Roof visibility follows its option and parent');
-  if(shown) assert.ok(state.meshes>0,'The extension contains rendered geometry');
+  if(shown) {
+    assert.ok(state.meshes>0,'The extension contains rendered geometry');
+    assert.ok(state.bounds.max[0]<0,'The entire added deck is on the left side, away from the driveway');
+  }
   return state;
 }
 async function extent(selector,key) {
@@ -87,6 +97,7 @@ try {
   await page.locator('#config-close').click(); await screenshot('before');
 
   await configuration(); await page.locator('#porch-extension-enabled').check();
+  assert.match(await page.locator('#porch-extension-options').textContent(),/left.side/i,'Configuration identifies the corrected side');
   assert.equal(await page.locator('#porch-extension-width').isEnabled(),true);
   assert.equal(await page.locator('#future').getAttribute('aria-pressed'),'true');
   assert.equal(Number(await page.locator('#porch-extension-width').inputValue()),5);
@@ -94,6 +105,7 @@ try {
   const originalEnabled=await assertVisibility(true,true);
   await showExtension(); await screenshot('after');
   await page.locator('[data-view="front"]').click(); await screenshot('front');
+  await page.locator('[data-view="left"]').click(); await screenshot('left');
   await page.locator('[data-view="right"]').click(); await screenshot('right');
   for(let index=0;index<3;index++) {
     await page.locator('#future').click(); await assertVisibility(false,false);
@@ -108,13 +120,14 @@ try {
   assert.equal(Number(await page.locator('#porch-extension-width').inputValue()),4);
   assert.equal(Number(await page.locator('#porch-extension-length').inputValue()),6);
   const small=await assertVisibility(true,true);
+  assert.equal(small.plants['Porch shrub 5'],true,'The shortest return preserves the next side shrub');
   await extent('#porch-extension-width','End'); await extent('#porch-extension-length','End');
   assert.equal(Number(await page.locator('#porch-extension-width').inputValue()),6);
   assert.equal(Number(await page.locator('#porch-extension-length').inputValue()),9);
   const large=await assertVisibility(true,true);
-  assert.ok(large.bounds.max[0]-small.bounds.max[0]>.55,'Width changes the actual side footprint');
+  assert.ok(small.bounds.min[0]-large.bounds.min[0]>.55,'Width expands the actual footprint farther to the left');
   assert.ok(small.bounds.min[2]-large.bounds.min[2]>.85,'Length changes the actual side return');
-  assert.ok(large.bounds.min[2]>.95,'Even the largest return ends before the side-door opening');
+  assert.equal(large.plants['Porch shrub 5'],false,'The longest return removes the side shrub where its footprint overlaps');
   await extent('#porch-extension-width','ArrowLeft'); await extent('#porch-extension-length','ArrowLeft');
   if(!await page.locator('#porch-options').evaluate(element=>element.open)) await page.locator('#porch-options > summary').click();
   await page.locator('[data-porch="floor"][data-finish="cedar"]').click();
@@ -177,7 +190,7 @@ try {
   assert.equal(await page.locator('#porch-extension-enabled').isChecked(),false,'Explicitly disabling stays disabled after reload');
   await assertVisibility(false,false);
   assert.deepEqual(errors,[],'No browser errors or failed local assets');
-  console.log('PASS: optional porch geometry, shrub restoration, original/planned compare, dimensions, roof, persistence, and desktop/phone controls.');
+  console.log('PASS: left-side porch geometry, clear driveway, original rail/plant restoration, footprint-based shrub removal, compare, dimensions, roof, finishes, persistence, and desktop/phone controls.');
 } catch(error) {
   await screenshot('failure').catch(()=>{});
   console.error('Last porch scene state:',await sceneState().catch(()=>null));
