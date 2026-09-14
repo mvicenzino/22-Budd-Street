@@ -104,3 +104,13 @@ body[data-mode=cinematic] main>*:not(#scene):not(#cinema-controls):not(#loading)
 #cinema-seek{margin-bottom:0}
 }
 body[data-export=true] #cinema-controls{display:none!important}
+.porch-extension-controls{padding:0;margin:14px 0 0;border:0;min-width:0;transition:opacity .2s}
+.porch-extension-controls:disabled{opacity:.5}
+#future-options .porch-option-toggle{display:flex;align-items:center;gap:9px;min-height:44px;margin:0;font-size:12px;line-height:1.5;cursor:pointer}
+.porch-option-toggle input{width:17px;height:17px;flex:0 0 17px;margin:0}
+.porch-extension-controls>label:not(.porch-option-toggle){display:flex!important;align-items:center;justify-content:space-between;gap:8px;font-size:11px;margin:12px 0 3px!important}
+.porch-extension-controls output{font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--accent);font-weight:600}
+.porch-extension-controls>input[type=range]{width:100%;max-width:none;margin:0;min-height:36px;cursor:pointer}
+#future-options .porch-option-summary,#future-options .porch-option-note{display:block;font-size:11px;line-height:1.6;margin:8px 0;color:var(--muted)}
+#future-options .porch-option-note{border-top:1px solid var(--line);padding-top:12px;margin-top:14px;font-size:10px}
+#porch-extension-view{width:100%;margin-top:10px;background:var(--accent);color:white;display:flex;align-items:center;justify-content:space-between;font-size:12px}
