@@ -6,6 +6,7 @@ import {smooth, shortestAngle} from './navigation.js';
 import {createExperience} from './experience.js';
 import {createCinema} from './cinematic.js';
 import {surfaceTexture} from './materials.js';
+import {createPorchExtension, porchExtensionOptions} from './porch-extension.js';
 import {mergeStatic} from './merge.js';
 import {createPostPipeline,skyEnvironment,loadSkyPhoto} from './post.js';
 const $=s=>document.querySelector(s);
@@ -77,7 +78,8 @@ function plankMap(repeatX,repeatY){const c=document.createElement('canvas');c.wi
 const porchFloorFinish=mat('#5d6468',{map:plankMap(2,16),roughness:.75}),porchStepFinish=mat('#5d6468',{map:plankMap(1.6,2.2),roughness:.75}),porchRiserFinish=trim.clone(),porchRailFinish=trim.clone(),stairRailFinish=trim.clone();
 const PZ=FZ-4.25;box(8.3,.23,2.25,0,1,5.3+PZ,porchFloorFinish);box(8.35,.19,.18,0,.98,6.44+PZ,trim);
 for(const x of [-3.9,0,3.9]){box(.22,2.7,.22,x,2.4,6.25+PZ,porchRailFinish);box(.32,.14,.32,x,1.12,6.25+PZ,porchRailFinish)}
-box(8.85,.15,2.9,0,3.83,5.4+PZ,trim);const porchRoof=box(8.8,.08,2.95,0,3.95,5.4+PZ,roof);porchRoof.rotation.x=.06;
+const porchSoffit=box(8.85,.15,2.9,0,3.83,5.4+PZ,trim),porchRoof=box(8.8,.08,2.95,0,3.95,5.4+PZ,roof);porchRoof.rotation.x=.06;
+for(const mesh of [porchSoffit,porchRoof])mesh.userData.dynamic=true;
 function rail(x1,z1,x2,z2,y=1.13){beam([x1,y+.83,z1],[x2,y+.83,z2],.075,porchRailFinish);beam([x1,y+.07,z1],[x2,y+.07,z2],.065,porchRailFinish);const n=Math.ceil(Math.hypot(x2-x1,z2-z1)/.18);for(let i=0;i<=n;i++)box(.035,.72,.035,x1+(x2-x1)*i/n,y+.45,z1+(z2-z1)*i/n,porchRailFinish)}
 rail(-3.9,6.25+PZ,1.3,6.25+PZ);rail(-3.9,4.35+PZ,-3.9,6.25+PZ);
 for(let i=0;i<6;i++){box(2.25,(6-i)*.17-.03,.31,frontFeature.a,((6-i)*.17-.03)/2,6.58+PZ+i*.3,porchRiserFinish);box(2.29,.03,.33,frontFeature.a,(6-i)*.17-.015,6.58+PZ+i*.3,porchStepFinish)}
@@ -110,7 +112,8 @@ for(const z of [(-5.35-PZ),(-6.35-PZ)])for(const x of [-4.05,2.8])box(.065,2.95,
 for(const x of [1.83,2.68])box(.075,2.25,.09,x,2.2,(-7.44-PZ),trim);box(.91,.075,.09,2.25,3.29,(-7.44-PZ),trim);
 for(let i=0;i<6;i++)box(1.1,(6-i)*.17,.29,2.25,(6-i)*.085,(-7.56-PZ)-i*.28,red);for(const x of [1.66,2.85])beam([x,1.96,(-7.4-PZ)],[x,1.02,(-9-PZ)],.075,red);
 // Downspouts and foundation mortar joints.
-for(const [x,z]of [[4.12,FZ-.15],[-4.12,-FZ+.15]])box(.075,6.5,.075,x,3.4,z,trim);
+let rightDownspout;
+for(const [x,z]of [[4.12,FZ-.15],[-4.12,-FZ+.15]]){const mesh=box(.075,6.5,.075,x,3.4,z,trim);if(x>0){rightDownspout=mesh;mesh.userData.dynamic=true;}}
 for(let y=.15;y<.9;y+=.22){for(const z of [FZ+.005,-FZ-.005])box(8,.02,.03,0,y,z,stone);for(const x of [FX+.005,-FX-.005])box(.03,.02,FZ*2,x,y,0,stone)} // mortar courses on the foundation above grade
 // Contextual property, kept schematic because no survey was supplied.
 // Lawn in four strips around the foundation so the basement below grade stays open.
@@ -118,8 +121,11 @@ const gx=FX+.08,gz=FZ+.08;box(22-gx,.2,53,(22+gx)/2,-.16,-8,grass,scene);box(22-
 for(let x=-21;x<21;x+=3.4)box(1.7,.01,.09,x,.06,12.5,mat('#d7cda2'),scene);
 // Detached barn from earlier exterior references.
 const barn=new THREE.Group();barn.position.set(5,0,-19);scene.add(barn);box(5.6,2.8,4.3,0,1.4,0,siding.clone(),barn);for(const z of [-2.15,2.15])face([[-2.8,2.8,z],[2.8,2.8,z],[0,4.2,z]],doubleSiding.clone(),barn);face([[-3,2.8,2.4],[-3,2.8,-2.4],[0,4.3,-2.4],[0,4.3,2.4]],doubleRoof,barn);face([[0,4.3,2.4],[0,4.3,-2.4],[3,2.8,-2.4],[3,2.8,2.4]],doubleRoof,barn);for(const x of [-1.23,1.23]){box(2.35,2.4,.08,x,1.2,2.2,red,barn);box(.6,.6,.11,x,1.85,2.27,glass,barn);for(const dx of [-.32,.32])box(.055,.68,.055,x+dx,1.85,2.34,trim,barn)}for(const x of [-2.6,0,2.6])box(.09,2.5,.12,x,1.25,2.25,trim,barn);
-function shrub(x,z,s=1){const mesh=new THREE.Mesh(new THREE.IcosahedronGeometry(s,2),mat('#486446'));mesh.scale.set(1,.8,.85);mesh.position.set(x,s*.6,z);mesh.castShadow=true;scene.add(mesh)}
-for(const [x,z,s]of [[-2.5,7.1+PZ,.8],[-3.9,7+PZ,.9],[4.3,5.6+PZ,1.05],[-5.2,-1,.75],[-5.2,-3,.75],[-5.2,1,.75]])shrub(x,z,s);
+function shrub(x,z,s=1){const mesh=new THREE.Mesh(new THREE.IcosahedronGeometry(s,2),mat('#486446'));mesh.scale.set(1,.8,.85);mesh.position.set(x,s*.6,z);mesh.castShadow=true;scene.add(mesh);return mesh}
+let rightPorchShrub;
+for(const [x,z,s]of [[-2.5,7.1+PZ,.8],[-3.9,7+PZ,.9],[4.3,5.6+PZ,1.05],[-5.2,-1,.75],[-5.2,-3,.75],[-5.2,1,.75]]){const mesh=shrub(x,z,s);if(x>0){rightPorchShrub=mesh;mesh.name='Right porch shrub';}}
+porchFloorFinish.name='Porch decking';porchRailFinish.name='Porch posts and rails';
+const porchExtension=createPorchExtension({home,floor:porchFloorFinish,rail:porchRailFinish,trim,roof,originalRoof:[porchSoffit,porchRoof],rightShrub:rightPorchShrub,downspout:rightDownspout});
 const fence=mat('#465854');for(let z=-24;z<=7;z+=2.6)box(.055,1.3,.055,9,.65,z,fence,scene);for(const y of [.18,1.22])box(.045,.035,31,9,y,-8.5,fence,scene);
 // Dark blue Model 3 in the driveway, nose to the street, backed up to the rear corner of the house
 // and charging from the outlet beside the air-conditioning condenser.
@@ -206,20 +212,49 @@ const fit=kind==='oval'?.73:kind==='rectangle'?1:.82;for(const {o,original}of fu
 const area=Math.abs(border.reduce((sum,p,i)=>{const q=border[(i+1)%border.length];return sum+p[0]*q[1]-q[0]*p[1]},0))/2/.3048**2;$('#width-value').textContent=wf+' ft';$('#depth-value').textContent=df+' ft';$('#patio-area').textContent=Math.round(area)+' sq ft patio';rebuildPlants(w,d,center,kind);drawCurveEditor()}
 for(const id of ['patio-width','patio-depth','patio-shape','stone-size'])$('#'+id).addEventListener('input',()=>{futureMode=true;applyFuture();rebuildPatio()});
 $('#add-plant').onclick=()=>{const side=$('#plant-side').value;if(planting.filter(p=>p.side===side).length>=4){$('#plant-count').textContent='This edge has four plants. Choose another edge or remove one.';return}futureMode=true;applyFuture();planting.push({id:nextPlantId++,type:$('#plant-type').value,side});rebuildPatio();$('#future-back').click()};$('#clear-plants').onclick=()=>{planting.length=0;rebuildPatio()};
-let futureMode=false,selectedPaint='white';
+const porchExtensionKey='budd-porch-extension-v1';
+let savedPorchExtension;
+try{savedPorchExtension=JSON.parse(localStorage.getItem(porchExtensionKey));}catch{}
+const porchExtensionSelection=porchExtensionOptions(savedPorchExtension);
+let futureMode=porchExtensionSelection.enabled,selectedPaint='white';
 const porchSelection={floor:'existing',steps:'existing',rails:'existing'};
 const porchPalette={white:'#eeeee4',light:'#b9bec0',medium:'#8a9195',charcoal:'#393f43',greige:'#b5ac9c',cedar:'#aa7952'};
 const paintNames={white:'White',light:'Light gray',medium:'Medium gray',dark:'Dark gray',greige:'Gray/beige'};
 function applyFuture(){
+porchExtension.update(porchExtensionSelection,futureMode);
+$('#porch-extension-enabled').checked=porchExtensionSelection.enabled;
+$('#porch-extension-controls').disabled=!porchExtensionSelection.enabled;
+$('#porch-extension-width').value=porchExtensionSelection.width;$('#porch-extension-width-value').value=porchExtensionSelection.width+' ft';
+$('#porch-extension-length').value=porchExtensionSelection.length;$('#porch-extension-length-value').value=porchExtensionSelection.length+' ft';
+$('#porch-extension-roof').checked=porchExtensionSelection.roof;
+$('#porch-extension-summary').textContent=porchExtensionSelection.enabled
+  ? `${futureMode?'Previewing':'Saved option'} · ${porchExtensionSelection.width} ft wide · ${porchExtensionSelection.length} ft along the right wall · ${porchExtensionSelection.roof?'covered':'open deck'}`
+  : 'Connect the front porch around the driveway-side corner.';
 for(const [key,material,original]of [['floor',porchFloorFinish,'#5d6468'],['steps',porchStepFinish,'#5d6468'],['rails',porchRailFinish,'#f7f6ed']])material.color.set(futureMode&&porchSelection[key]!=='existing'?porchPalette[porchSelection[key]]:original);
 stairRailFinish.color.set(futureMode&&porchSelection.rails!=='existing'?porchPalette[porchSelection.rails]:'#f7f6ed');
 document.querySelectorAll('[data-porch]').forEach(b=>b.setAttribute('aria-pressed',String(porchSelection[b.dataset.porch]===b.dataset.finish)));
 const palette={white:'#eeefe9',light:'#b9bec0',medium:'#8a9195',dark:'#555d63',greige:'#b5ac9c'},c=palette[selectedPaint];
 document.querySelectorAll('[data-paint]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.paint===selectedPaint)));
 siding.color.set(futureMode?c:'#d9dbcf');doubleSiding.color.copy(siding.color);sidingSeams.color.set(futureMode?c:'#eeeee4');if(futureMode)sidingSeams.color.multiplyScalar(.91);
-shutterFinish.color.set('#15191c');futureYard.visible=futureMode;$('#future-options').hidden=false;$('#future').setAttribute('aria-pressed',String(futureMode));$('#future').textContent=futureMode?'Show the original':'Imagine the possibilities';$('#future-compare').textContent=futureMode?'View original exterior':'View planned exterior';$('#future-compare').setAttribute('aria-pressed',String(futureMode));$('#mode-label').textContent=futureMode?'Future state · '+paintNames[selectedPaint]+' · black shutters':'A home to explore. A future to imagine.';}
+shutterFinish.color.set('#15191c');futureYard.visible=futureMode;$('#future-options').hidden=false;$('#future').setAttribute('aria-pressed',String(futureMode));$('#future').textContent=futureMode?'Show the original':'Imagine the possibilities';$('#future-compare').textContent=futureMode?'View original exterior':'View planned exterior';$('#future-compare').setAttribute('aria-pressed',String(futureMode));$('#mode-label').textContent=futureMode?'Future state · '+paintNames[selectedPaint]+' · black shutters'+(porchExtensionSelection.enabled?' · wraparound porch':''):'A home to explore. A future to imagine.';}
 $('#future').onclick=()=>{stop();futureMode=!futureMode;applyFuture()};$('#future-compare').onclick=()=>$('#future').click();document.querySelectorAll('[data-paint]').forEach(b=>b.onclick=()=>{futureMode=true;selectedPaint=b.dataset.paint;applyFuture()});
 document.querySelectorAll('[data-porch]').forEach(b=>b.onclick=()=>{futureMode=true;porchSelection[b.dataset.porch]=b.dataset.finish;applyFuture()});
+function changePorchExtension(key,value){
+  stop();porchExtensionSelection[key]=value;futureMode=true;
+  try{localStorage.setItem(porchExtensionKey,JSON.stringify(porchExtensionSelection));}catch{}
+  applyFuture();
+}
+$('#porch-extension-enabled').onchange=e=>{changePorchExtension('enabled',e.target.checked);if(e.target.checked)viewPorchExtension(false)};
+for(const key of ['width','length'])$('#porch-extension-'+key).oninput=e=>changePorchExtension(key,Number(e.target.value));
+$('#porch-extension-roof').onchange=e=>changePorchExtension('roof',e.target.checked);
+function viewPorchExtension(closePanel=true){
+  stop();futureMode=true;applyFuture();target.set(1.8,2.3,3.15);theta=.78;distance=20;elevation=.36;setCamera();
+  $('#viewname').textContent='A porch around the corner';$('#height').value=21;
+  document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-pressed','false'));
+  if(closePanel)$('#config-close').click();
+}
+$('#porch-extension-view').onclick=()=>viewPorchExtension();
+applyFuture();
 $('#steps-closeup').onclick=()=>{stop();target.set(2.3,1.2,6.7+PZ);theta=.38;distance=10;elevation=.32;setCamera();$('#viewname').textContent='Porch steps · color preview';$('#height').value=18};
 $('#porch-closeup').onclick=()=>{stop();target.set(0,2.1,5.2+PZ);theta=.18;distance=15;elevation=.24;setCamera();$('#viewname').textContent='Front porch · finish preview';$('#height').value=14};
 $('#future-back').onclick=()=>{stop();futureMode=true;applyFuture();target.set(0,2,-9);theta=3.8;distance=31;elevation=.57;setCamera();$('#viewname').textContent='Future backyard · patio & path to shed';$('#height').value=Math.round(elevation*180/Math.PI)};
