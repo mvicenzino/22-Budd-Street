@@ -1,14 +1,16 @@
 import * as THREE from 'three';
 import {mergeStatic} from './merge.js';
-import {BASEMENT_PLAN as P} from './basement-plan.js';
+import {BASEMENT_PLAN as P,mirrorBasementRect} from './basement-plan.js';
 
 // A spatial proposal within the existing basement envelope. The original windows,
 // stair, joists, and boiler remain owned by the interior model.
 export function buildBasementProposal({group,box,beam,toilet,mat,palette,trim,steel,porcelain,wallMaterial}) {
   const floor=P.floor,ceiling=P.ceiling,height=ceiling-floor,thick=P.wallThickness;
-  const [x0,z0,x1,z1]=P.bathroom.rect;
+  // Build in the original local orientation, then reflect the complete proposal into
+  // the rear-right corner. Window apertures remain specific to the actual right wall.
+  const [x0,z0,x1,z1]=mirrorBasementRect(P.bathroom.rect);
   const bathroomBounds={x0,x1,z0,z1};
-  const opening={x0:P.bathroom.door[0],x1:P.bathroom.door[1],head:2.03};
+  const opening={x0:-P.bathroom.door[1],x1:-P.bathroom.door[0],head:2.03};
   const bathroomPaint=mat('#E3E0D7',{roughness:.85});
   const ceilingPaint=mat('#f7f5ee',{roughness:.88});
   const grout=mat('#bfb8aa',{roughness:.92});
@@ -22,7 +24,9 @@ export function buildBasementProposal({group,box,beam,toilet,mat,palette,trim,st
   glass.userData.basementOwned=true;
   const warmLED=mat('#fff4dd',{emissive:'#ffe7b8',emissiveIntensity:.9,roughness:.35});
   const linen=mat('#e9e4d8',{roughness:.98});
-  const named=(name,parent=group)=>{
+  const proposal=new THREE.Group();proposal.name='Basement proposal';
+  proposal.userData.dynamic=true;proposal.userData.basementProposal=true;proposal.scale.x=-1;group.add(proposal);
+  const named=(name,parent=proposal)=>{
     const child=new THREE.Group();child.name=name;child.userData.dynamic=true;child.userData.basementProposal=true;parent.add(child);return child;
   };
   const bathroom=named('Basement bathroom');
@@ -46,16 +50,16 @@ export function buildBasementProposal({group,box,beam,toilet,mat,palette,trim,st
   const rightFaces=[wallMaterial,bathroomPaint,trim,trim,wallMaterial,bathroomPaint];
   const frontFaces=[wallMaterial,wallMaterial,trim,trim,wallMaterial,bathroomPaint];
   box(thick,height,2.81,-1.49,floor,-2.445,rightFaces,bathroom);
-  strip(-3.85,opening.x0,-1.10,-.98,floor,height,frontFaces,bathroom);
-  // The door is parked inside this wall, between its two finished faces.
-  strip(opening.x1,-1.49,-1.10,-1.067,floor,opening.head,bathroomPaint,bathroom);
-  strip(opening.x1,-1.49,-1.013,-.98,floor,opening.head,wallMaterial,bathroom);
-  strip(opening.x1,-1.49,-1.10,-.98,floor+opening.head,height-opening.head,frontFaces,bathroom);
+  strip(opening.x1,-1.49,-1.10,-.98,floor,height,frontFaces,bathroom);
+  // Park left in local space: the installed door slides right toward the driveway wall.
+  strip(-3.85,opening.x0,-1.10,-1.067,floor,opening.head,bathroomPaint,bathroom);
+  strip(-3.85,opening.x0,-1.013,-.98,floor,opening.head,wallMaterial,bathroom);
+  strip(-3.85,opening.x0,-1.10,-.98,floor+opening.head,height-opening.head,frontFaces,bathroom);
   strip(opening.x0,opening.x1,-1.10,-.98,floor+opening.head,height-opening.head,frontFaces,bathroom);
   const pocket=named('Basement bathroom pocket door',bathroom);
-  const pocketWidth=opening.x1-opening.x0-.014;
-  box(pocketWidth,opening.head-.025,.036,opening.x1+.007+pocketWidth/2,floor+.014,-1.04,trim,pocket);
-  box(.009,.16,.04,opening.x1+.009,floor+.86,-1.04,steel,pocket);
+  const pocketWidth=Math.min(.90,opening.x1-opening.x0-.014);
+  box(pocketWidth,opening.head-.025,.036,opening.x0-pocketWidth/2,floor+.014,-1.04,trim,pocket);
+  box(.009,.16,.04,opening.x0-.0045,floor+.86,-1.04,steel,pocket);
   for(const x of [opening.x0-.026,opening.x1+.026]){
     box(.046,opening.head,.017,x,floor,-.968,trim,bathroom);
     box(.046,opening.head,.017,x,floor,-1.112,trim,bathroom);
@@ -64,12 +68,13 @@ export function buildBasementProposal({group,box,beam,toilet,mat,palette,trim,st
   box(opening.x1-opening.x0+.094,.035,.017,(opening.x0+opening.x1)/2,floor+opening.head-.004,-1.112,trim,bathroom);
 
   // Thin Classic Gray liners retain both real cellar-window apertures.
-  for(const [z0,z1]of[[-3.85,-2.4],[-1.6,-1.10]])strip(-3.85,-3.834,z0,z1,floor,height,bathroomPaint,bathroom);
-  strip(-3.85,-3.834,-2.4,-1.6,floor,.225-floor,bathroomPaint,bathroom);
-  strip(-3.85,-3.834,-2.4,-1.6,.675,ceiling-.675,bathroomPaint,bathroom);
-  for(const [x0,x1]of[[-3.85,-2.8],[-2,-1.55]])strip(x0,x1,-3.85,-3.834,floor,height,bathroomPaint,bathroom);
-  strip(-2.8,-2,-3.85,-3.834,floor,.225-floor,bathroomPaint,bathroom);
-  strip(-2.8,-2,-3.85,-3.834,.675,ceiling-.675,bathroomPaint,bathroom);
+  for(const [z0,z1]of[[-3.85,-2.68],[-1.88,-1.10]])strip(-3.85,-3.834,z0,z1,floor,height,bathroomPaint,bathroom);
+  strip(-3.85,-3.834,-2.68,-1.88,floor,.225-floor,bathroomPaint,bathroom);
+  strip(-3.85,-3.834,-2.68,-1.88,.675,ceiling-.675,bathroomPaint,bathroom);
+  const rearWindow=[-3.02,-2.22];
+  for(const [x0,x1]of[[-3.85,rearWindow[0]],[rearWindow[1],-1.55]])strip(x0,x1,-3.85,-3.834,floor,height,bathroomPaint,bathroom);
+  strip(...rearWindow,-3.85,-3.834,floor,.225-floor,bathroomPaint,bathroom);
+  strip(...rearWindow,-3.85,-3.834,.675,ceiling-.675,bathroomPaint,bathroom);
   // A continuous tile plane and narrow joints avoid a noisy checkerboard effect.
   strip(bathroomBounds.x0,bathroomBounds.x1,bathroomBounds.z0,bathroomBounds.z1,floor+.005,.016,grout,bathroom);
   let row=0;
@@ -85,19 +90,25 @@ export function buildBasementProposal({group,box,beam,toilet,mat,palette,trim,st
   for(const [x0,x1]of[[-3.834,opening.x0-.05],[opening.x1+.05,-1.565]])strip(x0,x1,-1.122,-1.107,floor+.025,.084,trim,bathroom);
 
   // A 36 × 60 inch walk-in shower, with a full-width open end and a low tray.
-  const [sx0,sz0,sx1,sz1]=P.shower.rect;
+  const [sx0,sz0,sx1,sz1]=mirrorBasementRect(P.shower.rect);
   strip(sx0,sx1,sz0,sz1,floor+.005,.03,porcelain,shower);
   strip(sx0+.018,sx1-.018,sz0+.018,sz1-.018,floor+.035,.002,wetTile,shower);
-  // Left wet wall stops below the sill; the rear wet wall stays left of its window.
+  // Both wet walls respect their cellar windows. Only the rear section outside its
+  // aperture receives full-height tile; tile below either sill stops at y=.22.
   strip(-3.832,-3.812,sz0,sz1,floor+.03,1.49,wetTile,shower);
-  strip(sx0,sx1,-3.832,-3.812,floor+.03,1.84,wetTile,shower);
+  const rearTileSegments=[
+    [sx0,Math.min(sx1,rearWindow[0]),1.84],
+    [Math.max(sx0,rearWindow[0]),Math.min(sx1,rearWindow[1]),1.49],
+    [Math.max(sx0,rearWindow[1]),sx1,1.84],
+  ].filter(([a,b])=>b>a);
+  for(const [a,b,h]of rearTileSegments)strip(a,b,-3.832,-3.812,floor+.03,h,wetTile,shower);
   for(let h=.33;h<1.52;h+=.30){
     strip(-3.811,-3.810,sz0,sz1,floor+h,.002,wetGrout,shower);
     strip(sx0,sx1,-3.811,-3.810,floor+h,.002,wetGrout,shower);
   }
-  strip(sx0,sx1,-3.811,-3.810,floor+1.83,.002,wetGrout,shower);
+  for(const [a,b,h]of rearTileSegments)if(h>1.80)strip(a,b,-3.811,-3.810,floor+1.83,.002,wetGrout,shower);
   for(let z=sz0+.305;z<sz1;z+=.305)box(.001,1.49,.002,-3.810,floor+.03,z,wetGrout,shower);
-  for(let x=sx0+.305;x<sx1;x+=.305)box(.002,1.84,.001,x,floor+.03,-3.810,wetGrout,shower);
+  for(let x=sx0+.305;x<sx1;x+=.305)box(.002,x>=rearWindow[0]&&x<=rearWindow[1]?1.49:1.84,.001,x,floor+.03,-3.810,wetGrout,shower);
   for(let x=sx0+.115;x<sx1-.02;x+=.115)box(.0015,.001,sz1-sz0-.04,x,floor+.037,(sz0+sz1)/2,wetGrout,shower);
   for(let z=sz0+.127;z<sz1-.02;z+=.127)box(sx1-sx0-.04,.001,.0015,(sx0+sx1)/2,floor+.037,z,wetGrout,shower);
   const showerGlass=box(.008,1.84,sz1-sz0,sx1,floor+.038,(sz0+sz1)/2,glass,shower);showerGlass.castShadow=false;
@@ -117,15 +128,15 @@ export function buildBasementProposal({group,box,beam,toilet,mat,palette,trim,st
   // Reuse the home's rounded porcelain fixture at the measured proposal position.
   const wc=toilet(-2.08,-3.39,floor+.01);
   if(wc){wc.name='Basement toilet';wc.userData.dynamic=true;wc.userData.basementProposal=true;bathroom.add(wc);mergeStatic(wc);}
-  // A short towel rail sits beyond the shower entrance and outside the pocket cavity.
-  const towelZ=-1.139;
-  for(const x of [-2.42,-2.04])beam([x,floor+1.02,-1.115],[x,floor+1.02,towelZ-.015],.014,steel,bathroom);
-  roundBeam([-2.42,floor+1.02,towelZ-.015],[-2.04,floor+1.02,towelZ-.015],.009,steel,bathroom);
-  box(.245,.35,.015,-2.25,floor+.675,towelZ-.02,linen,bathroom);
-  box(.235,.009,.018,-2.25,floor+.69,towelZ-.023,trim,bathroom);
+  // Keep the relocated entry unobstructed: the towel rail is on the partition beside the WC.
+  for(const z of [-2.88,-2.50])beam([-1.562,floor+1.02,z],[-1.61,floor+1.02,z],.014,steel,bathroom);
+  roundBeam([-1.61,floor+1.02,-2.88],[-1.61,floor+1.02,-2.50],.009,steel,bathroom);
+  box(.015,.35,.245,-1.625,floor+.675,-2.69,linen,bathroom);
+  box(.018,.009,.235,-1.628,floor+.69,-2.69,trim,bathroom);
 
   // 30 × 20 inch floating oak vanity, facing the center of the room (-X).
-  const vx=-1.804,vz=-1.80,depth=.508,width=.762;
+  const [vx0,vz0,vx1,vz1]=mirrorBasementRect(P.vanity.rect);
+  const vx=(vx0+vx1)/2,vz=(vz0+vz1)/2,depth=vx1-vx0,width=vz1-vz0;
   box(depth-.03,.034,width-.024,vx,floor+.30,vz,oak,vanity);
   for(const z of [vz-width/2+.012,vz+width/2-.012])box(depth-.025,.445,.024,vx,floor+.334,z,oak,vanity);
   box(.020,.445,width-.032,-1.566,floor+.334,vz,oak,vanity);
@@ -166,7 +177,7 @@ export function buildBasementProposal({group,box,beam,toilet,mat,palette,trim,st
   box(serviceHalf*2+.096,.033,.022,0,floor+2.026,1.734,trim,utility);
   const doors=[];
   for(const side of [-1,1]){
-    const door=named(side<0?'Basement utility left door':'Basement utility right door',utility);
+    const door=named(side<0?'Basement utility right door':'Basement utility left door',utility);
     door.position.set(side*serviceHalf,floor,1.741);door.rotation.y=side*THREE.MathUtils.degToRad(165);
     const direction=-side,leafWidth=serviceHalf-.008,cx=direction*leafWidth/2;
     box(leafWidth,2.005,.037,cx,.015,0,trim,door);
@@ -187,5 +198,5 @@ export function buildBasementProposal({group,box,beam,toilet,mat,palette,trim,st
   box(.36,.003,.36,.10,ceiling-.039,.74,warmLED,ceilings).castShadow=false;
 
   for(const part of [pocket,shower,vanity,bathroom,utility,ceilings])mergeStatic(part);
-  return {bathroom,shower,vanity,utility,ceilings,doors,pocket};
+  return {proposal,bathroom,shower,vanity,utility,ceilings,doors,pocket};
 }

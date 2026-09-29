@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#f7f5ef">
-<meta name="description" content="A dimensioned basement concept for 22 Budd Street: a rear-left shower bathroom, central boiler enclosure, and a clear route from the existing stairs.">
+<meta name="description" content="A dimensioned basement concept for 22 Budd Street: a rear-right shower bathroom beside the stairs, central boiler enclosure, and water equipment retained at the rear left.">
 <title>Basement concept — 22 Budd Street</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
@@ -28,7 +28,7 @@
 </header>
 <main>
   <section class="intro" aria-labelledby="page-title">
-    <div><span class="eyebrow">The next possibility / Lower level</span><h1 id="page-title">Basement, reimagined.</h1><p>A shower bathroom at the rear left. A dedicated enclosure around the central boiler.</p></div>
+    <div><span class="eyebrow">The next possibility / Lower level</span><h1 id="page-title">Basement, reimagined.</h1><p>A shower bathroom at the rear right, beside the stairs. A dedicated enclosure around the central boiler.</p></div>
     <span class="concept-tag">Proposed layout · For discussion</span>
   </section>
   <div class="layout">
@@ -36,11 +36,12 @@
       <div class="drawing-header"><span id="drawing-title">The proposed plan</span><span class="eyebrow">Front of house ↓</span></div>
       <svg viewBox="0 0 960 820" role="img" aria-labelledby="svg-title svg-description">
         <title id="svg-title">Dimensioned basement plan, rear at the top and driveway on the right</title>
-        <desc id="svg-description">The basement has an approximate 7.7 by 7.7 metre interior. A 2.30 by 2.75 metre shower bathroom occupies the rear-left corner, with shower on the left, toilet at the rear, vanity on the right, and a 36-inch pocket door facing the front. A 2.68 by 2.58 metre utility enclosure surrounds the central boiler, with a 60-inch double opening toward the front and a 36-inch illustrative service reserve. The existing stair remains on the right. A route runs from its foot around the front of the utility room to the bathroom. A proposed water-equipment location is shown at the rear, pending verification. The existing beam spans the house slightly behind the centre, with its support column at the right of the utility room.</desc>
+        <desc id="svg-description">The basement has an approximate 7.7 by 7.7 metre interior. A 2.30 by 2.75 metre shower bathroom occupies the rear-right corner under the kitchen and plumbing side identified by the owner, with shower on the right, toilet at the rear, vanity on the left, and a 36-inch pocket door facing the front. A 2.68 by 2.58 metre utility enclosure surrounds the central boiler, with a 60-inch double opening toward the front and a 36-inch illustrative service reserve. Water equipment remains at the rear left. A route beside the existing stairs leads to the bathroom, avoiding the support column and the shaded, inaccessible area beneath the short kitchen stair and landing. A second route passes left of the utility room to the rear. The existing low girder crosses the bathroom approach and requires measured headroom review.</desc>
         <defs>
           <pattern id="floor-grid" width=".5" height=".5" patternUnits="userSpaceOnUse"><path d="M .5 0 H 0 V .5" fill="none" stroke="#dde3d5" stroke-width=".008"/></pattern>
           <pattern id="shower-grid" width=".1524" height=".1524" patternUnits="userSpaceOnUse"><rect width=".1524" height=".1524" fill="#d9e9e7"/><path d="M .1524 0 H 0 V .1524" fill="none" stroke="#b9cfcb" stroke-width=".007"/></pattern>
           <pattern id="service-hatch" width=".13" height=".13" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width=".13" height=".13" fill="#eef4f2"/><path d="M0 0 V.13" stroke="#c4d6d2" stroke-width=".017"/></pattern>
+          <pattern id="stair-hatch" width=".13" height=".13" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width=".13" height=".13" fill="#e8e0d0"/><path d="M0 0 V.13" stroke="#c4b89f" stroke-width=".012"/></pattern>
           <marker id="route-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#809a7b"/></marker>
         </defs>
 
@@ -48,9 +49,9 @@
         <g transform="translate(480 410) scale(80)">
           <rect x="-4" y="-4" width="8" height="8" fill="#758278"/>
           <rect x="-3.85" y="-3.85" width="7.7" height="7.7" fill="#f4f2e9"/>
-          <rect x="-3.85" y="-3.85" width="2.3" height="2.75" fill="#edf2e8"/>
-          <rect x="-3.85" y="-3.85" width="2.3" height="2.75" fill="url(#floor-grid)"/>
-          <rect x="-1.43" y="-.98" width="2.68" height="2.58" fill="#eee8da"/>
+          <rect x="1.55" y="-3.85" width="2.3" height="2.75" fill="#edf2e8"/>
+          <rect x="1.55" y="-3.85" width="2.3" height="2.75" fill="url(#floor-grid)"/>
+          <rect x="-1.25" y="-.98" width="2.68" height="2.58" fill="#eee8da"/>
 
           <!-- Existing cellar windows; retained openings are shown at their measured model positions. -->
           <g fill="#d7e8e7" stroke="#6f989b" stroke-width=".015">
@@ -65,25 +66,26 @@
 
           <!-- Bathroom partitions and a 36-inch pocket opening. -->
           <g class="wall">
-            <rect x="-1.55" y="-3.85" width=".12" height="2.87"/>
-            <rect x="-3.85" y="-1.10" width=".293" height=".12"/>
-            <rect x="-2.643" y="-1.10" width="1.213" height=".12"/>
+            <rect x="1.43" y="-3.85" width=".12" height="2.87"/>
+            <rect x="1.43" y="-1.10" width=".3628" height=".12"/>
+            <rect x="2.7072" y="-1.10" width="1.1428" height=".12"/>
           </g>
-          <path d="M-2.643-1.075 H-1.728 V-1.005 H-2.643" fill="#dce7d8" stroke="#7b9a81" stroke-width=".012"/>
-          <path d="M-3.557-1.04 H-2.643" stroke="#91aa8f" stroke-width=".016" stroke-dasharray=".055 .04"/>
-          <path d="M-3.08-1.04 H-2.73" fill="none" stroke="#567858" stroke-width=".018" marker-end="url(#route-arrow)"/>
+          <path d="M2.7072-1.075 H3.6072 V-1.005 H2.7072" fill="#dce7d8" stroke="#7b9a81" stroke-width=".012"/>
+          <path d="M1.7928-1.04 H2.7072" stroke="#91aa8f" stroke-width=".016" stroke-dasharray=".055 .04"/>
+          <path d="M2.25-1.04 H2.60" fill="none" stroke="#567858" stroke-width=".018" marker-end="url(#route-arrow)"/>
 
           <!-- Shower 36 x 60 inches, toilet and 30 x 20-inch vanity. -->
-          <g transform="translate(.02 .02)">
+          <g transform="scale(-1 1)"><g transform="translate(.02 .02)">
           <rect x="-3.82" y="-3.82" width=".9144" height="1.524" rx=".025" fill="url(#shower-grid)" stroke="#91b3af" stroke-width=".035"/>
           <path d="M-3.82-3.79 H-2.936 V-2.326 H-3.79 Z" fill="none" stroke="#abc5c1" stroke-width=".01"/>
           <circle cx="-3.36" cy="-3.12" r=".065" fill="#afc8c5" stroke="#71968f" stroke-width=".01"/>
           <path d="M-3.405-3.12 H-3.315 M-3.36-3.165 V-3.075" stroke="#71968f" stroke-width=".015"/>
           <path d="M-3.77-3.58 H-3.55" stroke="#648981" stroke-width=".035"/><circle cx="-3.55" cy="-3.58" r=".045" fill="#648981"/>
           <path d="M-2.906-3.82 V-2.296 M-3.82-2.296 H-3.56" stroke="#7daaaa" stroke-width=".03"/>
-          <text x="-3.36" y="-2.77" text-anchor="middle" class="small">SHOWER</text>
-          <text x="-3.36" y="-2.58" text-anchor="middle" class="tiny">36 × 60 in</text>
-          </g>
+          </g></g>
+          <text x="3.34" y="-2.75" text-anchor="middle" class="small">SHOWER</text>
+          <text x="3.34" y="-2.56" text-anchor="middle" class="tiny">36 × 60 in</text>
+          <g transform="scale(-1 1)">
           <g fill="#fffef9" stroke="#8b9a8c" stroke-width=".018">
             <rect x="-2.32" y="-3.69" width=".48" height=".19" rx=".04"/>
             <path d="M-2.25-3.5 V-3.21 Q-2.25-2.98-2.08-2.98 Q-1.91-2.98-1.91-3.21 V-3.5 Z"/>
@@ -93,17 +95,18 @@
           <rect x="-2.048" y="-2.171" width=".49" height=".742" rx=".025" fill="#f8f7ee"/>
           <rect x="-1.967" y="-2.037" width=".275" height=".474" rx=".07" fill="#e1e9e3" stroke="#9aa99d" stroke-width=".012"/>
           <path d="M-1.61-1.8 H-1.72" stroke="#968663" stroke-width=".025"/>
-          <text x="-2.62" y="-2.0" text-anchor="middle" class="room-title">01</text>
-          <text x="-2.62" y="-1.77" text-anchor="middle" class="small">Bathroom</text>
-          <text x="-3.1" y="-.56" text-anchor="middle" class="small">36-in pocket door</text>
+          </g>
+          <text x="2.47" y="-2.0" text-anchor="middle" class="room-title">01</text>
+          <text x="2.47" y="-1.77" text-anchor="middle" class="small">Bathroom</text>
+          <text x="2.96" y="-1.22" text-anchor="middle" class="tiny">36-in pocket door</text>
 
           <!-- Utility enclosure: the shared alignment avoids a narrow slot beside the bathroom. -->
           <g class="wall">
-            <rect x="-1.55" y="-.98" width=".12" height="2.70"/>
-            <rect x="1.25" y="-1.1" width=".12" height="2.82"/>
-            <rect x="-1.43" y="-1.1" width="2.68" height=".12"/>
-            <rect x="-1.43" y="1.6" width=".668" height=".12"/>
-            <rect x=".762" y="1.6" width=".608" height=".12"/>
+            <rect x="1.43" y="-.98" width=".12" height="2.70"/>
+            <rect x="-1.37" y="-1.1" width=".12" height="2.82"/>
+            <rect x="-1.25" y="-1.1" width="2.68" height=".12"/>
+            <rect x="-1.25" y="1.6" width=".488" height=".12"/>
+            <rect x=".762" y="1.6" width=".668" height=".12"/>
           </g>
           <path d="M0 1.66 A.762.762 0 0 1-1.498 1.857 M0 1.66 A.762.762 0 0 0 1.498 1.857" fill="none" stroke="#a3977e" stroke-width=".012"/>
           <path d="M-.762 1.66 L-1.498 1.857 M.762 1.66 L1.498 1.857" stroke="#6b7767" stroke-width=".035"/>
@@ -116,47 +119,54 @@
           <text x=".73" y="-.65" text-anchor="middle" class="small">Utility</text>
           <text x="0" y="1.99" text-anchor="middle" class="small">60-in double opening</text>
 
-          <!-- Proposed relocation; the original water equipment was described in the rear-left corner. -->
-          <rect x="-1.1" y="-3.65" width=".7" height=".6" rx=".025" fill="#e3ebe8" stroke="#6f9187" stroke-width=".02" stroke-dasharray=".06 .035"/>
-          <circle cx="-.88" cy="-3.35" r=".18" fill="#c4d5ce" stroke="#729086" stroke-width=".015"/><circle cx="-.56" cy="-3.35" r=".11" fill="#c4d5ce" stroke="#729086" stroke-width=".015"/>
-          <text x="-.75" y="-2.75" text-anchor="middle" class="small">Water equipment</text><text x="-.75" y="-2.55" text-anchor="middle" class="tiny">Proposed relocation</text>
+          <!-- Existing water equipment remains in its rear-left position. -->
+          <rect x="-3.61" y="-3.51" width=".78" height=".52" rx=".025" fill="#e3ebe8" stroke="#6f9187" stroke-width=".02"/>
+          <circle cx="-3.35" cy="-3.25" r=".24" fill="#c4d5ce" stroke="#729086" stroke-width=".015"/><circle cx="-2.97" cy="-3.25" r=".11" fill="#c4d5ce" stroke="#729086" stroke-width=".015"/>
+          <text x="-3.16" y="-2.67" text-anchor="middle" class="small">Existing water</text><text x="-3.16" y="-2.47" text-anchor="middle" class="tiny">equipment retained</text>
 
           <!-- Existing structural column and stair; keep the right-hand route clear of the column. -->
           <circle cx="1.72" cy="-.8" r=".16" fill="#ede1c9"/>
           <circle cx="1.72" cy="-.8" r=".05" fill="#716450"/>
-          <text x="1.96" y="-.73" class="tiny">Existing column</text>
+          <path d="M1.72-.64 V-.40" stroke="#a5916b" stroke-width=".012"/><text x="1.65" y="-.22" class="tiny">Column</text>
+          <rect x="2.98" y="-.95" width=".87" height="1.85" fill="url(#stair-hatch)" stroke="#b4a78e" stroke-width=".015"/>
+          <path d="M2.98-.75 H3.85 M2.98-.55 H3.85 M2.98-.35 H3.85 M2.98-.15 H3.85 M2.98.05 H3.85" stroke="#b4a78e" stroke-width=".01"/>
+          <rect x="3.03" y="-.71" width=".77" height=".46" rx=".03" fill="#e8e0d0"/>
+          <text x="3.415" y="-.54" text-anchor="middle" class="tiny">Short stair</text><text x="3.415" y="-.36" text-anchor="middle" class="tiny">&amp; landing</text>
+          <text x="3.415" y=".34" text-anchor="middle" class="tiny">NO ACCESS</text><text x="3.415" y=".53" text-anchor="middle" class="tiny">from below</text>
           <g fill="#e4e4d8" stroke="#99a394" stroke-width=".012">
             <rect x="2.98" y=".9" width=".87" height="1.4"/>
             <path d="M2.98 1.1 H3.85 M2.98 1.3 H3.85 M2.98 1.5 H3.85 M2.98 1.7 H3.85 M2.98 1.9 H3.85 M2.98 2.1 H3.85"/>
           </g>
           <path d="M3.415 2.08 V1.1 M3.29 1.27 L3.415 1.1 L3.54 1.27" fill="none" stroke="#67796b" stroke-width=".025"/>
-          <text x="3.415" y=".65" text-anchor="middle" class="small">Existing stair</text>
+          <text x="3.415" y="2.74" text-anchor="middle" class="small">Existing stair</text>
 
-          <path d="M3.415 2.48 H-2.05 Q-2.3 2.48-2.37 2.22 L-3.1-.25 V-1.40" fill="none" stroke="#809a7b" stroke-width=".032" stroke-dasharray=".11 .085" marker-end="url(#route-arrow)"/>
+          <path d="M3.415 2.48 V2.3 H-2.1 V-2.5 H.3" fill="none" stroke="#809a7b" stroke-width=".032" stroke-dasharray=".11 .085" marker-end="url(#route-arrow)"/>
+          <path d="M2.25 2.3 V-1.35 L3.12-1.4" fill="none" stroke="#809a7b" stroke-width=".032" stroke-dasharray=".11 .085" marker-end="url(#route-arrow)"/>
           <circle cx="3.415" cy="2.48" r=".055" fill="#809a7b"/>
+          <circle cx="1.9" cy="2.3" r=".055" fill="#809a7b"/>
           <text x="-.15" y="3.10" text-anchor="middle" class="room-title">Open basement</text>
           <text x="-.15" y="3.36" text-anchor="middle" class="small">Clear approach from the stairs</text>
-          <text x="1.6" y="-2.22" text-anchor="middle" class="small">Rear circulation</text>
+          <text x="-.8" y="-2.20" text-anchor="middle" class="small">Rear circulation</text>
         </g>
 
         <!-- Dimensions reference clear inside faces, not the exterior wall. -->
         <g class="dim-line">
           <path d="M172 90 V55 M788 90 V55 M172 63 H788 M172 58 V68 M788 58 V68"/>
-          <path d="M172 102 H110 M172 322 H110 M119 102 V322 M114 102 H124 M114 322 H124"/>
-          <path d="M172 102 V83 M356 102 V83 M172 88 H356 M172 83 V93 M356 83 V93"/>
-          <path d="M365.6 326 V292 M580 326 V292 M365.6 300 H580 M365.6 295 V305 M580 295 V305"/>
-          <path d="M592 331.6 H618 M592 538 H618 M611 331.6 V538 M606 331.6 H616 M606 538 H616"/>
-          <path d="M788 102 H845 M788 718 H845 M837 102 V718 M832 102 H842 M832 718 H842"/>
+          <path d="M788 102 H817 M788 322 H817 M812 102 V322 M808 102 H816 M808 322 H816"/>
+          <path d="M604 102 V83 M788 102 V83 M604 88 H788 M604 83 V93 M788 83 V93"/>
+          <path d="M380 326 V292 M594.4 326 V292 M380 300 H594.4 M380 295 V305 M594.4 295 V305"/>
+          <path d="M368 331.6 H349 M368 538 H349 M355 331.6 V538 M351 331.6 H359 M351 538 H359"/>
+          <path d="M788 102 H875 M788 718 H875 M870 102 V718 M866 102 H874 M866 718 H874"/>
         </g>
         <g text-anchor="middle">
           <text class="orientation" x="480" y="27">REAR / BACKYARD</text>
           <text class="dimension" x="480" y="52">Approx. 25′ 3″ · 7.70 m inside</text>
-          <text class="dimension" x="264" y="82">7′ 6″ · 2.30 m</text>
-          <text class="dimension" transform="translate(104 212) rotate(-90)">9′ 0″ · 2.75 m</text>
-          <text class="dimension" x="472.8" y="293">8′ 10″ · 2.68 m</text>
-          <text class="dimension" transform="translate(628 434.8) rotate(-90)">8′ 6″ · 2.58 m</text>
-          <text class="dimension" transform="translate(859 410) rotate(-90)">Approx. 25′ 3″ · 7.70 m inside</text>
-          <text class="orientation" transform="translate(908 410) rotate(90)">DRIVEWAY SIDE</text>
+          <text class="dimension" x="696" y="82">7′ 6″ · 2.30 m</text>
+          <text class="dimension" transform="translate(832 212) rotate(-90)">9′ 0″ · 2.75 m</text>
+          <text class="dimension" x="487.2" y="293">8′ 10″ · 2.68 m</text>
+          <text class="dimension" transform="translate(339 434.8) rotate(-90)">8′ 6″ · 2.58 m</text>
+          <text class="dimension" transform="translate(890 410) rotate(-90)">Approx. 25′ 3″ · 7.70 m inside</text>
+          <text class="orientation" transform="translate(936 410) rotate(90)">DRIVEWAY SIDE</text>
           <text class="orientation" x="480" y="760">FRONT / STREET</text>
         </g>
         <path d="M177 349 H84 V384" fill="none" stroke="#aa956c" stroke-width="1"/><text x="34" y="404" class="callout">Existing girder</text><text x="34" y="421" class="callout">6′ 1″ below*</text>
@@ -168,15 +178,15 @@
     </figure>
 
     <aside class="summary" aria-label="Room dimensions and existing constraints">
-      <section class="card"><span class="number" aria-hidden="true">01</span><h2>Shower bathroom</h2><p class="measure">7′ 6″ × 9′ 0″</p><p class="metric">2.30 × 2.75 m clear · Rear-left corner</p><dl><div><dt>Shower</dt><dd>36 × 60 in</dd></div><div><dt>Vanity</dt><dd>30 × 20 in</dd></div><div><dt>Pocket door</dt><dd>36 in opening</dd></div></dl><p class="card-note">Shower, toilet and vanity. The existing water system occupies this corner and would need relocation.</p></section>
+      <section class="card"><span class="number" aria-hidden="true">01</span><h2>Shower bathroom</h2><p class="measure">7′ 6″ × 9′ 0″</p><p class="metric">2.30 × 2.75 m clear · Rear-right corner</p><dl><div><dt>Shower</dt><dd>36 × 60 in</dd></div><div><dt>Vanity</dt><dd>30 × 20 in</dd></div><div><dt>Pocket door</dt><dd>36 in opening</dd></div></dl><p class="card-note">Beside the stairs, under the kitchen and plumbing side identified by the owner. Existing water equipment stays at the rear left.</p></section>
       <section class="card"><span class="number" aria-hidden="true">02</span><h2>Central utility</h2><p class="measure">8′ 10″ × 8′ 6″</p><p class="metric">2.68 × 2.58 m clear · Boiler retained</p><dl><div><dt>Front opening</dt><dd>60 in</dd></div><div><dt>Service reserve*</dt><dd>36 in deep</dd></div><div><dt>Wall thickness</dt><dd>Approx. 4¾ in</dd></div></dl><p class="card-note">The boiler stays central. Double doors swing outward and park almost flat along the front wall.</p></section>
       <section class="card headroom"><h2 class="note-title">Existing headroom*</h2><dl><div><dt>Below joists</dt><dd>6′ 10″ / 2.08 m</dd></div><div><dt>Below girder</dt><dd>6′ 1″ / 1.85 m</dd></div></dl><p class="card-note">Model estimates before new finishes. The low girder crosses the bathroom approach and requires on-site review.</p></section>
     </aside>
   </div>
   <section class="notes" aria-label="Items to confirm before construction">
-    <div><h2><span class="note-index">A /</span>Water &amp; drainage</h2><p>The dashed rear-wall equipment position is a proposal, not a verified relocation. A plumber should confirm equipment dimensions, pipe routing, drainage elevations and any pumping need.</p></div>
+    <div><h2><span class="note-index">A /</span>Water &amp; drainage</h2><p>The bathroom uses the kitchen and plumbing side identified by the owner; existing water equipment stays rear-left. A plumber should confirm pipe routing, drainage elevations, slopes and any pumping need.</p></div>
     <div><h2><span class="note-index">B /</span>Mechanical access</h2><p>*The 36-in service reserve is illustrative. Actual clearances, ventilation, combustion air and enclosure requirements must follow the installed appliances. Keep the existing column and the route beside it clear.</p></div>
-    <div><h2><span class="note-index">C /</span>Windows &amp; ceiling</h2><p>Retain the basement windows. The left window meets the shower’s front edge and needs a waterproof detail. Measure the joists, girder and finished headroom before choosing a ceiling assembly.</p></div>
+    <div><h2><span class="note-index">C /</span>Windows &amp; ceiling</h2><p>Retain the right and rear shower-window openings with waterproof details. The approach avoids the low space below the kitchen stair. Measure the joists, girder and finished headroom before choosing a ceiling assembly.</p></div>
   </section>
 </main>
 <footer><span>22 Budd Street · Basement concept · Rear is up; driveway is right.</span><span>Visual planning concept. Not construction drawings or a compliance determination.</span></footer>

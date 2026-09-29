@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {BASEMENT_PLAN as P, BASEMENT_WALLS} from '../basement-plan.js';
-import {NODES} from '../plan.js';
+import {NODES, STAIR, ROOMS} from '../plan.js';
 import {migrateDesign} from '../design.js';
 import {filmPose} from '../cinematic-path.js';
 
 const inside = (x,z,r,pad=0) => x>r[0]-pad && x<r[2]+pad && z>r[1]-pad && z<r[3]+pad;
-const obstacles = [...BASEMENT_WALLS, P.boiler.rect, P.shower.rect, P.vanity.rect];
+const obstacles = [...BASEMENT_WALLS, P.boiler.rect, P.shower.rect, P.vanity.rect, [STAIR.x0, STAIR.shortTopZ, STAIR.x1, STAIR.landingZ1]];
 const clear = (x,z,label) => {
   for(const rect of obstacles) assert.ok(!inside(x,z,rect,.1), `${label}: obstacle at ${x.toFixed(2)}, ${z.toFixed(2)}`);
   assert.ok(Math.hypot(x-1.72,z+.8)>.2, `${label}: existing steel column`);
@@ -43,9 +43,9 @@ test('bath fixtures and service reservation fit the stated concept dimensions', 
   // Deliberately show a generous planning reserve, not a manufacturer-specific approval.
   assert.ok(P.service.rect[3]-P.service.rect[1]>=36*inch-1e-6);
   assert.ok(P.service.rect[3]<P.utility.rect[3]);
-  const wcX=-2.08,wcFront=-3.13;
-  assert.ok(P.bathroom.rect[2]-wcX>=15*inch);
-  assert.ok(wcX-shower[2]>=15*inch);
+  const wcX=2.08,wcFront=-3.13;
+  assert.ok(wcX-P.bathroom.rect[0]>=15*inch);
+  assert.ok(shower[0]-wcX>=15*inch);
   assert.ok(P.vanity.rect[1]-wcFront>=21*inch);
 });
 
@@ -61,4 +61,13 @@ test('obsolete basement studies migrate without discarding finishes or other roo
     assert.equal(before.rooms.basement.layout,layout);
   }
   assert.equal(migrateDesign({version:6,rooms:{basement:{layout:'bathroom'}}}).rooms.basement.layout,'bathroom');
+});
+
+
+test('bathroom sits below kitchen and its entrance avoids the solid stair footprint', () => {
+  assert.ok(P.bathroom.rect[0]>0 && P.bathroom.rect[3]<STAIR.shortTopZ);
+  const kitchen=ROOMS.find(room=>room.id==='kitchen').rect;
+  assert.ok(P.bathroom.rect[0]>=kitchen[0] && P.bathroom.rect[1]>=kitchen[1] && P.bathroom.rect[2]<=kitchen[2] && P.bathroom.rect[3]<=kitchen[3], 'Bathroom is below the kitchen footprint');
+  assert.ok(P.bathroom.door[1]<STAIR.x0-.2);
+  assert.deepEqual(P.water.proposed,P.water.existing);
 });
