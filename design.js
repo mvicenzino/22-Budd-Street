@@ -166,7 +166,7 @@ export function createDesignPanel({root, design, roomDefaults, hooks}) {
       el('li', {text: 'Central boiler service enclosure'})),
     basementViews,
     el('a', {class: 'basement-plan-link', href: './basement-plan.html', text: 'Open dimensioned plan ↗'}),
-    el('p', {class: 'basement-water-note', text: 'Uses the plumbing side below the kitchen. Water equipment stays in the back-left corner.'}),
+    el('p', {class: 'basement-water-note', text: 'Uses the plumbing side below the kitchen. The water tank and equipment move inside the central boiler room.'}),
     el('p', {class: 'basement-concept-note', text: 'Concept only; dimensions are approximate. A plumber and HVAC professional must confirm drainage, ventilation and combustion air, service clearances, and headroom before construction.'}));
   const basementProposal = el('section', {id: 'basement-proposal', 'aria-labelledby': 'basement-proposal-title', hidden: ''},
     el('span', {class: 'basement-proposal-eyebrow', text: 'EXPLORE THE POSSIBILITIES'}),

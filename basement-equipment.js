@@ -33,7 +33,11 @@ export function buildBasementEquipment({group, box, mat, steel, proposed = false
     pipe(boiler,[x,.45,-.32],[x,.45,-.85],.023,copper);
     cylinder(boiler,.065,.045,x,y+1.28,-.32,dark);
   }
-  const [wx,wz] = proposed ? P.water.proposed : P.water.existing;
+  const [waterX,waterZ] = proposed ? P.water.proposed : P.water.existing;
+  water.position.set(waterX,0,waterZ);
+  water.rotation.y = proposed ? P.water.proposedRotation : 0;
+  // Turn the companion filter along the utility wall, clear of the boiler's front approach.
+  const wx=0,wz=0;
   cylinder(water,.24,1.12,wx,y+.07,wz,tank);
   const cap = new THREE.Mesh(new THREE.SphereGeometry(.24,24,12),tank);
   cap.scale.y=.3; cap.position.set(wx,y+1.19,wz); water.add(cap);
