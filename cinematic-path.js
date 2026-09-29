@@ -78,9 +78,9 @@ export const FILM_SHOTS = [
     station(83,[.2,.25,2.7],[0,-.22,0]),
   ]},
   {floor:'basement',fov:66,stations:[
-    station(83,[-3.12,.25,-1.4],[-2.2,-.4,-2.85]),
-    station(86.5,[-3.05,.25,-1.5],[-2.2,-.4,-2.9]),
-    station(90,[-2.98,.25,-1.56],[-2.2,-.4,-2.95]),
+    station(83,[3.12,.25,-1.4],[2.2,-.4,-2.85]),
+    station(86.5,[3.05,.25,-1.5],[2.2,-.4,-2.9]),
+    station(90,[2.98,.25,-1.56],[2.2,-.4,-2.95]),
   ]},
 ];
 export const FILM_STATIONS = FILM_SHOTS.flatMap(shot=>shot.stations);

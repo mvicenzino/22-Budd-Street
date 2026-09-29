@@ -159,14 +159,14 @@ export function createDesignPanel({root, design, roomDefaults, hooks}) {
     basementViews.append(button);
   }
   const basementDetails = el('div', {class: 'basement-proposal-details', id: 'basement-proposal-details', hidden: ''},
-    el('p', {class: 'basement-proposal-size'}, el('strong', {text: 'Approx. 7′6″ × 9′'}), el('span', {text: 'Shower bathroom · rear left'})),
+    el('p', {class: 'basement-proposal-size'}, el('strong', {text: 'Approx. 7′6″ × 9′'}), el('span', {text: 'Shower bathroom · rear right, under the kitchen'})),
     el('ul', {class: 'basement-proposal-features'},
       el('li', {text: '36″ × 60″ shower · no tub'}),
       el('li', {text: '30″ vanity'}),
       el('li', {text: 'Central boiler service enclosure'})),
     basementViews,
     el('a', {class: 'basement-plan-link', href: './basement-plan.html', text: 'Open dimensioned plan ↗'}),
-    el('p', {class: 'basement-water-note', text: 'Water equipment shown beside the bathroom; relocation remains to be confirmed.'}),
+    el('p', {class: 'basement-water-note', text: 'Uses the plumbing side below the kitchen. Water equipment stays in the back-left corner.'}),
     el('p', {class: 'basement-concept-note', text: 'Concept only; dimensions are approximate. A plumber and HVAC professional must confirm drainage, ventilation and combustion air, service clearances, and headroom before construction.'}));
   const basementProposal = el('section', {id: 'basement-proposal', 'aria-labelledby': 'basement-proposal-title', hidden: ''},
     el('span', {class: 'basement-proposal-eyebrow', text: 'EXPLORE THE POSSIBILITIES'}),
