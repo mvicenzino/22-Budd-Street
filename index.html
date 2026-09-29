@@ -9,6 +9,7 @@
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="experience.css">
+<link rel="stylesheet" href="basement-design.css">
 <script type="importmap">{"imports":{"three":"./three.module.js"}}</script>
 </head>
 <body>
@@ -79,6 +80,11 @@
 </div>
 <button id="future-compare" class="mobile-compare" aria-pressed="false">View planned exterior</button>
 <section id="future-options">
+<details class="config-section" open>
+<summary>Basement redesign</summary>
+<p class="porch-option-summary">A shower bathroom in the back-left corner and a room around the central boiler.</p>
+<button id="basement-design-open" type="button">Explore the basement plan ↗</button>
+</details>
 <details id="porch-extension-options" class="config-section" open>
 <summary>Wraparound porch</summary>
 <label class="porch-option-toggle" for="porch-extension-enabled">
@@ -440,7 +446,7 @@
 <select id="cinema-chapter"></select>
 </div>
 <span id="cinema-time" aria-hidden="true">00:00</span>
-<a class="film-download" href="media/budd-street-cinematic.mp4" download="Budd-Street-Cinematic.mp4">Save film <span aria-hidden="true">↗</span></a>
+<a class="film-download" href="media/budd-street-cinematic.mp4" download="Budd-Street-Cinematic.mp4">Save original film <span aria-hidden="true">↗</span></a>
 </div>
 </div>
 <p id="cinema-keyboard" class="sr-only">Use the left and right arrow keys to seek five seconds. Use Space to play or pause and Escape to return to exploring. Choose a room to jump to its chapter.</p>

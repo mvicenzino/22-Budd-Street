@@ -12,7 +12,7 @@ test('the chosen Benjamin Moore colors cover all specified spaces', () => {
 test('old wall experiments migrate to the agreed palette without losing furnishings', () => {
   const before = {version:4, flooring:'white', style:'coastal', rooms:{living:{wall:'navy',rug:'cream',layout:'side'},bath:{wall:'mist'}}, kitchen:{counter:'marble',peninsula:{length:48}}};
   const after = migrateDesign(before);
-  assert.equal(after.version,5);
+  assert.equal(after.version,DEFAULT_DESIGN.version);
   assert.equal(after.rooms.living.wall,undefined);
   assert.equal(after.rooms.living.rug,'cream');
   assert.equal(after.rooms.living.layout,'side');
