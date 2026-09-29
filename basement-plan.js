@@ -7,7 +7,7 @@ export const BASEMENT_PLAN = {
   vanity: {rect: [1.55, -2.181, 2.058, -1.419]},
   boiler: {rect: [-.35, -.45, .35, .45]},
   service: {rect: [-.6, .45, .6, 1.3644]},
-  water: {existing: [-3.35, -3.25], proposed: [-3.35, -3.25]},
+  water: {existing: [-3.35, -3.25], proposed: [1.0, -.45], proposedRotation: -Math.PI / 2},
   wallThickness: .12, floor: -1.3, ceiling: .78,
 };
 

@@ -69,5 +69,4 @@ test('bathroom sits below kitchen and its entrance avoids the solid stair footpr
   const kitchen=ROOMS.find(room=>room.id==='kitchen').rect;
   assert.ok(P.bathroom.rect[0]>=kitchen[0] && P.bathroom.rect[1]>=kitchen[1] && P.bathroom.rect[2]<=kitchen[2] && P.bathroom.rect[3]<=kitchen[3], 'Bathroom is below the kitchen footprint');
   assert.ok(P.bathroom.door[1]<STAIR.x0-.2);
-  assert.deepEqual(P.water.proposed,P.water.existing);
 });

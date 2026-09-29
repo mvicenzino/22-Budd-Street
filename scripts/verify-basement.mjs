@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {NODES, ROOMS, LEVELS} from '../plan.js';
+import {BASEMENT_PLAN as P} from '../basement-plan.js';
 
 // Use a new, disposable browser profile; existing tabs and saved visitor choices stay untouched.
 const baseURL = new URL(process.env.BASE_URL || 'http://127.0.0.1:4173/');
@@ -87,16 +88,27 @@ async function geometry() {
     }));
   }, allGroups);
 }
-function assertEquipmentRetained(existing, proposed) {
-  for (const name of ['Basement water equipment', 'Basement boiler']) {
-    const before = existing[name].bounds, after = proposed[name].bounds;
+function assertEquipmentArrangement(existing, current, proposed = true) {
+  const retained = proposed ? ['Basement boiler'] : ['Basement boiler', 'Basement water equipment'];
+  for (const name of retained) {
+    const before = existing[name].bounds, after = current[name].bounds;
     assert.ok(before && after, `${name} has measurable world geometry in both layouts`);
     for (const edge of ['min', 'max']) for (let axis = 0; axis < 3; axis++) {
-      assert.ok(Math.abs(before[edge][axis] - after[edge][axis]) < 1e-5, `${name} stays in place: ${edge}[${axis}] ${before[edge][axis]} → ${after[edge][axis]}`);
+      assert.ok(Math.abs(before[edge][axis] - after[edge][axis]) < 1e-5, `${name} retains its position`);
     }
   }
-  const water = proposed['Basement water equipment'].bounds;
-  assert.ok(water.max[0] < 0 && water.max[2] < 0, 'The actual water equipment remains in the rear-left corner');
+  const water = current['Basement water equipment'].bounds;
+  if (!proposed) {
+    assert.ok(water.max[0] < 0 && water.max[2] < 0, 'Existing layout restores the water equipment at the rear-left wall');
+    return;
+  }
+  const boiler = current['Basement boiler'].bounds;
+  const [x0,z0,x1,z1] = P.utility.rect;
+  assert.ok(water.min[0] > x0 && water.max[0] < x1 && water.min[2] > z0 && water.max[2] < z1, 'All relocated equipment fits within the clear utility walls');
+  assert.ok(water.min[1] >= P.floor - .001 && water.max[1] < P.ceiling, 'Equipment fits below the utility ceiling');
+  assert.ok(water.min[0] > boiler.max[0] + .2, 'Relocated water equipment clears the central boiler');
+  assert.ok(water.min[0] > P.service.rect[2] + .1, 'Relocated equipment preserves the front service reserve and entry route');
+  assert.ok(Math.abs((water.min[0] + water.max[0]) / 2 - P.water.proposed[0]) < .01, 'Equipment is turned along the right utility wall');
 }
 async function assertProposalWindows() {
   const probes = await page.evaluate(async () => {
@@ -209,18 +221,18 @@ try {
   assert.equal(await page.locator('#basement-proposed').getAttribute('aria-pressed'), 'true');
   assert.equal(await savedLayout(), 'bathroom');
   const firstBuild = await assertProposal(true);
-  assertEquipmentRetained(existingGeometry, firstBuild);
+  assertEquipmentArrangement(existingGeometry, firstBuild);
   const windowProbes = await assertProposalWindows();
-  console.log('PASS: actual rear-right bathroom/shower bounds, unchanged water equipment/boiler, central service enclosure and open cellar windows.', JSON.stringify(windowProbes));
+  console.log('PASS: actual rear-right bathroom/shower bounds, relocated water equipment and unchanged boiler, central service enclosure and open cellar windows.', JSON.stringify(windowProbes));
   const options = await page.locator('#layout-select option').evaluateAll(nodes => nodes.map(node => node.value));
   assert.deepEqual([...options].sort(), ['bathroom', 'unfinished'], 'Only Existing and Proposed are offered');
   assert.match(await page.locator('#basement-proposal').textContent(), /7′6″ × 9′/);
-  assert.match(await page.locator('.basement-water-note').textContent(), /Water equipment stays in the back-left corner/i);
+  assert.match(await page.locator('.basement-water-note').textContent(), /water tank and equipment move inside the central boiler room/i);
   await snapshot('desktop-proposal-controls');
   const existingRebuild = await chooseProposal(false);
-  assertEquipmentRetained(existingGeometry, existingRebuild); await snapshot('desktop-existing');
+  assertEquipmentArrangement(existingGeometry, existingRebuild, false); await snapshot('desktop-existing');
   const secondBuild = await chooseProposal(true);
-  assertEquipmentRetained(existingGeometry, secondBuild);
+  assertEquipmentArrangement(existingGeometry, secondBuild);
   assert.notEqual(secondBuild['Basement bathroom'].uuid, firstBuild['Basement bathroom'].uuid, 'Selecting Proposed rebuilds the bathroom');
   await page.locator('#layout-select').selectOption('unfinished');
   assert.equal(await page.locator('#basement-proposal-details').isVisible(), false);
