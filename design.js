@@ -71,7 +71,7 @@ export const BASEMENT_FLOORS = [
   ...FLOORING.map(f => ({...f, name: f.name + ' LVP'})),
 ];
 
-export const DEFAULT_DESIGN = {version: 5, flooring: 'natural', style: 'traditional', kitchen: {floor: 'match', counter: 'alabaster', island: 'none', peninsula: {show: true, length: 36, depth: 21, overhang: 10, stools: 2}}, basement: {floor: 'concrete'}, rooms: {}};
+export const DEFAULT_DESIGN = {version: 6, flooring: 'natural', style: 'traditional', kitchen: {floor: 'match', counter: 'alabaster', island: 'none', peninsula: {show: true, length: 36, depth: 21, overhang: 10, stools: 2}}, basement: {floor: 'concrete'}, rooms: {}};
 const STORAGE_KEY = 'budd-street-design';
 
 export function migrateDesign(saved) {
@@ -89,6 +89,8 @@ export function migrateDesign(saved) {
   if (version < 4 && pen.length === 42) pen.length = 36;
   // The agreed house palette replaces earlier wall experiments once; furniture and floors remain.
   if (version < 5) for (const room of Object.values(design.rooms)) delete room.wall;
+  // Retire the old studies that moved the real central boiler into a front corner.
+  if (['family', 'office'].includes(design.rooms.basement?.layout)) design.rooms.basement.layout = 'unfinished';
   return design;
 }
 export function loadDesign() {
@@ -142,8 +144,35 @@ export function createDesignPanel({root, design, roomDefaults, hooks}) {
   for (const r of RUGS) rugSelect.append(el('option', {value: r.id, text: r.name}));
   const layoutSelect = el('select', {id: 'layout-select'});
   const rugRow = el('label', {class: 'design-row'}, el('span', {text: 'Rug'}), rugSelect);
-  const layoutRow = el('label', {class: 'design-row'}, el('span', {text: 'Furniture placement'}), layoutSelect);
+  const layoutLabel = el('span', {text: 'Furniture placement'});
+  const layoutRow = el('label', {class: 'design-row'}, layoutLabel, layoutSelect);
   const reset = el('button', {type: 'button', id: 'design-reset', text: 'Reset all design choices'});
+
+  const basementExisting = el('button', {type: 'button', id: 'basement-existing', 'aria-pressed': 'true', 'aria-controls': 'basement-proposal-details', text: 'Existing'});
+  const basementProposed = el('button', {type: 'button', id: 'basement-proposed', 'aria-pressed': 'false', 'aria-controls': 'basement-proposal-details', text: 'Proposed'});
+  const basementStatus = el('p', {class: 'basement-proposal-status', role: 'status', text: 'Existing unfinished basement'});
+  const basementViews = el('div', {class: 'basement-proposal-views', role: 'group', 'aria-label': 'Inspect the proposed basement'});
+  for (const [view, label] of [['bathroom', 'View shower bath'], ['utility', 'View boiler enclosure'], ['plan', 'View floor plan']]) {
+    const button = el('button', {type: 'button', id: `basement-view-${view}`, text: label});
+    button.disabled = typeof hooks.basementView !== 'function';
+    button.onclick = () => hooks.basementView?.(view);
+    basementViews.append(button);
+  }
+  const basementDetails = el('div', {class: 'basement-proposal-details', id: 'basement-proposal-details', hidden: ''},
+    el('p', {class: 'basement-proposal-size'}, el('strong', {text: 'Approx. 7′6″ × 9′'}), el('span', {text: 'Shower bathroom · rear left'})),
+    el('ul', {class: 'basement-proposal-features'},
+      el('li', {text: '36″ × 60″ shower · no tub'}),
+      el('li', {text: '30″ vanity'}),
+      el('li', {text: 'Central boiler service enclosure'})),
+    basementViews,
+    el('a', {class: 'basement-plan-link', href: './basement-plan.html', text: 'Open dimensioned plan ↗'}),
+    el('p', {class: 'basement-water-note', text: 'Water equipment shown beside the bathroom; relocation remains to be confirmed.'}),
+    el('p', {class: 'basement-concept-note', text: 'Concept only; dimensions are approximate. A plumber and HVAC professional must confirm drainage, ventilation and combustion air, service clearances, and headroom before construction.'}));
+  const basementProposal = el('section', {id: 'basement-proposal', 'aria-labelledby': 'basement-proposal-title', hidden: ''},
+    el('span', {class: 'basement-proposal-eyebrow', text: 'EXPLORE THE POSSIBILITIES'}),
+    el('h3', {id: 'basement-proposal-title', text: 'A shower bath downstairs'}),
+    el('div', {class: 'basement-proposal-switch', role: 'group', 'aria-label': 'Compare basement layouts'}, basementExisting, basementProposed),
+    basementStatus, basementDetails);
 
   // Kitchen-only controls: floor, countertop and island.
   const kitchenFloorRow = el('div', {class: 'paint-swatches design-floor'});
@@ -186,7 +215,26 @@ export function createDesignPanel({root, design, roomDefaults, hooks}) {
     ...peninsulaRows);
 
   let currentRoom = null;
+  let currentRoomName = null;
   const roomState = id => (design.rooms[id] ||= {});
+  function updateBasementProposal() {
+    const layout = design.rooms.basement?.layout || roomDefaults('basement').layout || 'unfinished';
+    const proposed = layout === 'bathroom';
+    basementExisting.setAttribute('aria-pressed', String(layout === 'unfinished'));
+    basementProposed.setAttribute('aria-pressed', String(proposed));
+    basementProposal.dataset.proposed = String(proposed);
+    basementDetails.hidden = !proposed;
+    basementStatus.textContent = proposed ? 'Proposed shower bathroom + boiler service enclosure' : layout === 'unfinished' ? 'Existing unfinished basement' : 'Another basement layout is selected';
+  }
+  function selectLayout(value) {
+    if (!currentRoom) return;
+    roomState(currentRoom).layout = value;
+    layoutSelect.value = value;
+    if (currentRoom === 'basement') updateBasementProposal();
+    hooks.layout(currentRoom, value);
+  }
+  basementExisting.onclick = () => { if (currentRoom === 'basement') selectLayout('unfinished'); };
+  basementProposed.onclick = () => { if (currentRoom === 'basement') selectLayout('bathroom'); };
   for (const w of WALL_COLORS) (w.code ? houseWalls : otherWalls).append(swatch(w, false, id => {
     if (!currentRoom) return;
     roomState(currentRoom).wall = id;
@@ -194,7 +242,7 @@ export function createDesignPanel({root, design, roomDefaults, hooks}) {
     hooks.wall(currentRoom, id);
   }));
   rugSelect.onchange = () => { if (!currentRoom) return; roomState(currentRoom).rug = rugSelect.value; hooks.rug(currentRoom, rugSelect.value); };
-  layoutSelect.onchange = () => { if (!currentRoom) return; roomState(currentRoom).layout = layoutSelect.value; hooks.layout(currentRoom, layoutSelect.value); };
+  layoutSelect.onchange = () => selectLayout(layoutSelect.value);
   reset.onclick = () => {
     design.flooring = DEFAULT_DESIGN.flooring;
     design.style = DEFAULT_DESIGN.style;
@@ -211,11 +259,11 @@ export function createDesignPanel({root, design, roomDefaults, hooks}) {
     pressOnly(counterRow, design.kitchen.counter);
     pressOnly(islandRow, design.kitchen.island);
     hooks.reset();
-    if (currentRoom) setRoom(currentRoom);
+    if (currentRoom) setRoom(currentRoom, currentRoomName);
   };
 
   root.append(
-    roomTitle,
+    roomTitle, basementProposal,
     el('div', {class: 'paint-label design-sub', text: 'Wall color · Benjamin Moore'}), wallRow,
     el('p', {class:'design-note', text:'House palette: Pale Oak, Seapearl and Classic Gray. Screen colors are approximate.'}),
     el('div', {class: 'paint-label', text: 'Wood flooring'}), floorRow,
@@ -227,18 +275,22 @@ export function createDesignPanel({root, design, roomDefaults, hooks}) {
 
   function setRoom(id, name) {
     currentRoom = id;
+    currentRoomName = name;
     const defaults = roomDefaults(id), state = design.rooms[id] || {};
     roomTitle.textContent = name ? `This room · ${name}` : 'This room';
     pressOnly(wallRow, state.wall || defaults.wall || defaultWall(id));
     rugRow.hidden = !defaults.rug;
     if (defaults.rug) rugSelect.value = state.rug || defaults.rug;
     layoutSelect.replaceChildren();
-    const layouts = defaults.layouts || {};
+    const layouts = id === 'basement' ? {...defaults.layouts, bathroom: 'Shower bathroom + boiler service enclosure'} : defaults.layouts || {};
+    layoutLabel.textContent = id === 'basement' ? 'Basement layout' : 'Furniture placement';
     layoutRow.hidden = !Object.keys(layouts).length;
     for (const [key, label] of Object.entries(layouts)) layoutSelect.append(el('option', {value: key, text: label}));
     if (!layoutRow.hidden) layoutSelect.value = state.layout || defaults.layout;
     kitchenSection.hidden = id !== 'kitchen';
     basementSection.hidden = id !== 'basement';
+    basementProposal.hidden = id !== 'basement';
+    if (id === 'basement') updateBasementProposal();
   }
   return {setRoom};
 }

@@ -18,6 +18,7 @@ Deploy the repository root as a static site on Vercel. Open it through a web ser
 
 - **Outside:** choose a viewpoint, start a walk-around, or open **Finishes & garden**. Camera presets ease into place; dragging interrupts the movement.
 - **Wraparound porch:** in **Finishes & garden**, enable **Add a left-side extension**. Compare a 4–6 ft wide, 6–9 ft long return along the lawn side, with or without a matching roof. Bushes overlapping the selected footprint disappear and the original side railing opens to connect the decks. Porch finishes apply to the new decking and rails. The option is saved on this device; **Show the original** restores the existing porch, railing and planting for comparison.
+- **Basement redesign:** open **Finishes & garden → Explore the basement plan**, or use `?basement=proposed`. Compare the existing equipment arrangement with a rear-left shower bathroom and central boiler enclosure. Inspect both rooms, walk the retained stair/rear routes, and open the dimensioned, printable `basement-plan.html`. Water-equipment relocation, headroom, drainage, combustion air and appliance-specific service clearances are provisional. Version 6 retires the earlier family/office studies that incorrectly moved the boiler to a front corner, retaining saved finishes and all other room choices. Run `npm run test:basement` for the desktop/phone flow.
 - **Inside:** step through nearby arrows, use **Next room / Previous room**, or **Play tour** for eighteen stops across four levels. Looking around, choosing a room, opening photos, or hiding the tab pauses autoplay.
 - **Rooms & finishes:** choose a floor and destination, change wall colors, furniture and floors, and show dimensions. **Floor plan** frames the complete current floor; **Eye level** returns to where you stood.
 - **Quality:** Auto begins with High on desktop and Balanced on compact/touch screens, then lowers quality if sustained frame times exceed 34 ms after warm-up. High, Balanced and Light can also be selected explicitly. Reduced camera motion follows the system preference initially and can be changed here.
@@ -30,7 +31,7 @@ Digital swatches were taken from Benjamin Moore's official `bmc_color_hex` metad
 | --- | --- | --- |
 | Living, dining, foyer/halls, bedrooms, loft and connecting interior spaces | [Pale Oak OC-20](https://www.benjaminmoore.com/en-us/paint-colors/color/oc-20/pale-oak) | `#DDD9CE` |
 | Kitchen, sunroom and basement | [Seapearl OC-19](https://www.benjaminmoore.com/en-us/paint-colors/color/oc-19/seapearl) | `#E7E4D9` |
-| Upstairs bathroom and powder room | [Classic Gray OC-23](https://www.benjaminmoore.com/en-us/paint-colors/color/oc-23/classic-gray) | `#E3E0D7` |
+| Upstairs bathroom, powder room and proposed basement bathroom | [Classic Gray OC-23](https://www.benjaminmoore.com/en-us/paint-colors/color/oc-23/classic-gray) | `#E3E0D7` |
 
 The existing rear screened porch is identified as the sunroom; its house-facing wall receives Seapearl without changing the modeled enclosure. Basement block walls retain their texture beneath the selected paint. The exterior porch, trim and ceilings keep their existing finishes.
 
@@ -44,11 +45,11 @@ This remains a conceptual, real-time model based on photos and floor plans, not 
 
 ## Full-house cinematic tour
 
-**Take a cinematic tour** plays a 90-second film with fourteen chapters across all four levels: foyer, living room, dining room, kitchen, sunroom, powder room, upstairs hall, three bedrooms, upstairs bathroom, loft, and basement. The opening follows a continuous path through the first floor; later room studies use gentle camera moves and brief fades between locations. Pause, scrub, jump to a chapter, restart, or return to exploring. Reduced-motion mode starts paused. Hiding the tab pauses playback. The camera and transitions follow the same deterministic timeline used for the downloadable film.
+**Take a cinematic tour** plays a 90-second film with fourteen chapters across all four levels: foyer, living room, dining room, kitchen, sunroom, powder room, upstairs hall, three bedrooms, upstairs bathroom, loft, and basement. The opening follows a continuous path through the first floor; later room studies use gentle camera moves and brief fades between locations. Pause, scrub, jump to a chapter, restart, or return to exploring. Reduced-motion mode starts paused. Hiding the tab pauses playback. The live camera follows a deterministic timeline and respects the proposed basement walls.
 
 The shared model uses subtle furniture/cabinet bevels, finer wood grain, satin floor reflections and fabric sheen, with the agreed paint palette throughout. The cinematic route is composed for the default furniture arrangement; a custom layout can alter the framing.
 
-A silent **90-second, 1920 × 1080, 24 fps MP4** is included in `media/budd-street-cinematic.mp4` and available through **Save film**. It is rendered frame by frame, with 4× MSAA, full-resolution 48-sample ambient occlusion and room titles. This avoids dropped frames during recording on slower devices. The interactive **Play tour** remains a separate guided exploration mode with eighteen stops across four levels.
+A silent **90-second, 1920 × 1080, 24 fps MP4** is included in `media/budd-street-cinematic.mp4` and available through **Save original film**. This September 10 export preserves the original house tour; the live tour reflects the selected basement configuration. It is rendered frame by frame, with 4× MSAA, full-resolution 48-sample ambient occlusion and room titles. This avoids dropped frames during recording on slower devices. The interactive **Play tour** remains a separate guided exploration mode with eighteen stops across four levels.
 
 ### Reproduce the exports
 

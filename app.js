@@ -305,6 +305,7 @@ $('#tour').onclick=()=>{if(touring){stop();return}stop();touring=true;elapsed=0;
 const porchPose=()=>{const t=new THREE.Vector3(0,2.1,5.2+PZ),th=.18,d=15,el=.24;return {position:new THREE.Vector3(t.x+Math.sin(th)*d*Math.cos(el),t.y+d*Math.sin(el),t.z+Math.cos(th)*d*Math.cos(el)),target:t}};
 const interior=createInterior({scene,camera,renderer,host,controls,doors:{front:frontDoor,rear:rearDoor},glassLower,hemisphere,exteriorPose:porchPose,exteriorFov,reducedMotion:()=>$('#reduce-motion').checked,onEnter:stop,onExit:()=>{target.set(0,2.1,5.2+PZ);theta=.18;distance=15;elevation=.24;setCamera(false);$('#viewname').textContent='Front porch';$('#height').value=14}});
 $('#enter').onclick=()=>{stop();interior.enter()};
+$('#basement-design-open').onclick=()=>{stop();$('#config-close').click();interior.openBasementDesign();};
 const experience=createExperience({renderer,post,sun,interior,resize:()=>resize(),stopExterior:stop});
 const cinema=createCinema({interior,post,scene,camera,renderer,stopExterior:stop});
 const exportMode=new URLSearchParams(location.search).has('render');
@@ -313,12 +314,14 @@ mergeStatic(home);mergeStatic(interior.group);
 if(porchExtensionSelection.enabled)viewPorchExtension(false);
 host.addEventListener('keydown',e=>{if(interior.active)return;if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key))return;e.preventDefault();if(e.key===' '){$('#tour').click();return}stop();const off=camera.position.clone().sub(controls.target);theta=Math.atan2(off.x,off.z);distance=off.length();elevation=Math.asin(off.y/distance);target.copy(controls.target);if(e.key==='ArrowLeft')theta-=.12;if(e.key==='ArrowRight')theta+=.12;if(e.key==='ArrowUp')elevation=Math.min(1.3,elevation+.06);if(e.key==='ArrowDown')elevation=Math.max(.06,elevation-.06);setCamera()});
 function resize(){renderer.setSize(host.clientWidth,host.clientHeight);camera.aspect=host.clientWidth/host.clientHeight;if(!interior.active)camera.fov=exteriorFov();camera.updateProjectionMatrix();post.resize();post.render(scene,camera)}new ResizeObserver(resize).observe(host);resize();
+if(new URLSearchParams(location.search).get('basement')==='proposed')interior.openBasementDesign();
 if(location.search.includes('debug'))window.budd={scene,renderer,camera,interior,post};
 let frames=0;
 function loop(now){
   requestAnimationFrame(loop);
   if(exportMode&&window.buddRender)return;
   if(document.hidden){last=now;return}
+  if(++frames===2){$('#loading').classList.add('is-ready');setTimeout(()=>{$('#loading').hidden=true},650)}
   const dt=Math.min((now-last)/1000,.05);last=now;
   if(cinema.update(now)){experience.sample(now);return;}
   if(interior.active){interior.update();post.render(scene,camera);experience.sample(now);return}
@@ -330,7 +333,6 @@ function loop(now){
   $('#bearing').textContent=label;
   if(touring)$('#viewname').textContent=label.toLowerCase().replace(/^./,s=>s.toUpperCase());
   post.render(scene,camera);experience.sample(now);
-  if(++frames===2){$('#loading').classList.add('is-ready');setTimeout(()=>{$('#loading').hidden=true},650)}
 }
 renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();stop();$('#loading').hidden=true;$('#error').hidden=false;$('#error').textContent='The 3D view was interrupted. Reload to reopen the house. Reference photos are still available.'});
 renderer.domElement.addEventListener('webglcontextrestored',()=>location.reload());

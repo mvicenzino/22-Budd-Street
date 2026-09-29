@@ -1,0 +1,33 @@
+/* The basement concept stays beside the room name and uses the same warm house palette. */
+#basement-proposal{margin:12px 0 22px;padding:17px;border:1px solid #c8cfbd;border-radius:13px;background:linear-gradient(145deg,#eef0e5,#f7f4ea);color:var(--ink,#263d30)}
+#basement-proposal[hidden],#basement-proposal-details[hidden]{display:none!important}
+#basement-proposal .basement-proposal-eyebrow{display:block;font-size:8px;font-weight:650;letter-spacing:.16em;color:#69745b}
+#basement-proposal h3{font:25px/1.15 Georgia,serif;letter-spacing:-.4px;font-weight:400;margin:8px 0 16px}
+.basement-proposal-switch{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:4px;border:1px solid #c9d0be;border-radius:10px;background:#e4e8dc}
+#basement-proposal .basement-proposal-switch button{min-height:44px;padding:10px 12px;border:1px solid transparent;border-radius:7px;background:transparent;color:#405341;font-size:12px;font-weight:600}
+#basement-proposal .basement-proposal-switch button[aria-pressed=true]{background:var(--accent,#34564a);border-color:var(--accent,#34564a);color:#fff;box-shadow:0 2px 5px #25412b1a}
+#basement-proposal .basement-proposal-switch button:hover:not([aria-pressed=true]){background:#faf9f0;color:#263d30}
+#basement-proposal[data-proposed=false] #basement-proposed{background:#f8f7ee;border-color:#a4b393;box-shadow:0 1px 4px #30442512}
+#basement-proposal .basement-proposal-status{display:block;margin:11px 0 0;font-size:11px;line-height:1.45;color:#5b6b52}
+.basement-proposal-details{margin-top:15px;padding-top:15px;border-top:1px solid #ccd3c1}
+#basement-proposal .basement-proposal-size{display:flex;flex-direction:column;gap:4px;margin:0 0 13px;color:#344c3b}
+#basement-proposal .basement-proposal-size strong{display:block;font:23px/1.2 Georgia,serif;font-weight:400;letter-spacing:-.2px}
+#basement-proposal .basement-proposal-size span{font-size:11px;letter-spacing:.015em;color:#61715a}
+.basement-proposal-features{padding:0 0 0 16px;margin:0 0 17px;list-style:disc;font-size:12px;line-height:1.6;color:#3d523f}
+.basement-proposal-features li+li{margin-top:4px}
+.basement-proposal-views{display:grid;grid-template-columns:1fr;gap:7px}
+#basement-proposal .basement-proposal-views button{display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;min-height:44px;padding:10px 12px;font-size:12px;color:#304c3b;border:1px solid #c4ceba;border-radius:8px;background:#faf9f2}
+#basement-proposal .basement-proposal-views button::after{content:'↗';font-size:16px;color:#6e835e}
+#basement-proposal .basement-proposal-views button:hover:not(:disabled){background:#e5ebdc;border-color:#9ead8f}
+#basement-proposal .basement-proposal-views button:disabled{opacity:.45;cursor:default}
+#basement-proposal .basement-plan-link{display:flex;align-items:center;min-height:44px;width:fit-content;padding:8px 0;margin-top:5px;font-size:12px;font-weight:600;color:#315440;text-decoration:underline;text-underline-offset:4px}
+#basement-proposal .basement-plan-link:hover{color:#173c29}
+#basement-proposal .basement-water-note{display:block;font-size:11px;line-height:1.55;margin:10px 0;color:#596b52}
+#basement-proposal .basement-concept-note{display:block;font-size:10px;line-height:1.6;margin:10px 0 0;padding-top:12px;border-top:1px solid #d1d7c6;color:#6a745f}
+#basement-proposal :is(button,a):focus-visible{outline:2px solid var(--accent,#34564a);outline-offset:3px}
+@media(max-width:700px){#basement-proposal{padding:15px;margin-bottom:19px}#basement-proposal h3{font-size:25px}.basement-proposal-views{gap:6px}}
+
+#scene { transition: opacity .2s ease; }
+#scene.basement-transition { opacity: 0; }
+#basement-design-open { min-height:44px; width:100%; border:1px solid #b5bcae; border-radius:9px; background:#e8ece3; color:#354433; padding:12px 16px; text-align:left; cursor:pointer; }
+@media (prefers-reduced-motion:reduce) { #scene { transition:none; } }

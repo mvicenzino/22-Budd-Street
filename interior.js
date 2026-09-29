@@ -3,6 +3,9 @@
 // the interior design choices (flooring, furniture style and placement, rugs, wall colors, kitchen).
 import * as THREE from 'three';
 import {defaultWall} from './paint-plan.js';
+import {BASEMENT_PLAN} from './basement-plan.js';
+import {buildBasementProposal} from './basement-model.js';
+import {buildBasementEquipment} from './basement-equipment.js';
 import {findPath, smooth} from './navigation.js';
 import {openDoorPlacement} from './door-placement.js';
 import {INNER, EYE, LEVELS, GRADE, OPENINGS, PARTITIONS, STAIR, LOFT_STAIR, ROOMS, NODES} from './plan.js';
@@ -550,6 +553,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     add(new THREE.CylinderGeometry(.016,.016,.006,12),steel,[.09,.885,-.18]);
     box(.09,.018,.035,-.09,.421,-.145,porcelain,g);
     box(.09,.018,.035,.09,.421,-.145,porcelain,g);
+    return g;
   }
   function drum(x, y, z, r = .24) {
     const d = new THREE.Mesh(new THREE.CylinderGeometry(r, r, .16, 24, 1, true), mat('#efe6d3', {side: THREE.DoubleSide}));
@@ -803,7 +807,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     bath: {},
     walkin: {},
     landing: {},
-    basement: {layout: 'unfinished', layouts: {unfinished: 'Unfinished, as it is', family: 'Family room with utility closet', office: 'Office and home gym'}},
+    basement: {layout: 'unfinished', layouts: {unfinished: 'Existing basement', bathroom: 'Proposed bathroom + boiler room'}},
     loft: {rug: 'blue', layout: 'back', layouts: {back: 'Bed at the back gable', front: 'Bed at the front gable'}},
   };
   const builders = {
@@ -1142,74 +1146,24 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
         else { const t = floorMat.map.clone(); t.repeat.set(3, 7.5); t.needsUpdate = true; m = new THREE.MeshStandardMaterial({map: t, roughness: .55, color: bf.color}); }
         box(INNER.x * 2 - .02, .01, INNER.z * 2 - .02, 0, y, 0, m).castShadow = false;
       }
-      const duct = mat('#c8ccd0', {metalness: .5, roughness: .4});
-      const furnace = (x, z) => {
-        box(.7, 1.5, .9, x, y, z, steel);
-        box(.35, .35, .35, x, y + 1.5, z, steel);
-        box(.3, F.y - .3 - (y + 1.85), .3, x, y + 1.85, z, duct);
-        box(.2, .12, 1.4, x + .45, F.y - .55, z + .4, duct);
-      };
-      const heater = (x, z) => {
-        const cyl = new THREE.Mesh(new THREE.CylinderGeometry(.28, .28, 1.5, 20), mat('#e9e9e6', {roughness: .5}));
-        cyl.position.set(x, y + .75, z);
-        cyl.castShadow = true;
-        parentGroup.add(cyl);
-        box(.06, F.y - .3 - (y + 1.5), .06, x, y + 1.5, z, steel);
-      };
+      const ownedMat = (color, options) => { const m = mat(color, options); m.userData.basementOwned = true; return m; };
+      if (layout === 'bathroom') {
+        buildBasementProposal({group: parentGroup, box, beam, toilet, mat: ownedMat, palette, trim, steel, porcelain, wallMaterial: paintFor('basement')});
+        buildBasementEquipment({group: parentGroup, box, mat: ownedMat, steel, proposed: true});
+        return;
+      }
       if (!finished) {
-        furnace(-3.4, 2.05);
-        heater(1.0, 3.45);
+        buildBasementEquipment({group: parentGroup, box, mat: ownedMat, steel});
         box(1.8, .06, .6, .9, y + .85, -3.5, palette.woodLight); // workbench on the rear wall
         for (const dx of [-.8, .8]) for (const dz of [-.22, .22]) box(.06, .85, .06, .9 + dx, y, -3.5 + dz, palette.woodLight);
-        for (let i = 0; i < 4; i++) box(1.2, .03, .45, -2.6, y + .3 + i * .45, -3.6, steel); // steel shelving
-        for (const sx of [-.58, .58]) for (const sz of [-.2, .2]) box(.03, 1.8, .03, -2.6 + sx, y, -3.6 + sz, steel);
-        for (const [x, z, w] of [[-2.9, -3.6, .4], [-2.3, -3.6, .35], [-2.6, -3.6, .45]]) box(w, .3, .35, x, y + .33, z, mat('#b89a6a', {roughness: .9}));
+        for (let i = 0; i < 4; i++) box(1.2, .03, .45, 2.6, y + .3 + i * .45, -3.6, steel); // steel shelving
+        for (const sx of [-.58, .58]) for (const sz of [-.2, .2]) box(.03, 1.8, .03, 2.6 + sx, y, -3.6 + sz, steel);
+        for (const [x, z, w] of [[2.9, -3.6, .4], [2.3, -3.6, .35], [2.6, -3.6, .45]]) box(w, .3, .35, x, y + .33, z, mat('#b89a6a', {roughness: .9}));
         box(.9, .35, .5, 2.6, y, 3.4, mat('#4b5a6a', {roughness: .8})); // storage bins by the stairs
         box(.9, .35, .5, 2.6, y + .35, 3.4, mat('#5e6f80', {roughness: .8}));
         return;
       }
-      // Finished layouts: drywall ceiling and a utility closet around the mechanicals in the front-left corner.
-      const wallH = B.ceil - .24 - y, utilPaint = paintFor('basement');
-      box(INNER.x * 2, .02, INNER.z * 2, 0, B.ceil - .24, 0, ceilingPaint).castShadow = false;
-      box(.12, wallH, INNER.z - 1.0, -2.5, y, (INNER.z + 1.0) / 2, utilPaint);
-      box(.6, wallH, .12, -2.8, y, 1.0, utilPaint);
-      box(.55, wallH, .12, -INNER.x + .275, y, 1.0, utilPaint);
-      box(.75, wallH - 2.05, .12, -3.2, y + 2.05, 1.0, utilPaint); // door head
-      furnace(-3.4, 2.4);
-      heater(-3.0, 3.4);
-      if (layout === 'family') {
-        rug(3.2, 2.4, 0, -2.0, y, rugMaterial('cream'));
-        sofa(0, -1.1, 2.4, Math.PI, y);
-        armchair(-1.9, -2.4, Math.PI / 2 + .3, y);
-        box(1.8, .5, .42, 0, y, -3.6, palette.rustic);
-        box(1.6, .92, .04, 0, y + .95, -3.63, black);
-        box(1.1, .12, 1.1, 0, y + .34, -2.4, palette.rustic);
-        box(1.0, .34, 1.0, 0, y, -2.4, palette.rustic);
-        box(2.7, .04, 1.5, 1.6, y + .74, 1.9, mat('#1f4d7a', {roughness: .6})); // ping-pong table
-        box(2.7, .01, .02, 1.6, y + .8, 1.9, trim);
-        for (const dx of [-1.1, 1.1]) for (const dz of [-.55, .55]) box(.06, .74, .06, 1.6 + dx, y, 1.9 + dz, black);
-        for (let i = 0; i < 4; i++) box(1.6, .03, .35, 3.0, y + .35 + i * .45, -2.0, palette.wood); // shelves on the driveway wall
-        lamp(-1.6, -3.4, y);
-        plant(2.2, -3.3, y);
-      } else {
-        rug(2.4, 2.0, -2.2, -2.4, y, rugMaterial('sand'));
-        box(1.5, .04, .7, -2.4, y + .72, -3.35, palette.wood); // desk under the rear cellar window
-        for (const dx of [-.7, .7]) box(.04, .72, .6, -2.4 + dx, y, -3.35, palette.wood);
-        chair(-2.4, -2.75, Math.PI, y);
-        box(.03, .5, .35, -2.4, y + .76, -3.5, black);
-        for (let i = 0; i < 4; i++) box(1.0, .03, .3, -3.6, y + .3 + i * .5, -2.0, palette.wood); // bookshelf
-        for (const sz of [-.48, .48]) box(.03, 2.0, .3, -3.6, y, -2.0 + sz, palette.wood);
-        box(3.2, .02, 2.4, 1.9, y, -1.6, mat('#3b3d40', {roughness: 1})); // gym mat
-        for (const dx of [-.5, .5]) box(.06, 2.1, .06, 2.9 + dx, y, -3.1, black); // squat rack
-        box(1.2, .05, .05, 2.9, y + 1.8, -3.1, black);
-        box(1.2, .05, .05, 2.9, y + 1.0, -3.1, black);
-        box(.8, .5, 1.6, 3.0, y, 1.3, mat('#2b2f31', {roughness: .5})); // treadmill
-        box(.7, .05, 1.3, 3.0, y + .3, 1.3, black);
-        box(.06, .9, .06, 3.0, y + .5, 2.0, black);
-        box(.6, .3, .06, 3.0, y + 1.4, 2.0, black);
-        box(1.1, .45, .35, 1.4, y, -3.2, mat('#3a3a3a', {roughness: .8})); // bench
-        lamp(-3.5, -3.4, y);
-      }
+
     },
     loft(layout, rugMat) {
       if (layout === 'front') {
@@ -1243,7 +1197,12 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       group.add(g);
       roomGroups[id] = g;
     }
-    g.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+    const ownedMaterials = new Set();
+    g.traverse(o => {
+      if (o.geometry) o.geometry.dispose();
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m?.userData.basementOwned) ownedMaterials.add(m);
+    });
+    for (const m of ownedMaterials) { if (m.map?.userData.basementOwned) m.map.dispose(); m.dispose(); }
     g.clear();
     parentGroup = g;
     builders[id](roomChoice(id, 'layout'), rugMaterial(roomChoice(id, 'rug') || 'none'), design);
@@ -1310,10 +1269,13 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
 
   // ---- Navigation graph --------------------------------------------------------------
   const nodeById = byId(NODES);
+  const basementProposed = () => roomChoice('basement', 'layout') === 'bathroom';
+  const activeNode = n => !n.proposal || basementProposed();
+  const activeLinks = n => n.links.filter(link => activeNode(nodeById[link.to]));
   const floorOf = n => n.floor ?? LEVELS[roomById[n.room].level].y;
   const levelOf = n => roomById[n.room].level;
   const roomName = n => roomById[n.room].name;
-  const pathTo = (fromId, toId) => findPath(NODES, fromId, toId);
+  const pathTo = (fromId, toId) => findPath(NODES.filter(activeNode).map(n => ({...n, links: activeLinks(n)})), fromId, toId);
 
   // ---- Arrows and labels -------------------------------------------------------------
   const arrowShape = new THREE.Shape([[0, .3], [.3, -.03], [.14, -.03], [.14, -.3], [-.14, -.3], [-.14, -.03], [-.3, -.03]].map(p => new THREE.Vector2(...p)));
@@ -1332,7 +1294,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   function placeArrows(node) {
     arrows.clear();
     hotspots.replaceChildren();
-    arrowItems = node.links.map(link => {
+    arrowItems = activeLinks(node).map(link => {
       const to = nodeById[link.to];
       const first = link.via ? {x: link.via[0][0], z: link.via[0][1]} : to;
       const dx = first.x - node.x, dz = first.z - node.z, dist = Math.hypot(dx, dz), reach = Math.min(2.1, Math.max(.9, dist * .55));
@@ -1393,8 +1355,15 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       t.textContent = shortName(r.name);
       layer.append(t);
     }
-    for (const n of NODES.filter(n => levelOf(n) === key)) layer.append(svg('circle', {cx: mapX(n.x), cy: mapZ(n.z), r: 2.2, class: 'map-node'}));
+    for (const n of NODES.filter(n => levelOf(n) === key)) layer.append(svg('circle', {cx: mapX(n.x), cy: mapZ(n.z), r: 2.2, class: 'map-node', 'data-map-node': n.id, display: activeNode(n) ? 'inline' : 'none'}));
   }
+  const basementMap = svg('g', {'aria-label': 'Proposed basement walls', display: basementProposed() ? 'inline' : 'none'});
+  for (const [name, r] of [['BATH', BASEMENT_PLAN.bathroom.rect], ['BOILER', BASEMENT_PLAN.utility.rect]]) {
+    basementMap.append(svg('rect', {x: mapX(r[0]), y: mapZ(r[1]), width: (r[2]-r[0])*K, height: (r[3]-r[1])*K, fill: '#d1d8cd', stroke: '#6d796c', 'stroke-width': 1.4}));
+    const label = svg('text', {x: mapX((r[0]+r[2])/2), y: mapZ((r[1]+r[3])/2)+2, 'text-anchor':'middle', 'font-size':5, fill:'#38483c'});
+    label.textContent = name; basementMap.append(label);
+  }
+  levelLayers.basement.append(basementMap);
   const cone = svg('path', {d: 'M0 0 L-9 -17 A19 19 0 0 1 9 -17 Z', class: 'map-cone'});
   const you = svg('circle', {cx: 0, cy: 0, r: 3.2, class: 'map-you'});
   const youGroup = svg('g', {});
@@ -1480,7 +1449,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
   }
   function describeWall(node) {
     if (!node) return;
-    const wall = WALL_BY_ID[roomChoice(node.room, 'wall')];
+    const wall = WALL_BY_ID[node.id === 'basementBathroom' ? 'classicgray' : roomChoice(node.room, 'wall')];
     $('#mode-label').textContent = wall?.code ? `${wall.name} · ${wall.code} / Benjamin Moore` : (wall?.name || 'Take a look around.');
   }
   function settle(node) {
@@ -1576,7 +1545,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     camera.lookAt(overview.target);
   }
   function clipAbove(level) {
-    const lv = LEVELS[level], cut = lv === L ? L.kneeTop + .3 : lv.ceil - .12;
+    const lv = LEVELS[level], cut = lv === L ? L.kneeTop + .3 : level === 'basement' ? B.y + 1.45 : lv.ceil - .12;
     renderer.clippingPlanes = [new THREE.Plane(new THREE.Vector3(0, -1, 0), cut)];
   }
   function enterOverview() {
@@ -1718,7 +1687,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       e.preventDefault();
       const facing = e.key === 'ArrowUp' ? yaw : yaw + Math.PI;
       let best = null, bestDiff = 1.25;
-      for (const link of current.links) {
+      for (const link of activeLinks(current)) {
         const first = link.via ? {x: link.via[0][0], z: link.via[0][1]} : nodeById[link.to];
         const d = yawBetween(current, first) - facing, diff = Math.abs(Math.atan2(Math.sin(d), Math.cos(d)));
         if (diff < bestDiff) { best = link; bestDiff = diff; }
@@ -1756,6 +1725,7 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       const b = document.createElement('button');
       b.type = 'button';
       b.dataset.node = n.id;
+      b.hidden = !activeNode(n);
       b.textContent = n.name || roomName(n);
       b.onclick = () => { walkTo(n.id); $('#interior-panel-close').click(); };
       roomGroup.append(b);
@@ -1771,12 +1741,35 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
       style: id => { applyStyle(id); saveDesign(design); },
       wall: () => { applyWalls(); describeWall(current); saveDesign(design); },
       rug: id => { rebuildRoom(id); saveDesign(design); },
-      layout: id => { rebuildRoom(id); applyWalls(); saveDesign(design); },
+      layout: id => { rebuildRoom(id); applyWalls(); if(id === 'basement') syncBasementLayout(); saveDesign(design); },
       kitchen: () => { rebuildRoom('kitchen'); saveDesign(design); },
       basement: () => { rebuildRoom('basement'); saveDesign(design); },
-      reset: () => { applyAll(); describeWall(current); saveDesign(design); },
+      basementView: view => { if(state !== 'inside' || busy()) return; $('#interior-panel-close').click(); if(view === 'plan') { if(!overview) enterOverview(); } else { if(overview) exitOverview(true); walkTo(view === 'bathroom' ? 'basementBathroom' : 'basementUtility'); } },
+      reset: () => { applyAll(); syncBasementLayout(); describeWall(current); saveDesign(design); },
     },
   });
+  function syncBasementLayout() {
+    basementMap.setAttribute('display', basementProposed() ? 'inline' : 'none');
+    for(const n of NODES.filter(n => n.proposal)) {
+      chips.querySelector(`[data-node="${n.id}"]`).hidden = !activeNode(n);
+      minimap.querySelector(`[data-map-node="${n.id}"]`).setAttribute('display', activeNode(n) ? 'inline' : 'none');
+    }
+    // A comparison may remove the room the viewer is standing in. Return to a clear landing.
+    if(current?.room === 'basement' && state === 'inside') {
+      if(busy()) {
+        queue.length = 0;
+        if(!overview) { camera.position.set(current.x, B.y + EYE, current.z); applyLook(); }
+      }
+      const wasOverview = !!overview;
+      if(current.proposal && !basementProposed()) {
+        exitOverview(true); current = nodeById.basement;
+        camera.position.set(current.x, B.y + EYE, current.z);
+        yaw = yawBetween(current, {x: current.look[0], z: current.look[1]}); pitch = -.12; applyLook();
+      }
+      settle(current);
+      if(wasOverview) { if(!overview) enterOverview(); else { clipAbove('basement'); placeDims(); } }
+    }
+  }
   for (const tab of document.querySelectorAll('.panel-tabs button')) tab.onclick = () => {
     for (const t of document.querySelectorAll('.panel-tabs button')) t.setAttribute('aria-pressed', String(t === tab));
     $('#room-chips').hidden = tab.dataset.tab !== 'rooms';
@@ -1798,6 +1791,27 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     }, done);
   }
 
+  function openBasementDesign() {
+    if(state !== 'outside' || busy()) return;
+    design.rooms.basement = {...design.rooms.basement, layout:'bathroom'};
+    rebuildRoom('basement'); applyWalls(); saveDesign(design); syncBasementLayout();
+    state = 'entering'; controls.enabled = false; document.body.dataset.mode = 'interior';
+    $('#interior-transport').hidden = true; $('#walk-controls').hidden = false;
+    minimap.removeAttribute('hidden'); host.style.cursor = 'grab'; onEnter?.();
+    current = nodeById.basement; yaw = yawBetween(current, {x: current.look[0], z: current.look[1]}); pitch = -.12; fov = 62;
+    // The shortcut changes floors under a short fade; walking routes remain physical.
+    host.classList.add('basement-transition');
+    tween(.2, () => {}, () => {
+      camera.position.set(current.x, B.y + EYE, current.z); applyLook();
+      camera.fov = fov; camera.updateProjectionMatrix(); glassLower.opacity = .22;
+      for(const l of lights) l.intensity = l.userData.max;
+      hemisphere.groundColor.copy(groundInside); hemisphere.intensity = skyInside;
+      state = 'inside'; markRoom('basement'); showLevel('basement'); settle(current);
+      host.classList.remove('basement-transition');
+      document.querySelector('[data-tab="design"]').click();
+      $('#interior-panel-open').click(); $('#design-panel').scrollTop = 0;
+    });
+  }
   function enter() {
     if (state !== 'outside') return;
     state = 'entering';
@@ -1920,5 +1934,5 @@ export function createInterior({scene, camera, renderer, host, controls, doors, 
     }
   }
 
-  return {get active() { return state !== 'outside'; }, get navigation() { return navigationState(); }, group, enter, exit, walkTo, update,beginCinema,cinemaFrame,endCinema};
+  return {get active() { return state !== 'outside'; }, get navigation() { return navigationState(); }, group, enter, exit, walkTo, openBasementDesign, update,beginCinema,cinemaFrame,endCinema};
 }
